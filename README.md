@@ -6,8 +6,6 @@ The runtime exposes a loopback HTTP API, reads window screenshots and Accessibil
 
 At rough parity with OpenAI Codex Computer Use plugin 
 
-[![BackgroundComputerUse demo](https://img.youtube.com/vi/RmB5Ontqb3Y/hqdefault.jpg)](https://youtu.be/RmB5Ontqb3Y)
-
 [Watch the demo](https://youtu.be/RmB5Ontqb3Y)
 
 ## Start
