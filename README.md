@@ -6,6 +6,8 @@ The runtime exposes a loopback HTTP API, reads window screenshots and Accessibil
 
 At rough parity with OpenAI Codex Computer Use plugin 
 
+<video src="./Demo.mov" controls muted playsinline width="100%"></video>
+
 ## Start
 
 ```bash
@@ -69,6 +71,8 @@ For visual work, request screenshots with `imageMode: "path"` or `imageMode: "ba
 ## Routes
 
 `GET /v1/routes` is the self-documenting API catalog. It returns each route's method, path, summary, request schema, and response schema.
+
+Action responses omit verbose implementation `notes` by default. Add `"debug": true` to action requests when you want transport/planner notes for debugging.
 
 Core routes:
 
@@ -146,6 +150,8 @@ Use the optional `cursor` object on action routes to show an on-screen agent cur
 ```json
 {"id":"agent-1","name":"Agent","color":"#20C46B"}
 ```
+
+Cursors are session-based. Reuse the same `cursor.id` across related actions to move the same on-screen cursor continuously; use different IDs for independent agents or lanes.
 
 ## License
 

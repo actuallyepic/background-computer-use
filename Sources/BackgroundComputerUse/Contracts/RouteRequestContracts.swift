@@ -1,5 +1,9 @@
 import Foundation
 
+protocol DebugNotesRequest {
+    var debug: Bool? { get }
+}
+
 struct ListAppsRequest: Decodable {}
 
 struct ListWindowsRequest: Decodable {
@@ -36,6 +40,7 @@ struct ClickRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
 
 struct ScrollRequest: Decodable {
@@ -49,6 +54,7 @@ struct ScrollRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
 
 struct PerformSecondaryActionRequest: Decodable {
@@ -63,6 +69,7 @@ struct PerformSecondaryActionRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
 
 struct DragRequest: Decodable {
@@ -100,6 +107,7 @@ struct TypeTextRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
 
 struct PressKeyRequest: Decodable {
@@ -110,6 +118,7 @@ struct PressKeyRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
 
 struct SetValueRequest: Decodable {
@@ -121,4 +130,12 @@ struct SetValueRequest: Decodable {
     let includeMenuBar: Bool?
     let maxNodes: Int?
     let imageMode: ImageMode?
+    let debug: Bool?
 }
+
+extension ClickRequest: DebugNotesRequest {}
+extension ScrollRequest: DebugNotesRequest {}
+extension PerformSecondaryActionRequest: DebugNotesRequest {}
+extension TypeTextRequest: DebugNotesRequest {}
+extension PressKeyRequest: DebugNotesRequest {}
+extension SetValueRequest: DebugNotesRequest {}

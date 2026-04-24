@@ -329,7 +329,8 @@ enum RouteRegistry {
                 field("cursor", "CursorRequest"),
                 field("includeMenuBar", "boolean"),
                 field("maxNodes", "integer"),
-                field("imageMode", "path | base64 | omit")
+                field("imageMode", "path | base64 | omit"),
+                debugField()
             ])
         case RouteID.performSecondaryAction.rawValue:
             return json([
@@ -343,7 +344,8 @@ enum RouteRegistry {
                 field("cursor", "CursorRequest"),
                 field("includeMenuBar", "boolean"),
                 field("maxNodes", "integer"),
-                field("imageMode", "path | base64 | omit")
+                field("imageMode", "path | base64 | omit"),
+                debugField()
             ])
         case RouteID.drag.rawValue:
             return json([
@@ -380,7 +382,8 @@ enum RouteRegistry {
                 field("cursor", "CursorRequest"),
                 field("includeMenuBar", "boolean"),
                 field("maxNodes", "integer"),
-                field("imageMode", "path | base64 | omit")
+                field("imageMode", "path | base64 | omit"),
+                debugField()
             ])
         case RouteID.pressKey.rawValue:
             return json([
@@ -390,7 +393,8 @@ enum RouteRegistry {
                 field("cursor", "CursorRequest"),
                 field("includeMenuBar", "boolean"),
                 field("maxNodes", "integer"),
-                field("imageMode", "path | base64 | omit")
+                field("imageMode", "path | base64 | omit"),
+                debugField()
             ])
         case RouteID.setValue.rawValue:
             return json([
@@ -401,7 +405,8 @@ enum RouteRegistry {
                 field("cursor", "CursorRequest"),
                 field("includeMenuBar", "boolean"),
                 field("maxNodes", "integer"),
-                field("imageMode", "path | base64 | omit")
+                field("imageMode", "path | base64 | omit"),
+                debugField()
             ])
         default:
             return nil
@@ -515,7 +520,8 @@ enum RouteRegistry {
             field("cursor", "CursorRequest"),
             field("includeMenuBar", "boolean"),
             field("maxNodes", "integer"),
-            field("imageMode", "path | base64 | omit")
+            field("imageMode", "path | base64 | omit"),
+            debugField()
         ])
     }
 
@@ -544,7 +550,7 @@ enum RouteRegistry {
             field("frontmostBundleBeforeDispatch", "string | null"),
             field("frontmostBundleAfter", "string | null"),
             field("warnings", "string[]", required: true),
-            field("notes", "string[]", required: true),
+            debugNotesField(),
             field("verification", "ClickVerification | null")
         ])
     }
@@ -565,7 +571,7 @@ enum RouteRegistry {
             field("semanticReasons", "string[]", required: true),
             field("liveElementResolution", "string | null"),
             field("warnings", "string[]", required: true),
-            field("notes", "string[]", required: true),
+            debugNotesField(),
             field("verification", type + ".verification | null")
         ]
 
@@ -597,7 +603,7 @@ enum RouteRegistry {
             field("postStateToken", "string | null"),
             field("cursor", "ActionCursorTarget", required: true),
             field("warnings", "string[]", required: true),
-            field("notes", "string[]", required: true),
+            debugNotesField(),
             field("verification", "PressKeyVerification | null", "Includes route-specific search, selection, text-state, selection-summary, and visual-diff evidence when available.")
         ])
     }
@@ -626,7 +632,7 @@ enum RouteRegistry {
             field("frontmostBundleBeforeDispatch", "string | null"),
             field("frontmostBundleAfter", "string | null"),
             field("warnings", "string[]", required: true),
-            field("notes", "string[]", required: true),
+            debugNotesField(),
             field("verification", "ScrollVerificationSummary | null"),
             field("verificationReads", "ScrollVerificationRead[]", required: true)
         ])
@@ -652,7 +658,7 @@ enum RouteRegistry {
             field("postState", "AXPipelineV2Response | null"),
             field("cursor", "ActionCursorTarget", required: true),
             field("warnings", "string[]", required: true),
-            field("notes", "string[]", required: true),
+            debugNotesField(),
             field("verification", "SecondaryActionVerification | null", required: false, "Effect-specific verifier evidence. Prefer imageMode with screenshots when visible UI interpretation matters.")
         ])
     }
@@ -674,6 +680,25 @@ enum RouteRegistry {
             required: required,
             description: description,
             defaultValue: defaultValue
+        )
+    }
+
+    private static func debugField() -> RouteFieldDTO {
+        field(
+            "debug",
+            "boolean",
+            required: false,
+            "When true, include verbose implementation notes in action responses.",
+            defaultValue: "false"
+        )
+    }
+
+    private static func debugNotesField() -> RouteFieldDTO {
+        field(
+            "notes",
+            "string[]",
+            required: false,
+            "Verbose implementation notes. Present only when the request includes debug: true."
         )
     }
 

@@ -243,7 +243,10 @@ struct Router {
             let coordinatedResponse = try coordinator.execute(route: route, target: routeTarget) {
                 try work(payload)
             }
-            return .json(coordinatedResponse)
+            return .json(
+                coordinatedResponse,
+                includeDebugNotes: includeDebugNotes(for: routeID, payload: payload)
+            )
         } catch {
             if error is DecodingError {
                 return .json(
@@ -283,6 +286,23 @@ struct Router {
                 statusCode: 400,
                 reasonPhrase: "Bad Request"
             )
+        }
+    }
+
+    private func includeDebugNotes<Request>(for routeID: RouteID, payload: Request) -> Bool {
+        guard isActionRoute(routeID),
+              let debugRequest = payload as? DebugNotesRequest else {
+            return true
+        }
+        return debugRequest.debug == true
+    }
+
+    private func isActionRoute(_ routeID: RouteID) -> Bool {
+        switch routeID {
+        case .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue:
+            return true
+        default:
+            return false
         }
     }
 

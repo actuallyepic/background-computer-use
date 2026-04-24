@@ -124,11 +124,13 @@ struct HTTPResponse {
     static func json<T: Encodable>(
         _ value: T,
         statusCode: Int = 200,
-        reasonPhrase: String = "OK"
+        reasonPhrase: String = "OK",
+        includeDebugNotes: Bool = true
     ) -> HTTPResponse {
         let body: Data
         do {
-            body = try JSONSupport.encoder.encode(value)
+            let encoded = try JSONSupport.encoder.encode(value)
+            body = includeDebugNotes ? encoded : try stripDebugNotes(from: encoded)
         } catch {
             let message = "Failed to encode \(String(describing: T.self)): \(error)"
             return HTTPResponse(
@@ -167,5 +169,30 @@ struct HTTPResponse {
             ],
             body: Data(value.utf8)
         )
+    }
+
+    private static func stripDebugNotes(from data: Data) throws -> Data {
+        let json = try JSONSerialization.jsonObject(with: data)
+        let stripped = stripDebugNotes(from: json)
+        return try JSONSerialization.data(
+            withJSONObject: stripped,
+            options: [.prettyPrinted, .sortedKeys]
+        )
+    }
+
+    private static func stripDebugNotes(from value: Any) -> Any {
+        if let dictionary = value as? [String: Any] {
+            var stripped: [String: Any] = [:]
+            for (key, child) in dictionary where key != "notes" {
+                stripped[key] = stripDebugNotes(from: child)
+            }
+            return stripped
+        }
+
+        if let array = value as? [Any] {
+            return array.map(stripDebugNotes(from:))
+        }
+
+        return value
     }
 }
