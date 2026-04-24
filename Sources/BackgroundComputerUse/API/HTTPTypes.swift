@@ -133,6 +133,14 @@ struct HTTPResponse {
             body = includeDebugNotes ? encoded : try stripDebugNotes(from: encoded)
         } catch {
             let message = "Failed to encode \(String(describing: T.self)): \(error)"
+            let fallback = ErrorResponse(
+                error: "encoding_failure",
+                message: message,
+                requestID: UUID().uuidString,
+                recovery: ["The server could not serialize the response. Keep the requestID and report this as a runtime bug."]
+            )
+            let fallbackBody = (try? JSONSupport.encoder.encode(fallback))
+                ?? Data("{\"contractVersion\":\"\(ContractVersion.current)\",\"ok\":false,\"error\":\"encoding_failure\",\"message\":\"Failed to encode response.\",\"requestID\":\"unknown\",\"recovery\":[]}".utf8)
             return HTTPResponse(
                 statusCode: 500,
                 reasonPhrase: "Internal Server Error",
@@ -140,7 +148,7 @@ struct HTTPResponse {
                     "Cache-Control": "no-store",
                     "Content-Type": "application/json; charset=utf-8"
                 ],
-                body: Data("{\"error\":\"encoding_failure\",\"message\":\"\(message)\"}".utf8)
+                body: fallbackBody
             )
         }
 

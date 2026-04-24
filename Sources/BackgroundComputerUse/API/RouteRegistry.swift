@@ -284,8 +284,12 @@ enum RouteRegistry {
             category: descriptor.category,
             summary: descriptor.summary,
             notes: descriptor.notes,
+            execution: descriptor.execution,
+            implementationStatus: descriptor.implementationStatus,
+            usage: APIDocumentation.usage(for: descriptor.id),
             request: requestSchema(for: descriptor.id),
-            response: responseSchema(for: descriptor.id)
+            response: responseSchema(for: descriptor.id),
+            errors: APIDocumentation.errors(for: descriptor.id)
         )
     }
 
@@ -428,11 +432,13 @@ enum RouteRegistry {
                 field("startedAt", "string | null", required: true),
                 field("permissions", "RuntimePermissions", required: true),
                 field("instructions", "BootstrapInstructions", required: true),
+                field("guide", "APIGuide", required: true, "High-level operating flow, common concepts, response interpretation, and troubleshooting guidance."),
                 field("routes", "BootstrapRoute[]", required: true)
             ])
         case RouteID.routes.rawValue:
             return json([
                 field("contractVersion", "string", required: true),
+                field("guide", "APIGuide", required: true, "High-level operating flow, common concepts, response interpretation, and troubleshooting guidance."),
                 field("routes", "APIRoute[]", required: true)
             ])
         case RouteID.listApps.rawValue:

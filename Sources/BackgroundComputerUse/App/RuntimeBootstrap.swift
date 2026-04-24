@@ -38,6 +38,7 @@ final class RuntimeBootstrap: @unchecked Sendable {
             startedAt: Time.iso8601String(from: startedAt),
             permissions: permissions,
             instructions: instructions,
+            guide: APIDocumentation.guide,
             routes: RouteRegistry.bootstrapRouteDescriptors(baseURL: baseURL)
         )
         try JSONSupport.encoder.encode(manifest).write(to: manifestURL, options: .atomic)

@@ -28,6 +28,35 @@ struct RouteBodySchemaDTO: Encodable {
     let fields: [RouteFieldDTO]
 }
 
+struct APIConceptDTO: Encodable {
+    let name: String
+    let description: String
+    let fields: [RouteFieldDTO]?
+}
+
+struct APIGuideDTO: Encodable {
+    let summary: String
+    let flow: [String]
+    let concepts: [APIConceptDTO]
+    let responseReading: [String]
+    let troubleshooting: [String]
+}
+
+struct RouteUsageDTO: Encodable {
+    let whenToUse: String
+    let useAfter: [String]
+    let successSignals: [String]
+    let nextSteps: [String]
+    let exampleRequest: String?
+}
+
+struct RouteErrorDTO: Encodable {
+    let statusCode: Int
+    let error: String
+    let meaning: String
+    let recovery: [String]
+}
+
 struct APIRouteDTO: Encodable {
     let id: String
     let method: String
@@ -35,8 +64,12 @@ struct APIRouteDTO: Encodable {
     let category: String
     let summary: String
     let notes: [String]
+    let execution: RouteExecutionPolicyDTO
+    let implementationStatus: RouteImplementationStatusDTO
+    let usage: RouteUsageDTO
     let request: RouteBodySchemaDTO?
     let response: RouteBodySchemaDTO
+    let errors: [RouteErrorDTO]
 }
 
 struct PermissionStatusDTO: Encodable {
@@ -64,6 +97,7 @@ struct BootstrapResponse: Encodable {
     let startedAt: String?
     let permissions: RuntimePermissionsDTO
     let instructions: BootstrapInstructionsDTO
+    let guide: APIGuideDTO
     let routes: [BootstrapRouteDTO]
 }
 
@@ -73,16 +107,37 @@ struct RuntimeManifestDTO: Encodable {
     let startedAt: String
     let permissions: RuntimePermissionsDTO
     let instructions: BootstrapInstructionsDTO
+    let guide: APIGuideDTO
     let routes: [BootstrapRouteDTO]
 }
 
 struct RouteListResponse: Encodable {
     let contractVersion: String
+    let guide: APIGuideDTO
     let routes: [APIRouteDTO]
 }
 
 struct ErrorResponse: Encodable {
+    let contractVersion: String
+    let ok: Bool
     let error: String
     let message: String
     let requestID: String
+    let recovery: [String]
+
+    init(
+        error: String,
+        message: String,
+        requestID: String,
+        recovery: [String] = [],
+        contractVersion: String = ContractVersion.current,
+        ok: Bool = false
+    ) {
+        self.contractVersion = contractVersion
+        self.ok = ok
+        self.error = error
+        self.message = message
+        self.requestID = requestID
+        self.recovery = recovery
+    }
 }

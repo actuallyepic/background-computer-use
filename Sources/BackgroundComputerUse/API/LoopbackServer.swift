@@ -137,7 +137,11 @@ final class LoopbackServer: @unchecked Sendable {
             ErrorResponse(
                 error: "bad_request",
                 message: message,
-                requestID: UUID().uuidString
+                requestID: UUID().uuidString,
+                recovery: [
+                    "Send a complete HTTP/1.1 request with a valid request line, headers, and Content-Length.",
+                    "For POST routes, send Content-Type: application/json and a JSON object body."
+                ]
             ),
             statusCode: 400,
             reasonPhrase: "Bad Request"
