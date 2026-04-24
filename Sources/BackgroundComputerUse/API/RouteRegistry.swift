@@ -51,10 +51,15 @@ enum RouteRegistry {
                 mainThreadBehavior: .avoid,
                 readActRead: false,
                 allowsConcurrentClients: true,
-                notes: ["Bootstrap is transport-only and should never depend on AX state or foreground interaction."]
+                notes: [
+                    "Agents should call bootstrap first to confirm the runtime URL, permissions, and launch readiness.",
+                    "When Accessibility or Screen Recording is missing, bootstrap returns user-facing instructions and presents a local permission alert."
+                ]
             ),
             implementationStatus: .implemented,
-            notes: RuntimeMetadata.systemRouteNotes
+            notes: RuntimeMetadata.systemRouteNotes + [
+                "Call this before action routes. If instructions.ready is false, pause action attempts until the user grants the requested macOS permissions and relaunches the signed app bundle."
+            ]
         ),
         RouteDescriptorDTO(
             id: RouteID.routes.rawValue,
@@ -69,10 +74,16 @@ enum RouteRegistry {
                 mainThreadBehavior: .avoid,
                 readActRead: false,
                 allowsConcurrentClients: true,
-                notes: ["The route registry is the machine-readable source of truth for route shape during scaffolding."]
+                notes: [
+                    "The route registry is the machine-readable source of truth for request and response shapes.",
+                    "Call /v1/bootstrap first, then use /v1/routes to plan action calls."
+                ]
             ),
             implementationStatus: .implemented,
-            notes: RuntimeMetadata.systemRouteNotes
+            notes: RuntimeMetadata.systemRouteNotes + [
+                "For visual work, call get_window_state with imageMode path or base64 whenever possible and inspect screenshots before and after actions.",
+                "Use AX tree nodes for semantic targets, but treat screenshots as the visual ground truth because AX trees and verifier summaries can lag, be incomplete, or miss purely visual state."
+            ]
         ),
         RouteDescriptorDTO(
             id: RouteID.listApps.rawValue,
@@ -167,7 +178,7 @@ enum RouteRegistry {
             execution: actionPolicy(lane: .windowWrite, mainThreadBehavior: .avoid),
             implementationStatus: .implemented,
             notes: [
-                "Matches the Computer Use plugin contract shape: target element plus exact public secondary-action label.",
+                "Dispatches a target element plus exact public secondary-action label.",
                 "Dispatch is AX-only through captured action bindings; no LaunchServices, shell open, primary click, typing, keypress, or file-open fallback is used.",
                 "Outcome classification is verifier-first. transports[].rawAXStatus is diagnostic AX telemetry and can report an error even when the requested effect verifies."
             ]
@@ -272,6 +283,7 @@ enum RouteRegistry {
             path: descriptor.path,
             category: descriptor.category,
             summary: descriptor.summary,
+            notes: descriptor.notes,
             request: requestSchema(for: descriptor.id),
             response: responseSchema(for: descriptor.id)
         )
@@ -410,6 +422,7 @@ enum RouteRegistry {
                 field("baseURL", "string | null", required: true),
                 field("startedAt", "string | null", required: true),
                 field("permissions", "RuntimePermissions", required: true),
+                field("instructions", "BootstrapInstructions", required: true),
                 field("routes", "BootstrapRoute[]", required: true)
             ])
         case RouteID.routes.rawValue:

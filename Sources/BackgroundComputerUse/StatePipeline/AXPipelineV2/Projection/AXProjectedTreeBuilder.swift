@@ -558,7 +558,7 @@ private final class ProjectionContext {
                     verificationHint: verificationHint(category: action.category, label: label),
                     notes: expose
                         ? ["Projected from visible raw AX action label."]
-                        : ["Raw action retained as transport evidence but hidden from public secondaryActions for plugin parity."],
+                        : ["Raw action retained as transport evidence but hidden from public secondaryActions for API consistency."],
                     rawActions: rawActions,
                     dispatchTarget: nil,
                     sourceAffordance: nil,

@@ -34,6 +34,7 @@ struct APIRouteDTO: Encodable {
     let path: String
     let category: String
     let summary: String
+    let notes: [String]
     let request: RouteBodySchemaDTO?
     let response: RouteBodySchemaDTO
 }
@@ -50,11 +51,19 @@ struct RuntimePermissionsDTO: Encodable {
     let checkMs: Double
 }
 
+struct BootstrapInstructionsDTO: Encodable {
+    let ready: Bool
+    let summary: String
+    let agent: [String]
+    let user: [String]
+}
+
 struct BootstrapResponse: Encodable {
     let contractVersion: String
     let baseURL: String?
     let startedAt: String?
     let permissions: RuntimePermissionsDTO
+    let instructions: BootstrapInstructionsDTO
     let routes: [BootstrapRouteDTO]
 }
 
@@ -63,6 +72,7 @@ struct RuntimeManifestDTO: Encodable {
     let baseURL: String
     let startedAt: String
     let permissions: RuntimePermissionsDTO
+    let instructions: BootstrapInstructionsDTO
     let routes: [BootstrapRouteDTO]
 }
 

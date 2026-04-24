@@ -33,12 +33,15 @@ struct Router {
 
         case (.get, "/v1/bootstrap"):
             let permissions = RuntimePermissionsSnapshot.current().dto
+            let instructions = RuntimePermissionInstructions.make(permissions: permissions, baseURL: context.baseURL)
+            RuntimePermissionPresenter.showIfNeeded(permissions: permissions, instructions: instructions)
             return .json(
                 BootstrapResponse(
                     contractVersion: ContractVersion.current,
                     baseURL: context.baseURL?.absoluteString,
                     startedAt: context.startedAt.map(Time.iso8601String),
                     permissions: permissions,
+                    instructions: instructions,
                     routes: context.baseURL.map(RouteRegistry.bootstrapRouteDescriptors(baseURL:)) ?? []
                 )
             )

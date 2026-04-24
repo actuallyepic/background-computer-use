@@ -31,11 +31,13 @@ final class RuntimeBootstrap: @unchecked Sendable {
 
         let manifestURL = directory.appendingPathComponent("runtime-manifest.json")
         let permissions = RuntimePermissionsSnapshot.current().dto
+        let instructions = RuntimePermissionInstructions.make(permissions: permissions, baseURL: baseURL)
         let manifest = RuntimeManifestDTO(
             contractVersion: ContractVersion.current,
             baseURL: baseURL.absoluteString,
             startedAt: Time.iso8601String(from: startedAt),
             permissions: permissions,
+            instructions: instructions,
             routes: RouteRegistry.bootstrapRouteDescriptors(baseURL: baseURL)
         )
         try JSONSupport.encoder.encode(manifest).write(to: manifestURL, options: .atomic)

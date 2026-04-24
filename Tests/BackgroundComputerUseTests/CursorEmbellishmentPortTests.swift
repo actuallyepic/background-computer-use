@@ -12,13 +12,13 @@ final class CursorEmbellishmentPortTests: XCTestCase {
         XCTAssertEqual(tuning.arcSize, 0.42, accuracy: 0.0001)
         XCTAssertEqual(tuning.arcFlow, 0.72, accuracy: 0.0001)
         XCTAssertEqual(tuning.baseDurationMilliseconds, 1280, accuracy: 0.0001)
-        XCTAssertEqual(CursorMotionConstants.speedMultiplier, 1.35, accuracy: 0.0001)
+        XCTAssertEqual(CursorMotionConstants.speedMultiplier, 1.45, accuracy: 0.0001)
         XCTAssertEqual(CursorMotionConstants.rotationStiffness, 60, accuracy: 0.0001)
         XCTAssertEqual(CursorMotionConstants.rotationDamping, 10, accuracy: 0.0001)
         XCTAssertEqual(CursorMotionConstants.rotationLookAhead, 0, accuracy: 0.0001)
         XCTAssertEqual(CursorPivotKind.tip.pathPoint, .zero)
 
-        let base = 1.280 / 1.35
+        let base = 1.280 / 1.45
         XCTAssertEqual(MotionPacing.transitDuration(for: 520), base, accuracy: 0.0001)
         XCTAssertEqual(MotionPacing.transitDuration(for: 1), max(0.42, base * 0.55), accuracy: 0.0001)
         XCTAssertEqual(MotionPacing.transitDuration(for: 2_000), base * 1.80, accuracy: 0.0001)
