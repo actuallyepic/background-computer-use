@@ -1,5 +1,18 @@
 import ApplicationServices
+import Foundation
 import QuartzCore
+
+private let windowMotionAXMessagingTimeout: Float = 0.05
+private let projectionObserverEnvironmentKey = "BACKGROUND_COMPUTER_USE_WINDOW_MOTION_OBSERVER"
+
+private func projectionObserverEnabled() -> Bool {
+    guard let rawValue = ProcessInfo.processInfo.environment[projectionObserverEnvironmentKey]?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased() else {
+        return false
+    }
+    return ["1", "true", "yes", "on"].contains(rawValue)
+}
 
 struct WindowMotionBackendProjectionResult {
     let rawStatus: String
@@ -220,6 +233,8 @@ struct AXFrameProjectionBackend: WindowMotionExecutionBackend {
         animate: Bool,
         projection: WindowMotionExecutionProjection
     ) -> WindowMotionBackendProjectionResult {
+        AXHelpers.setMessagingTimeout(element, seconds: windowMotionAXMessagingTimeout)
+
         let started = DispatchTime.now().uptimeNanoseconds
         let result = performFrameChange(
             element: element,
@@ -306,7 +321,7 @@ struct AXFrameProjectionBackend: WindowMotionExecutionBackend {
         let targetFrameRate = 60.0
         let frameInterval = 1.0 / targetFrameRate
         let loopStartedAt = CACurrentMediaTime()
-        let observer = ProjectionObserverMonitor(element: element)
+        let observer = projectionObserverEnabled() ? ProjectionObserverMonitor(element: element) : nil
         var nextSampleTime = loopStartedAt
         var lastPositionStatus: AXError = .success
         var lastSizeStatus: AXError = .success

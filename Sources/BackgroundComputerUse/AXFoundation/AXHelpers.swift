@@ -25,6 +25,10 @@ enum AXHelpers {
         return app
     }
 
+    static func setMessagingTimeout(_ element: AXUIElement, seconds: Float) {
+        AXUIElementSetMessagingTimeout(element, seconds)
+    }
+
     static func copyAttributeValue(_ element: AXUIElement, attribute: CFString) -> CFTypeRef? {
         var value: CFTypeRef?
         return AXUIElementCopyAttributeValue(element, attribute, &value) == .success ? value : nil

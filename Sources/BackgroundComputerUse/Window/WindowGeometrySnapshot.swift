@@ -14,6 +14,7 @@ struct WindowGeometrySnapshotService {
     func snapshot(windowID: String) throws -> WindowGeometrySnapshot {
         let frontmostBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let resolved = try resolver.resolve(windowID: windowID)
+        AXHelpers.setMessagingTimeout(resolved.window.element, seconds: 0.05)
         let liveFrame = AXHelpers.frame(resolved.window.element) ?? resolved.window.frameAppKit
 
         return WindowGeometrySnapshot(
