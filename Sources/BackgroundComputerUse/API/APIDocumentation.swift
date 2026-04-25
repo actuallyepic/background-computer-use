@@ -177,7 +177,7 @@ enum APIDocumentation {
                 whenToUse: "Send a key or key chord to the target window, including semantic shortcuts like command+f where supported.",
                 useAfter: ["Call get_window_state when you need to verify focus, selection, or text effects."],
                 successSignals: ["ok=true and action.route plus verification explain whether a semantic or native key path worked."],
-                nextSteps: ["Read state again when the key may open UI, move focus, or change text."],
+                nextSteps: ["Read state again when the key may open UI, move focus, or change text.", "If native key delivery is attempted but no effect is verified, first perform a safe click in the target content surface, then retry press_key."],
                 exampleRequest: #"{"window":"WINDOW_ID","stateToken":"STATE_TOKEN","key":"command+f","imageMode":"path"}"#
             )
         case .setValue:

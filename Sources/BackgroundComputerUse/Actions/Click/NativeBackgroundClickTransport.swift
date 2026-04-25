@@ -65,7 +65,8 @@ final class NativeBackgroundClickTransport {
             throw ClickTransportError.unsupported("Native background clicks support only explicit single or double click.")
         }
 
-        let focusStatus = try focusTargetWithoutRaise(target: request.target)
+        let preparation = try prepareTargetWindowForInput(target: request.target)
+        let focusStatus = preparation.targetFocusStatus ?? -1
         usleep(50_000)
 
         let events = makeEventSequence(request: request)
@@ -89,7 +90,7 @@ final class NativeBackgroundClickTransport {
             ownerConnection: request.target.ownerConnection,
             processSerialNumberPacked: request.target.processSerialNumberPacked,
             focusStatus: focusStatus,
-            notes: [
+            notes: preparation.notes + [
                 "Target-only SLPSPostEventRecordTo focus-without-raise status=\(focusStatus).",
                 "Posted one target-local move, one offscreen primer down/up at (-1, -1), then \(request.clickCount) explicit target click(s) through SLEventPostToPid.",
                 "Stamped pid, window number, PSN, owner connection, and window-local location on all native click events.",
@@ -98,34 +99,18 @@ final class NativeBackgroundClickTransport {
         )
     }
 
-    private func focusTargetWithoutRaise(target: RoutedClickTarget) throws -> Int32 {
-        var targetPSN = [UInt32](repeating: 0, count: 2)
-        let psnStatus = targetPSN.withUnsafeMutableBytes { raw in
-            NativeClickSymbols.getProcessForPID(target.pid, raw.baseAddress!)
-        }
-        guard psnStatus == 0 else {
+    private func prepareTargetWindowForInput(target: RoutedClickTarget) throws -> NativeWindowServerPreparationResult {
+        let preparation = NativeWindowServerPreparation.targetOnlyFocus(
+            pid: target.pid,
+            windowNumber: target.windowNumber
+        )
+        if let psnStatus = preparation.psnStatus, psnStatus != 0 {
             throw ClickTransportError.transportFailed("GetProcessForPID status=\(psnStatus) for pid \(target.pid).")
         }
-
-        var record = [UInt8](repeating: 0, count: 0xF8)
-        record[0x04] = 0xF8
-        record[0x08] = 0x0D
-        let windowID = UInt32(target.windowNumber)
-        record[0x3C] = UInt8(windowID & 0xFF)
-        record[0x3D] = UInt8((windowID >> 8) & 0xFF)
-        record[0x3E] = UInt8((windowID >> 16) & 0xFF)
-        record[0x3F] = UInt8((windowID >> 24) & 0xFF)
-        record[0x8A] = 0x01
-
-        let focusStatus = targetPSN.withUnsafeBytes { psnRaw in
-            record.withUnsafeBufferPointer { bytes in
-                NativeClickSymbols.slpsPostEventRecordTo(psnRaw.baseAddress!, bytes.baseAddress!)
-            }
+        guard preparation.preparedTargetWindow(requireKeyWindowRecords: false) else {
+            throw ClickTransportError.transportFailed("SLPSPostEventRecordTo target-only focus failed: \(preparation.rawStatus).")
         }
-        guard focusStatus == 0 else {
-            throw ClickTransportError.transportFailed("SLPSPostEventRecordTo target-only focus status=\(focusStatus).")
-        }
-        return focusStatus
+        return preparation
     }
 
     private func makeEventSequence(request: NativeBackgroundClickDispatchRequest) -> [CGEvent] {
@@ -359,8 +344,6 @@ private enum NativeClickSymbols {
     static let slEventPostToPid = loadRequired("SLEventPostToPid", as: SLEventPostToPidFn.self)
     static let slEventSetIntegerValueField = loadRequired("SLEventSetIntegerValueField", as: SLEventSetIntegerValueFieldFn.self)
     static let cgEventSetWindowLocation = loadRequired("CGEventSetWindowLocation", as: CGEventSetWindowLocationFn.self)
-    static let slpsPostEventRecordTo = loadRequired("SLPSPostEventRecordTo", as: SLPSPostEventRecordToFn.self)
-    static let getProcessForPID = loadRequired("GetProcessForPID", as: GetProcessForPIDFn.self)
 
     private static func loadRequired<T>(_ name: String, as _: T.Type) -> T {
         _ = loadedSkyLight
@@ -377,8 +360,6 @@ private typealias CGSGetConnectionPSNFn = @convention(c) (Int32, UnsafeMutablePo
 private typealias SLEventPostToPidFn = @convention(c) (pid_t, CGEvent) -> Void
 private typealias SLEventSetIntegerValueFieldFn = @convention(c) (CGEvent, UInt32, Int64) -> Void
 private typealias CGEventSetWindowLocationFn = @convention(c) (CGEvent, CGPoint) -> Void
-private typealias SLPSPostEventRecordToFn = @convention(c) (UnsafeRawPointer, UnsafePointer<UInt8>) -> Int32
-private typealias GetProcessForPIDFn = @convention(c) (pid_t, UnsafeMutableRawPointer) -> Int32
 
 private func setRawInteger(_ event: CGEvent, _ rawField: UInt32, _ value: Int64) {
     guard let field = CGEventField(rawValue: rawField) else { return }

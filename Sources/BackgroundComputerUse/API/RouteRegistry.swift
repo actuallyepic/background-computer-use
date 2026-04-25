@@ -235,8 +235,9 @@ enum RouteRegistry {
             execution: actionPolicy(lane: .windowWrite, mainThreadBehavior: .avoid),
             implementationStatus: .implemented,
             notes: [
-                "Routes high-level chords through semantic AX operations when a generic, window-local equivalent can be verified, then falls back to native CGEvent postToPid key delivery.",
-                "The response reports the actual route used so callers can distinguish semantic actions from native key dispatch."
+                "Routes high-level chords through semantic AX operations when a generic, window-local equivalent can be verified, then falls back to WindowServer target-window preflight plus native CGEvent postToPid key delivery.",
+                "The response reports the actual route used so callers can distinguish semantic actions from native key dispatch.",
+                "If native key delivery dispatches but no effect is verified, the response warns callers to perform a safe click in the target content surface before retrying."
             ]
         ),
         RouteDescriptorDTO(

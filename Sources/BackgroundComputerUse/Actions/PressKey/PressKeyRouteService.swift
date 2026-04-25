@@ -5,7 +5,7 @@ import Foundation
 
 struct PressKeyRouteService {
     private let targetResolver = AXActionTargetResolver()
-    private let nativeDispatchPrimitive = "CGEvent keyboard sequence + postToPid"
+    private let nativeDispatchPrimitive = "SLPSPostEventRecordTo target-only focus + key-window records + CGEvent keyboard sequence + postToPid"
     private let settleDelay: TimeInterval = 0.35
 
     func pressKey(request: PressKeyRequest) throws -> PressKeyResponse {
@@ -353,9 +353,64 @@ struct PressKeyRouteService {
         let beforeWindowImage = shouldCaptureVisualEvidence(for: parsed)
             ? CGWindowCaptureService.captureImage(window: capture.envelope.response.window)
             : nil
+        let beforeFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let preparation = NativeWindowServerPreparation.targetOnlyFocusAndKeyWindow(
+            pid: capture.envelope.response.window.pid,
+            windowNumber: capture.envelope.response.window.windowNumber
+        )
+        notes.append(contentsOf: preparation.notes)
+        warnings.append(contentsOf: preparation.warnings)
+        guard preparation.preparedTargetWindow(requireKeyWindowRecords: true) else {
+            let preflightFailureNote = "Native key dispatch was not attempted because WindowServer target-window preflight did not prepare the requested window; refusing to fall back to process-scoped key posting for a window-scoped press_key request."
+            warnings.append(preflightFailureNote)
+            notes.append(preflightFailureNote)
+            AXCursorTargeting.finishPressKey(cursor: cursor)
+            let afterFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            return response(
+                classification: .effectNotVerified,
+                failureDomain: .transport,
+                summary: "Native key delivery was not attempted because target-window preflight did not succeed.",
+                window: capture.envelope.response.window,
+                parsedKey: parsed.dto,
+                action: PressKeyActionDTO(
+                    route: .nativeKeyDelivery,
+                    transport: "SLPS window preflight + CGEvent.postToPid",
+                    dispatchPrimitive: nativeDispatchPrimitive,
+                    nativeKeyDelivery: false,
+                    dispatchSucceeded: false,
+                    rawStatus: "preflight=\(preparation.rawStatus); dispatch=not_attempted",
+                    detail: "Prepared target window \(capture.envelope.response.window.windowNumber) for pid \(capture.envelope.response.window.pid), but WindowServer preflight did not report success. No keyboard events were posted to avoid process-scoped delivery to the wrong app window."
+                ),
+                preStateToken: capture.envelope.response.stateToken,
+                postStateToken: nil,
+                cursor: cursor,
+                warnings: warnings,
+                notes: notes,
+                verification: PressKeyVerificationEvidenceDTO(
+                    preStateToken: capture.envelope.response.stateToken,
+                    postStateToken: nil,
+                    renderedTextChanged: nil,
+                    focusedElementChanged: nil,
+                    textStateChanged: nil,
+                    selectionSummaryChanged: nil,
+                    visualChangeRatio: nil,
+                    visualChanged: nil,
+                    search: nil,
+                    selection: nil,
+                    verificationNotes: [
+                        "Frontmost bundle before native dispatch: \(beforeFrontmost ?? "unknown").",
+                        "Frontmost bundle after native dispatch: \(afterFrontmost ?? "unknown").",
+                        "Native window preflight: \(preparation.rawStatus).",
+                        "Native key dispatch success flag: false.",
+                        "No CGEvent keyboard sequence was posted because preflight failed closed.",
+                    ]
+                )
+            )
+        }
         let dispatchSucceeded = postKeySequence(parsed, to: capture.envelope.response.window.pid)
         AXCursorTargeting.finishPressKey(cursor: cursor)
         sleepRunLoop(settleDelay)
+        let afterFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
 
         let postCapture = try? targetResolver.reread(after: capture, imageMode: request.imageMode ?? .omit)
         let renderedChanged = postCapture.map { renderedTextChanged(before: capture, after: $0) }
@@ -390,6 +445,11 @@ struct PressKeyRouteService {
             visualChanged: visualChanged,
             search: searchEvidence
         )
+        if verifiedEffect == false {
+            let prepareSurfaceNote = "The key was delivered to the target app/window, but no visible effect was verified. Some custom, browser, or Electron surfaces require a prior safe click/focus inside the content area before shortcuts are accepted; try a safe click in the target content surface, then retry press_key."
+            warnings.append(prepareSurfaceNote)
+            notes.append(prepareSurfaceNote)
+        }
 
         return response(
             classification: verifiedEffect ? .success : .effectNotVerified,
@@ -401,12 +461,12 @@ struct PressKeyRouteService {
             parsedKey: parsed.dto,
             action: PressKeyActionDTO(
                 route: .nativeKeyDelivery,
-                transport: "CGEvent.postToPid",
+                transport: "SLPS window preflight + CGEvent.postToPid",
                 dispatchPrimitive: nativeDispatchPrimitive,
                 nativeKeyDelivery: true,
                 dispatchSucceeded: dispatchSucceeded,
-                rawStatus: dispatchSucceeded ? "posted" : "post_failed",
-                detail: "Delivered \(parsed.dto.normalized) to pid \(capture.envelope.response.window.pid)."
+                rawStatus: "preflight=\(preparation.rawStatus); dispatch=\(dispatchSucceeded ? "posted" : "post_failed")",
+                detail: "Prepared target window \(capture.envelope.response.window.windowNumber) for pid \(capture.envelope.response.window.pid), then delivered \(parsed.dto.normalized) to the app pid. Keyboard events are still posted to the app process; the target window is selected by the WindowServer focus/key-window preflight."
             ),
             preStateToken: capture.envelope.response.stateToken,
             postStateToken: postCapture?.envelope.response.stateToken,
@@ -425,6 +485,9 @@ struct PressKeyRouteService {
                 search: searchEvidence,
                 selection: nil,
                 verificationNotes: [
+                    "Frontmost bundle before native dispatch: \(beforeFrontmost ?? "unknown").",
+                    "Frontmost bundle after native dispatch: \(afterFrontmost ?? "unknown").",
+                    "Native window preflight: \(preparation.rawStatus).",
                     "Native key dispatch success flag: \(dispatchSucceeded).",
                     "Native verification checks route-specific search state, focused text value/range changes, selection summary changes, and visual window changes where useful.",
                 ]

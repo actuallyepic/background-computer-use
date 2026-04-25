@@ -112,4 +112,52 @@ final class PressKeyParserTests: XCTestCase {
             search: nil
         ))
     }
+
+    func testWindowServerPreparationRequiresSuccessfulTargetFocusAndKeyWindowRecordsForKeys() {
+        let preparedForClick = NativeWindowServerPreparationResult(
+            psnStatus: 0,
+            targetFocusStatus: 0,
+            keyWindowStatuses: [],
+            notes: [],
+            warnings: []
+        )
+        XCTAssertTrue(preparedForClick.preparedTargetWindow(requireKeyWindowRecords: false))
+        XCTAssertFalse(preparedForClick.preparedTargetWindow(requireKeyWindowRecords: true))
+
+        let preparedForKeys = NativeWindowServerPreparationResult(
+            psnStatus: 0,
+            targetFocusStatus: 0,
+            keyWindowStatuses: [0, 0],
+            notes: [],
+            warnings: []
+        )
+        XCTAssertTrue(preparedForKeys.preparedTargetWindow(requireKeyWindowRecords: true))
+
+        let skipped = NativeWindowServerPreparationResult(
+            psnStatus: nil,
+            targetFocusStatus: nil,
+            keyWindowStatuses: [],
+            notes: [],
+            warnings: []
+        )
+        XCTAssertFalse(skipped.preparedTargetWindow(requireKeyWindowRecords: false))
+
+        let partialKeyWindow = NativeWindowServerPreparationResult(
+            psnStatus: 0,
+            targetFocusStatus: 0,
+            keyWindowStatuses: [0],
+            notes: [],
+            warnings: []
+        )
+        XCTAssertFalse(partialKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
+
+        let nonZeroKeyWindow = NativeWindowServerPreparationResult(
+            psnStatus: 0,
+            targetFocusStatus: 0,
+            keyWindowStatuses: [0, 1],
+            notes: [],
+            warnings: []
+        )
+        XCTAssertFalse(nonZeroKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
+    }
 }
