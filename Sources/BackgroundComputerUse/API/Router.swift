@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct RouterContext {
     let baseURL: URL?
@@ -6,6 +7,7 @@ struct RouterContext {
 }
 
 struct Router {
+    private let logger = Logger(subsystem: "BackgroundComputerUse", category: "Router")
     private let coordinator = RuntimeCoordinator()
     private let runningAppService = RunningAppService()
     private let windowListService = WindowListService()
@@ -209,6 +211,7 @@ struct Router {
             )
 
         default:
+            logger.warning("Route not found: method=\(request.method.rawValue) path=\(request.path)")
             return .json(
                 ErrorResponse(
                     error: "route_not_found",
