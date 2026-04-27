@@ -57,6 +57,34 @@ BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY="Developer ID Application: ..."
 
 If `/v1/bootstrap` reports missing permissions, grant them in System Settings and relaunch the app through the script.
 
+## Swift Package Usage
+
+The package also exposes a direct Swift API for callers that do not need the loopback server:
+
+Depend on the `BackgroundComputerUseKit` library product, then import the `BackgroundComputerUse` module:
+
+```swift
+import BackgroundComputerUse
+
+let runtime = BackgroundComputerUseRuntime()
+let apps = runtime.listApps()
+let windows = try runtime.listWindows(.init(app: "Safari"))
+```
+
+Direct package calls default to `visualCursor: .disabled`, so action methods do not start the virtual cursor overlay or wait for cursor animation before dispatching. Existing action verification and post-action rereads still run.
+
+Target factories validate the same shape as the HTTP JSON decoder and throw for invalid display indexes or empty node identifiers.
+
+Enable the visual cursor explicitly when you want the same cursor choreography used by the app runtime:
+
+```swift
+let runtime = BackgroundComputerUseRuntime(
+    options: .init(visualCursor: .enabled)
+)
+```
+
+macOS permissions attach to the signed host application. The bundled HTTP runtime keeps using the stable `xyz.dubdub.backgroundcomputeruse` app identity from `script/build_and_run.sh`; direct package consumers should use their own stable signed app identity if they need Accessibility or Screen Recording permissions.
+
 ## API Flow
 
 1. `GET /v1/bootstrap`

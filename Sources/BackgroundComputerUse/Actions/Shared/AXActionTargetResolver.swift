@@ -5,6 +5,7 @@ import Foundation
 struct AXActionStateCapture {
     let windowID: String
     let includeMenuBar: Bool
+    let includeCursorOverlay: Bool
     let menuPathComponents: [String]
     let webTraversal: AXWebTraversalMode
     let maxNodes: Int
@@ -109,8 +110,13 @@ enum AXActionTargetKind {
 }
 
 struct AXActionTargetResolver {
+    private let executionOptions: ActionExecutionOptions
     private let windowResolver = WindowTargetResolver()
     private let statePipeline = StatePipelineExperiment()
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+    }
 
     func capture(
         windowID: String,
@@ -118,8 +124,10 @@ struct AXActionTargetResolver {
         menuPathComponents: [String] = [],
         webTraversal: AXWebTraversalMode = .visible,
         maxNodes: Int,
-        imageMode: ImageMode = .omit
+        imageMode: ImageMode = .omit,
+        includeCursorOverlay: Bool? = nil
     ) throws -> AXActionStateCapture {
+        let shouldIncludeCursorOverlay = includeCursorOverlay ?? executionOptions.visualCursorEnabled
         let resolved = try windowResolver.resolve(windowID: windowID)
         let capture = try statePipeline.captureResolvedWindow(
             resolved: resolved,
@@ -127,12 +135,14 @@ struct AXActionTargetResolver {
             menuPathComponents: menuPathComponents,
             webTraversal: webTraversal,
             maxNodes: maxNodes,
-            imageMode: imageMode
+            imageMode: imageMode,
+            includeCursorOverlay: shouldIncludeCursorOverlay
         )
 
         return AXActionStateCapture(
             windowID: windowID,
             includeMenuBar: includeMenuBar,
+            includeCursorOverlay: shouldIncludeCursorOverlay,
             menuPathComponents: menuPathComponents,
             webTraversal: webTraversal,
             maxNodes: maxNodes,
@@ -154,7 +164,8 @@ struct AXActionTargetResolver {
             menuPathComponents: [],
             webTraversal: capture.webTraversal,
             maxNodes: capture.maxNodes,
-            imageMode: imageMode
+            imageMode: imageMode,
+            includeCursorOverlay: capture.includeCursorOverlay
         )
     }
 

@@ -1,9 +1,11 @@
 import AppKit
 import CoreGraphics
-import XCTest
+import Testing
 @testable import BackgroundComputerUse
 
-final class CursorScreenshotCompositorTests: XCTestCase {
+@Suite
+struct CursorScreenshotCompositorTests {
+    @Test
     func testModelFacingPointUsesAppKitBottomLeftToTopLeftMapping() {
         let windowFrame = CGRect(x: 100, y: 200, width: 400, height: 300)
         let modelSize = CGSize(width: 800, height: 600)
@@ -13,28 +15,29 @@ final class CursorScreenshotCompositorTests: XCTestCase {
             in: windowFrame,
             modelImageSize: modelSize
         )
-        XCTAssertEqual(topLeftPoint.x, 0, accuracy: 0.01)
-        XCTAssertEqual(topLeftPoint.y, 0, accuracy: 0.01)
+        #expect(abs(topLeftPoint.x - 0) <= 0.01)
+        #expect(abs(topLeftPoint.y - 0) <= 0.01)
 
         let bottomLeftPoint = CursorScreenshotCompositor.modelFacingPoint(
             for: CGPoint(x: windowFrame.minX, y: windowFrame.minY),
             in: windowFrame,
             modelImageSize: modelSize
         )
-        XCTAssertEqual(bottomLeftPoint.x, 0, accuracy: 0.01)
-        XCTAssertEqual(bottomLeftPoint.y, modelSize.height, accuracy: 0.01)
+        #expect(abs(bottomLeftPoint.x - 0) <= 0.01)
+        #expect(abs(bottomLeftPoint.y - modelSize.height) <= 0.01)
 
         let centerPoint = CursorScreenshotCompositor.modelFacingPoint(
             for: CGPoint(x: windowFrame.midX, y: windowFrame.midY),
             in: windowFrame,
             modelImageSize: modelSize
         )
-        XCTAssertEqual(centerPoint.x, modelSize.width / 2, accuracy: 0.01)
-        XCTAssertEqual(centerPoint.y, modelSize.height / 2, accuracy: 0.01)
+        #expect(abs(centerPoint.x - modelSize.width / 2) <= 0.01)
+        #expect(abs(centerPoint.y - modelSize.height / 2) <= 0.01)
     }
 
+    @Test
     func testCompositorDrawsPixelsNearExpectedMappedCursorPosition() throws {
-        let baseImage = try XCTUnwrap(makeSolidImage(width: 240, height: 160, color: .black))
+        let baseImage = try #require(makeSolidImage(width: 240, height: 160, color: .black))
         let windowFrame = CGRect(x: 10, y: 20, width: 120, height: 80)
         let cursorPoint = CGPoint(x: 70, y: 60)
         let expectedPoint = CursorScreenshotCompositor.modelFacingPoint(
@@ -68,7 +71,7 @@ final class CursorScreenshotCompositorTests: XCTestCase {
             effects: []
         )
 
-        let compositedImage = try XCTUnwrap(
+        let compositedImage = try #require(
             CursorScreenshotCompositor.compositedImage(
                 baseImage: baseImage,
                 windowFrameAppKit: windowFrame,
@@ -85,12 +88,13 @@ final class CursorScreenshotCompositorTests: XCTestCase {
         )
         let controlRegion = CGRect(x: 0, y: 0, width: 20, height: 20)
 
-        XCTAssertGreaterThan(nonBlackPixelCount(inTopLeftRegion: expectedRegion, bitmap: bitmap), 10)
-        XCTAssertEqual(nonBlackPixelCount(inTopLeftRegion: controlRegion, bitmap: bitmap), 0)
+        #expect(nonBlackPixelCount(inTopLeftRegion: expectedRegion, bitmap: bitmap) > 10)
+        #expect(nonBlackPixelCount(inTopLeftRegion: controlRegion, bitmap: bitmap) == 0)
     }
 
+    @Test
     func testCompositorDoesNotMirrorCursorVerticallyInScreenshot() throws {
-        let baseImage = try XCTUnwrap(makeSolidImage(width: 240, height: 160, color: .black))
+        let baseImage = try #require(makeSolidImage(width: 240, height: 160, color: .black))
         let windowFrame = CGRect(x: 10, y: 20, width: 120, height: 80)
         let cursorPoint = CGPoint(x: 70, y: 90)
         let expectedPoint = CursorScreenshotCompositor.modelFacingPoint(
@@ -124,7 +128,7 @@ final class CursorScreenshotCompositorTests: XCTestCase {
             effects: []
         )
 
-        let compositedImage = try XCTUnwrap(
+        let compositedImage = try #require(
             CursorScreenshotCompositor.compositedImage(
                 baseImage: baseImage,
                 windowFrameAppKit: windowFrame,
@@ -146,8 +150,8 @@ final class CursorScreenshotCompositorTests: XCTestCase {
             height: 28
         )
 
-        XCTAssertGreaterThan(nonBlackPixelCount(inTopLeftRegion: expectedRegion, bitmap: bitmap), 10)
-        XCTAssertEqual(nonBlackPixelCount(inTopLeftRegion: mirroredRegion, bitmap: bitmap), 0)
+        #expect(nonBlackPixelCount(inTopLeftRegion: expectedRegion, bitmap: bitmap) > 10)
+        #expect(nonBlackPixelCount(inTopLeftRegion: mirroredRegion, bitmap: bitmap) == 0)
     }
 
     private func makeSolidImage(width: Int, height: Int, color: NSColor) -> CGImage? {

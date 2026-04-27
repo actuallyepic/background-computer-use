@@ -2,23 +2,24 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-public typealias StatePipelineEnvelope = AXPipelineV2Envelope
-public typealias StatePipelineFixture = AXPipelineV2Fixture
-public typealias StatePipelineScenario = AXPipelineV2Scenario
-public typealias StatePipelineMenuMode = AXMenuMode
+typealias StatePipelineEnvelope = AXPipelineV2Envelope
+typealias StatePipelineFixture = AXPipelineV2Fixture
+typealias StatePipelineScenario = AXPipelineV2Scenario
+typealias StatePipelineMenuMode = AXMenuMode
 
-public struct StatePipelineLiveCaptureOptions {
-    public let appQuery: String
-    public let windowTitleContains: String?
-    public let includeMenuBar: Bool
-    public let menuMode: StatePipelineMenuMode?
-    public let menuPathComponents: [String]
-    public let webTraversal: AXWebTraversalMode
-    public let maxNodes: Int
-    public let imageMode: ImageMode
-    public let scenarioID: String?
+struct StatePipelineLiveCaptureOptions {
+    let appQuery: String
+    let windowTitleContains: String?
+    let includeMenuBar: Bool
+    let menuMode: StatePipelineMenuMode?
+    let menuPathComponents: [String]
+    let webTraversal: AXWebTraversalMode
+    let maxNodes: Int
+    let imageMode: ImageMode
+    let includeCursorOverlay: Bool
+    let scenarioID: String?
 
-    public init(
+    init(
         appQuery: String,
         windowTitleContains: String? = nil,
         includeMenuBar: Bool,
@@ -27,6 +28,7 @@ public struct StatePipelineLiveCaptureOptions {
         webTraversal: AXWebTraversalMode = .visible,
         maxNodes: Int,
         imageMode: ImageMode,
+        includeCursorOverlay: Bool = true,
         scenarioID: String? = nil
     ) {
         self.appQuery = appQuery
@@ -37,16 +39,17 @@ public struct StatePipelineLiveCaptureOptions {
         self.webTraversal = webTraversal
         self.maxNodes = maxNodes
         self.imageMode = imageMode
+        self.includeCursorOverlay = includeCursorOverlay
         self.scenarioID = scenarioID
     }
 }
 
-public struct StatePipelineCaptureResult {
-    public let envelope: StatePipelineEnvelope
-    public let fixture: StatePipelineFixture
+struct StatePipelineCaptureResult {
+    let envelope: StatePipelineEnvelope
+    let fixture: StatePipelineFixture
     let liveElementsByCanonicalIndex: [Int: AXUIElement]
 
-    public init(envelope: StatePipelineEnvelope, fixture: StatePipelineFixture) {
+    init(envelope: StatePipelineEnvelope, fixture: StatePipelineFixture) {
         self.envelope = envelope
         self.fixture = fixture
         liveElementsByCanonicalIndex = [:]
@@ -63,11 +66,11 @@ public struct StatePipelineCaptureResult {
     }
 }
 
-public enum StatePipelineExperimentError: Error, CustomStringConvertible {
+enum StatePipelineExperimentError: Error, CustomStringConvertible {
     case invalidFixture(String)
     case invalidScenario(String)
 
-    public var description: String {
+    var description: String {
         switch self {
         case let .invalidFixture(path):
             return "Fixture could not be decoded: \(path)"
@@ -77,7 +80,7 @@ public enum StatePipelineExperimentError: Error, CustomStringConvertible {
     }
 }
 
-public struct StatePipelineExperiment {
+struct StatePipelineExperiment {
     private let targetResolver = WindowTargetResolver()
     private let rawCaptureService = AXRawCaptureService()
     private let platformProfileService = AXPlatformProfileService()
@@ -85,9 +88,9 @@ public struct StatePipelineExperiment {
     private let projectedTreeBuilder = AXProjectedTreeBuilder()
     private let menuLiveCaptureService = AXMenuLiveCaptureService()
 
-    public init() {}
+    init() {}
 
-    public func captureLive(_ options: StatePipelineLiveCaptureOptions) throws -> StatePipelineCaptureResult {
+    func captureLive(_ options: StatePipelineLiveCaptureOptions) throws -> StatePipelineCaptureResult {
         let frontmostBefore = NSWorkspace.shared.frontmostApplication
         let resolved = try targetResolver.resolve(
             appQuery: options.appQuery,
@@ -173,7 +176,8 @@ public struct StatePipelineExperiment {
         let screenshot = ScreenshotCaptureService.capture(
             window: window,
             stateToken: stateToken,
-            imageMode: options.imageMode
+            imageMode: options.imageMode,
+            includeCursorOverlay: options.includeCursorOverlay
         )
 
         let focusedProjectedNode = projectedTree.focusedProjectedIndex.flatMap { projectedTree.nodes[safe: $0] }
@@ -263,6 +267,7 @@ public struct StatePipelineExperiment {
         webTraversal: AXWebTraversalMode = .visible,
         maxNodes: Int,
         imageMode: ImageMode,
+        includeCursorOverlay: Bool = true,
         scenarioID: String? = nil
     ) throws -> StatePipelineCaptureResult {
         let frontmostBefore = NSWorkspace.shared.frontmostApplication
@@ -341,7 +346,8 @@ public struct StatePipelineExperiment {
         let screenshot = ScreenshotCaptureService.capture(
             window: window,
             stateToken: stateToken,
-            imageMode: imageMode
+            imageMode: imageMode,
+            includeCursorOverlay: includeCursorOverlay
         )
 
         let focusedProjectedNode = projectedTree.focusedProjectedIndex.flatMap { projectedTree.nodes[safe: $0] }
@@ -362,6 +368,7 @@ public struct StatePipelineExperiment {
             webTraversal: webTraversal,
             maxNodes: maxNodes,
             imageMode: imageMode,
+            includeCursorOverlay: includeCursorOverlay,
             scenarioID: scenarioID
         )
         let responseNotes = buildNotes(
@@ -434,7 +441,7 @@ public struct StatePipelineExperiment {
         )
     }
 
-    public func replayFixture(_ fixture: StatePipelineFixture, imageMode _: ImageMode = .path) -> StatePipelineEnvelope {
+    func replayFixture(_ fixture: StatePipelineFixture, imageMode _: ImageMode = .path) -> StatePipelineEnvelope {
         let replayPreparation = prepareReplayFixture(fixture)
         let semanticTree = semanticEnricher.enrich(replayPreparation.rawCapture)
         let replayNotes = sanitizedFixtureNotes(fixture.notes + replayPreparation.notes)
@@ -522,7 +529,7 @@ public struct StatePipelineExperiment {
         )
     }
 
-    public func loadFixture(at path: String) throws -> StatePipelineFixture {
+    func loadFixture(at path: String) throws -> StatePipelineFixture {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         let decoder = JSONDecoder()
         guard let fixture = try? decoder.decode(StatePipelineFixture.self, from: data) else {
@@ -531,7 +538,7 @@ public struct StatePipelineExperiment {
         return fixture
     }
 
-    public func saveFixture(_ fixture: StatePipelineFixture, to path: String) throws {
+    func saveFixture(_ fixture: StatePipelineFixture, to path: String) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(fixture)
@@ -540,7 +547,7 @@ public struct StatePipelineExperiment {
         try data.write(to: url, options: .atomic)
     }
 
-    public func loadScenario(at path: String) throws -> StatePipelineScenario {
+    func loadScenario(at path: String) throws -> StatePipelineScenario {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         let decoder = JSONDecoder()
         guard let scenario = try? decoder.decode(StatePipelineScenario.self, from: data) else {
@@ -558,7 +565,7 @@ public struct StatePipelineExperiment {
         menuContext: AXMenuLiveCaptureContext
     ) -> [String] {
         var notes = resolvedNotes
-        notes.append("State-pipeline experiment stages: raw capture -> semantic enrichment -> projection passes -> text rendering.")
+        notes.append("State capture stages: raw capture -> semantic enrichment -> projection passes -> text rendering.")
         if rawCapture.truncated {
             notes.append("Raw capture reached the maxNodes limit before traversing the full accessibility tree.")
         }
@@ -566,7 +573,7 @@ public struct StatePipelineExperiment {
             notes.append("Dense native collection branches are windowed to visible rows and report collectionInfo ranges.")
         }
         if effectiveMenuMode == .none {
-            notes.append("Menu bar chrome is excluded by default in the experiment projection policy.")
+            notes.append("Menu bar chrome is excluded by default in the projection policy.")
         } else if effectiveMenuMode == .fullMenuTraversal {
             notes.append("Menu bar branches are projected with active-surface-first summaries so passive menus do not expand into full inventory trees.")
         } else {
@@ -807,12 +814,12 @@ public struct StatePipelineExperiment {
     private func sanitizedFixtureNotes(_ notes: [String]) -> [String] {
         let sanitized = notes.map { note -> String in
             if note.contains("V2 pipeline stages:") {
-                return "Fixture replay through state-pipeline experiment."
+                return "Fixture replay through state capture pipeline."
             }
             if note.contains("V2 projection policy") {
                 return note.replacingOccurrences(
                     of: "V2 projection policy",
-                    with: "experiment projection policy"
+                    with: "projection policy"
                 )
             }
             return note

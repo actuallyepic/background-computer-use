@@ -32,8 +32,14 @@ private struct SecondaryActionExternalFileOpenEvidence: Equatable {
 }
 
 struct SecondaryActionRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let settleDelay: TimeInterval = 0.35
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func performSecondaryAction(request: PerformSecondaryActionRequest) throws -> PerformSecondaryActionResponse {
         let capture = try targetResolver.capture(
@@ -86,7 +92,8 @@ struct SecondaryActionRouteService {
                 postState: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the secondary-action target was not resolved."
+                    reason: "Cursor movement was not attempted because the secondary-action target was not resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -126,7 +133,8 @@ struct SecondaryActionRouteService {
                 postState: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the requested action label is not exposed on the target."
+                    reason: "Cursor movement was not attempted because the requested action label is not exposed on the target.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -160,7 +168,8 @@ struct SecondaryActionRouteService {
                 postState: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the secondary-action binding was not dispatchable."
+                    reason: "Cursor movement was not attempted because the secondary-action binding was not dispatchable.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -193,7 +202,8 @@ struct SecondaryActionRouteService {
                 postState: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the dispatch target was not resolved."
+                    reason: "Cursor movement was not attempted because the dispatch target was not resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -229,7 +239,8 @@ struct SecondaryActionRouteService {
                 postState: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the live AX dispatch target could not be resolved."
+                    reason: "Cursor movement was not attempted because the live AX dispatch target could not be resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -250,7 +261,8 @@ struct SecondaryActionRouteService {
         let cursor = AXCursorTargeting.prepareSecondaryAction(
             requested: request.cursor,
             target: target,
-            window: capture.envelope.response.window
+            window: capture.envelope.response.window,
+            options: executionOptions
         )
         warnings.append(contentsOf: cursor.warnings)
 

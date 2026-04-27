@@ -1,29 +1,29 @@
 import Foundation
 
-struct MotionProjectionDiagnosticsDTO: Encodable {
-    let backendID: String
-    let targetFrameRate: Double
-    let requestedSamples: Int
-    let frameWrites: Int
-    let skippedSamples: Int
-    let projectionElapsedMs: Double
-    let effectiveFrameRate: Double
-    let lateSamples: Int
-    let maxSampleSlipMs: Double
-    let writeMs: Double
-    let maxWriteMs: Double
-    let midProjectionAXReads: Int
-    let observedEvents: Int
-    let observedFrameChanges: Int
-    let observedEffectiveFrameRate: Double
-    let observedEchoes: Int
-    let divergentObservedEvents: Int
-    let invalidObservedEvents: Int
-    let maxObservedGapMs: Double
-    let firstObservedChangeDelayMs: Double
-    let lastObservedChangeDelayMs: Double
+public struct MotionProjectionDiagnosticsDTO: Encodable, Sendable {
+    public let backendID: String
+    public let targetFrameRate: Double
+    public let requestedSamples: Int
+    public let frameWrites: Int
+    public let skippedSamples: Int
+    public let projectionElapsedMs: Double
+    public let effectiveFrameRate: Double
+    public let lateSamples: Int
+    public let maxSampleSlipMs: Double
+    public let writeMs: Double
+    public let maxWriteMs: Double
+    public let midProjectionAXReads: Int
+    public let observedEvents: Int
+    public let observedFrameChanges: Int
+    public let observedEffectiveFrameRate: Double
+    public let observedEchoes: Int
+    public let divergentObservedEvents: Int
+    public let invalidObservedEvents: Int
+    public let maxObservedGapMs: Double
+    public let firstObservedChangeDelayMs: Double
+    public let lastObservedChangeDelayMs: Double
 
-    init(
+    public init(
         backendID: String,
         targetFrameRate: Double,
         requestedSamples: Int,
@@ -70,15 +70,15 @@ struct MotionProjectionDiagnosticsDTO: Encodable {
     }
 }
 
-struct MotionPerformanceDTO: Encodable {
-    let resolveMs: Double
-    let planningMs: Double
-    let projectionMs: Double
-    let settleMs: Double
-    let totalMs: Double
-    let projectionDiagnostics: MotionProjectionDiagnosticsDTO?
+public struct MotionPerformanceDTO: Encodable, Sendable {
+    public let resolveMs: Double
+    public let planningMs: Double
+    public let projectionMs: Double
+    public let settleMs: Double
+    public let totalMs: Double
+    public let projectionDiagnostics: MotionProjectionDiagnosticsDTO?
 
-    init(
+    public init(
         resolveMs: Double,
         planningMs: Double,
         projectionMs: Double,
@@ -95,99 +95,99 @@ struct MotionPerformanceDTO: Encodable {
     }
 }
 
-struct MotionWindowDTO: Encodable {
-    let windowID: String
-    let title: String
-    let bundleID: String
-    let pid: Int32
-    let launchDate: String?
-    let windowNumber: Int
-    let frameBeforeAppKit: RectDTO
-    let frameAfterAppKit: RectDTO
+public struct MotionWindowDTO: Encodable, Sendable {
+    public let windowID: String
+    public let title: String
+    public let bundleID: String
+    public let pid: Int32
+    public let launchDate: String?
+    public let windowNumber: Int
+    public let frameBeforeAppKit: RectDTO
+    public let frameAfterAppKit: RectDTO
 }
 
-struct DragRequestedDTO: Encodable {
-    let window: String
-    let toX: Double
-    let toY: Double
-    let coordinateSpace: CoordinateSpaceDTO
+public struct DragRequestedDTO: Encodable, Sendable {
+    public let window: String
+    public let toX: Double
+    public let toY: Double
+    public let coordinateSpace: CoordinateSpaceDTO
 }
 
-struct DragActionDTO: Encodable {
-    let kind: String
-    let requested: DragRequestedDTO
-    let strategyUsed: String
-    let rawStatus: String
-    let effectVerified: Bool
-    let warnings: [String]
+public struct DragActionDTO: Encodable, Sendable {
+    public let kind: String
+    public let requested: DragRequestedDTO
+    public let strategyUsed: String
+    public let rawStatus: String
+    public let effectVerified: Bool
+    public let warnings: [String]
 }
 
-struct DragResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let cursor: CursorResponseDTO
-    let action: DragActionDTO
-    let window: MotionWindowDTO
-    let backgroundSafety: BackgroundSafetyDTO
-    let performance: MotionPerformanceDTO
-    let error: ActionErrorDTO?
+public struct DragResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let cursor: CursorResponseDTO
+    public let action: DragActionDTO
+    public let window: MotionWindowDTO
+    public let backgroundSafety: BackgroundSafetyDTO
+    public let performance: MotionPerformanceDTO
+    public let error: ActionErrorDTO?
 }
 
-struct ResizeRequestedDTO: Encodable {
-    let window: String
-    let handle: ResizeHandleDTO
-    let toX: Double
-    let toY: Double
-    let coordinateSpace: CoordinateSpaceDTO
+public struct ResizeRequestedDTO: Encodable, Sendable {
+    public let window: String
+    public let handle: ResizeHandleDTO
+    public let toX: Double
+    public let toY: Double
+    public let coordinateSpace: CoordinateSpaceDTO
 }
 
-struct ResizeActionDTO: Encodable {
-    let kind: String
-    let requested: ResizeRequestedDTO
-    let strategyUsed: String
-    let rawStatus: String
-    let effectVerified: Bool
-    let warnings: [String]
+public struct ResizeActionDTO: Encodable, Sendable {
+    public let kind: String
+    public let requested: ResizeRequestedDTO
+    public let strategyUsed: String
+    public let rawStatus: String
+    public let effectVerified: Bool
+    public let warnings: [String]
 }
 
-struct ResizeResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let cursor: CursorResponseDTO
-    let action: ResizeActionDTO
-    let window: MotionWindowDTO
-    let backgroundSafety: BackgroundSafetyDTO
-    let performance: MotionPerformanceDTO
-    let error: ActionErrorDTO?
+public struct ResizeResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let cursor: CursorResponseDTO
+    public let action: ResizeActionDTO
+    public let window: MotionWindowDTO
+    public let backgroundSafety: BackgroundSafetyDTO
+    public let performance: MotionPerformanceDTO
+    public let error: ActionErrorDTO?
 }
 
-struct SetWindowFrameRequestedDTO: Encodable {
-    let window: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let animate: Bool
-    let coordinateSpace: CoordinateSpaceDTO
+public struct SetWindowFrameRequestedDTO: Encodable, Sendable {
+    public let window: String
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+    public let animate: Bool
+    public let coordinateSpace: CoordinateSpaceDTO
 }
 
-struct SetWindowFrameActionDTO: Encodable {
-    let kind: String
-    let requested: SetWindowFrameRequestedDTO
-    let strategyUsed: String
-    let presentationMode: MotionPresentationModeDTO
-    let rawStatus: String
-    let effectVerified: Bool
-    let warnings: [String]
+public struct SetWindowFrameActionDTO: Encodable, Sendable {
+    public let kind: String
+    public let requested: SetWindowFrameRequestedDTO
+    public let strategyUsed: String
+    public let presentationMode: MotionPresentationModeDTO
+    public let rawStatus: String
+    public let effectVerified: Bool
+    public let warnings: [String]
 }
 
-struct SetWindowFrameResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let cursor: CursorResponseDTO
-    let action: SetWindowFrameActionDTO
-    let window: MotionWindowDTO
-    let backgroundSafety: BackgroundSafetyDTO
-    let performance: MotionPerformanceDTO
-    let error: ActionErrorDTO?
+public struct SetWindowFrameResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let cursor: CursorResponseDTO
+    public let action: SetWindowFrameActionDTO
+    public let window: MotionWindowDTO
+    public let backgroundSafety: BackgroundSafetyDTO
+    public let performance: MotionPerformanceDTO
+    public let error: ActionErrorDTO?
 }

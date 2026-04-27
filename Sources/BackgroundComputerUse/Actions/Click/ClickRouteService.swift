@@ -50,9 +50,15 @@ private struct ClickSemanticOutcome {
 }
 
 struct ClickRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let settleDelay: TimeInterval = 0.35
     private let coordinateTransport = NativeBackgroundClickTransport()
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func click(request: ClickRequest) throws -> ClickResponse {
         let requestedTarget = requestedTargetDTO(request)
@@ -97,7 +103,8 @@ struct ClickRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the request stateToken was stale."
+                    reason: "Cursor movement was not attempted because the request stateToken was stale.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -128,7 +135,8 @@ struct ClickRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the requested mouse button is unsupported."
+                    reason: "Cursor movement was not attempted because the requested mouse button is unsupported.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -162,7 +170,8 @@ struct ClickRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the click target was ambiguous or incomplete."
+                    reason: "Cursor movement was not attempted because the click target was ambiguous or incomplete.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -218,7 +227,8 @@ struct ClickRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because no click target was supplied."
+                    reason: "Cursor movement was not attempted because no click target was supplied.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -333,7 +343,8 @@ struct ClickRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the semantic target was not resolved."
+                    reason: "Cursor movement was not attempted because the semantic target was not resolved.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -482,7 +493,8 @@ struct ClickRouteService {
                 refreshedTargetStrategy: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the live AX click target could not be resolved."
+                    reason: "Cursor movement was not attempted because the live AX click target could not be resolved.",
+                    options: executionOptions
                 ),
                 frontmostBundleBeforeDispatch: nil,
                 frontmostBundleAfter: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
@@ -518,7 +530,8 @@ struct ClickRouteService {
                 refreshedTargetStrategy: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was deferred to the pointer fallback because the semantic AX lane did not dispatch."
+                    reason: "Cursor movement was deferred to the pointer fallback because the semantic AX lane did not dispatch.",
+                    options: executionOptions
                 ),
                 frontmostBundleBeforeDispatch: nil,
                 frontmostBundleAfter: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
@@ -531,7 +544,8 @@ struct ClickRouteService {
         let cursor = AXCursorTargeting.prepareClick(
             requested: request.cursor,
             target: target,
-            window: capture.envelope.response.window
+            window: capture.envelope.response.window,
+            options: executionOptions
         )
         warnings.append(contentsOf: cursor.warnings)
         let frontmostBeforeDispatch = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
@@ -622,7 +636,8 @@ struct ClickRouteService {
         guard let plan = coordinatePlan(for: target, window: capture.envelope.response.window) else {
             let cursor = AXCursorTargeting.notAttempted(
                 requested: request.cursor,
-                reason: "Cursor movement was not attempted because the target had no stable element-derived coordinate."
+                reason: "Cursor movement was not attempted because the target had no stable element-derived coordinate.",
+                    options: executionOptions
             )
             return ClickCoordinateOutcome(
                 classification: .verifierAmbiguous,
@@ -686,7 +701,8 @@ struct ClickRouteService {
         ) else {
             let cursor = AXCursorTargeting.notAttempted(
                 requested: request.cursor,
-                reason: "Cursor movement was not attempted because the model-facing coordinate was invalid or outside the current window screenshot bounds."
+                reason: "Cursor movement was not attempted because the model-facing coordinate was invalid or outside the current window screenshot bounds.",
+                    options: executionOptions
             )
             return ClickCoordinateOutcome(
                 classification: .verifierAmbiguous,
@@ -744,7 +760,8 @@ struct ClickRouteService {
             requested: request.cursor,
             pointAppKit: plan.appKitPoint,
             targetPointSource: plan.mapping.targetPointSource,
-            window: capture.envelope.response.window
+            window: capture.envelope.response.window,
+            options: executionOptions
         )
         warnings.append(contentsOf: cursor.warnings)
 
@@ -898,7 +915,8 @@ struct ClickRouteService {
         guard let plan = coordinatePlan(for: target, window: capture.envelope.response.window) else {
             let cursor = AXCursorTargeting.notAttempted(
                 requested: request.cursor,
-                reason: "Cursor movement was not attempted because the target had no stable element-derived coordinate."
+                reason: "Cursor movement was not attempted because the target had no stable element-derived coordinate.",
+                    options: executionOptions
             )
             return ClickCoordinateOutcome(
                 classification: .verifierAmbiguous,
@@ -1534,7 +1552,8 @@ struct ClickRouteService {
             postStateToken: nil,
             cursor: AXCursorTargeting.notAttempted(
                 requested: request.cursor,
-                reason: "Cursor movement was not attempted because the request click count was invalid."
+                reason: "Cursor movement was not attempted because the request click count was invalid.",
+                    options: executionOptions
             ),
             frontmostBundleBefore: frontmostBefore,
             frontmostBundleBeforeDispatch: nil,

@@ -1,17 +1,17 @@
 import Foundation
 
-public enum AXMenuMode: String, Codable {
+public enum AXMenuMode: String, Codable, Sendable {
     case none
     case openMenuOnly
     case fullMenuTraversal
 }
 
-public enum AXWebTraversalMode: String, Codable {
+public enum AXWebTraversalMode: String, Codable, Sendable {
     case visible
     case full
 }
 
-public struct AXMenuPresentationDTO: Codable {
+public struct AXMenuPresentationDTO: Codable, Sendable {
     public let mode: String
     public let source: String
     public let confidence: String
@@ -23,7 +23,7 @@ public struct AXMenuPresentationDTO: Codable {
     public let warnings: [String]
 }
 
-public struct AXNodeIdentitySignatureDTO: Codable {
+public struct AXNodeIdentitySignatureDTO: Codable, Sendable {
     public let role: String?
     public let subrole: String?
     public let title: String?
@@ -33,7 +33,7 @@ public struct AXNodeIdentitySignatureDTO: Codable {
     public let url: String?
 }
 
-public struct AXNodeRefetchSignatureDTO: Codable {
+public struct AXNodeRefetchSignatureDTO: Codable, Sendable {
     public let role: String?
     public let subrole: String?
     public let roleDescription: String?
@@ -45,7 +45,7 @@ public struct AXNodeRefetchSignatureDTO: Codable {
     public let urlHost: String?
 }
 
-public struct AXNodeRefetchLocatorDTO: Codable {
+public struct AXNodeRefetchLocatorDTO: Codable, Sendable {
     public let fingerprint: String
     public let parentFingerprint: String?
     public let ancestorFingerprints: [String]
@@ -54,7 +54,7 @@ public struct AXNodeRefetchLocatorDTO: Codable {
     public let signature: AXNodeRefetchSignatureDTO
 }
 
-public struct AXNodeIdentityDTO: Codable {
+public struct AXNodeIdentityDTO: Codable, Sendable {
     public let nodeID: String
     public let path: [Int]
     public let pathString: String
@@ -62,7 +62,7 @@ public struct AXNodeIdentityDTO: Codable {
     public let refetch: AXNodeRefetchLocatorDTO?
 }
 
-public struct AXRelationshipSnapshotDTO: Codable {
+public struct AXRelationshipSnapshotDTO: Codable, Sendable {
     public let titleElementIndex: Int?
     public let labelElementIndices: [Int]?
     public let linkedElementIndices: [Int]?
@@ -73,7 +73,7 @@ public struct AXRelationshipSnapshotDTO: Codable {
     public let disclosedByRowIndex: Int?
 }
 
-public struct AXTextExtractionDTO: Codable {
+public struct AXTextExtractionDTO: Codable, Sendable {
     public let source: String
     public let mode: String
     public let availableModes: [String]
@@ -142,7 +142,7 @@ public struct AXTextExtractionDTO: Codable {
     }
 }
 
-public struct AXActionDescriptorDTO: Codable {
+public struct AXActionDescriptorDTO: Codable, Sendable {
     public let rawName: String
     public let label: String?
     public let description: String?
@@ -150,7 +150,7 @@ public struct AXActionDescriptorDTO: Codable {
     public let hiddenFromSecondaryActions: Bool
 }
 
-public struct AXInteractionTraitsDTO: Codable {
+public struct AXInteractionTraitsDTO: Codable, Sendable {
     public let supportsPress: Bool
     public let supportsOpen: Bool
     public let supportsPick: Bool
@@ -168,7 +168,7 @@ public struct AXInteractionTraitsDTO: Codable {
     public let isTextEntry: Bool
 }
 
-public struct AXCollectionWindowDTO: Codable {
+public struct AXCollectionWindowDTO: Codable, Sendable {
     public let source: String
     public let totalItems: Int
     public let returnedItems: Int
@@ -178,7 +178,7 @@ public struct AXCollectionWindowDTO: Codable {
     public let reason: String
 }
 
-public struct AXAffordanceDTO: Codable, Equatable {
+public struct AXAffordanceDTO: Codable, Equatable, Sendable {
     public let kind: String
     public let label: String?
     public let value: String?
@@ -195,7 +195,7 @@ public struct AXAffordanceDTO: Codable, Equatable {
     public let notes: [String]
 }
 
-public struct AXSecondaryActionBindingTargetDTO: Codable {
+public struct AXSecondaryActionBindingTargetDTO: Codable, Sendable {
     public let displayIndex: Int?
     public let projectedIndex: Int
     public let primaryCanonicalIndex: Int?
@@ -209,7 +209,7 @@ public struct AXSecondaryActionBindingTargetDTO: Codable {
     public let frameAppKit: RectDTO?
 }
 
-public struct AXSecondaryActionDispatchTargetDTO: Codable {
+public struct AXSecondaryActionDispatchTargetDTO: Codable, Sendable {
     public let sourceCanonicalIndex: Int?
     public let sourceNodeID: String?
     public let sourceRole: String?
@@ -219,7 +219,7 @@ public struct AXSecondaryActionDispatchTargetDTO: Codable {
     public let foldedFromHiddenDescendant: Bool?
 }
 
-public struct AXSecondaryActionBindingEvidenceDTO: Codable {
+public struct AXSecondaryActionBindingEvidenceDTO: Codable, Sendable {
     public let rawActions: [String]
     public let availableActions: [AXActionDescriptorDTO]?
     public let nodeRole: String?
@@ -231,7 +231,7 @@ public struct AXSecondaryActionBindingEvidenceDTO: Codable {
     public let notes: [String]
 }
 
-public struct AXSecondaryActionBindingDescriptorDTO: Codable {
+public struct AXSecondaryActionBindingDescriptorDTO: Codable, Sendable {
     public let actionID: String
     public let label: String
     public let source: String
@@ -254,7 +254,7 @@ public struct AXSecondaryActionBindingDescriptorDTO: Codable {
     public let evidence: AXSecondaryActionBindingEvidenceDTO
 }
 
-public struct AXFocusSelectionSnapshotDTO: Codable {
+public struct AXFocusSelectionSnapshotDTO: Codable, Sendable {
     public let focusedCanonicalIndex: Int?
     public let focusedNodeID: String?
     public let selectedCanonicalIndices: [Int]
@@ -263,7 +263,7 @@ public struct AXFocusSelectionSnapshotDTO: Codable {
     public let selectedTextSource: String?
 }
 
-public struct AXEnablementAttemptDTO: Codable {
+public struct AXEnablementAttemptDTO: Codable, Sendable {
     public let mode: String
     public let attempted: Bool
     public let before: Bool?
@@ -272,7 +272,7 @@ public struct AXEnablementAttemptDTO: Codable {
     public let note: String?
 }
 
-public struct AXRawNodeDTO: Codable {
+public struct AXRawNodeDTO: Codable, Sendable {
     public let index: Int
     public let parentIndex: Int?
     public let depth: Int
@@ -308,7 +308,7 @@ public struct AXRawNodeDTO: Codable {
     public let interactionTraits: AXInteractionTraitsDTO?
 }
 
-public struct AXRawCaptureResult: Codable {
+public struct AXRawCaptureResult: Codable, Sendable {
     public let rootIndices: [Int]
     public let nodes: [AXRawNodeDTO]
     public let focusedCanonicalIndex: Int?
@@ -316,14 +316,14 @@ public struct AXRawCaptureResult: Codable {
     public let truncated: Bool
 }
 
-public struct AXPlatformManualAccessibilityDTO: Codable {
+public struct AXPlatformManualAccessibilityDTO: Codable, Sendable {
     public let attempted: Bool
     public let before: Bool?
     public let result: String?
     public let after: Bool?
 }
 
-public struct AXPlatformProfileDTO: Codable {
+public struct AXPlatformProfileDTO: Codable, Sendable {
     public let bundleID: String?
     public let bundlePath: String?
     public let frameworkHints: [String]
@@ -335,7 +335,7 @@ public struct AXPlatformProfileDTO: Codable {
     public let notes: [String]
 }
 
-public struct AXSemanticNodeDTO: Codable {
+public struct AXSemanticNodeDTO: Codable, Sendable {
     public let index: Int
     public let parentIndex: Int?
     public let depth: Int
@@ -362,20 +362,20 @@ public struct AXSemanticNodeDTO: Codable {
     public let textExtraction: AXTextExtractionDTO?
 }
 
-public struct AXSemanticTreeDTO: Codable {
+public struct AXSemanticTreeDTO: Codable, Sendable {
     public let rootIndices: [Int]
     public let nodes: [AXSemanticNodeDTO]
     public let focusedCanonicalIndex: Int?
     public let focusSelection: AXFocusSelectionSnapshotDTO?
 }
 
-public struct AXProjectionPassLogDTO: Codable {
+public struct AXProjectionPassLogDTO: Codable, Sendable {
     public let name: String
     public let changedNodeCount: Int
     public let notes: [String]
 }
 
-public struct AXClickReadinessMetricsDTO: Codable {
+public struct AXClickReadinessMetricsDTO: Codable, Sendable {
     public let candidateNodeCount: Int
     public let candidateNodesWithGeometry: Int
     public let candidateNodesWithLabel: Int
@@ -387,7 +387,7 @@ public struct AXClickReadinessMetricsDTO: Codable {
     public let nodesWithActionFiltering: Int
 }
 
-public struct AXProjectedNodeDTO: Codable {
+public struct AXProjectedNodeDTO: Codable, Sendable {
     public let projectedIndex: Int
     public let parentProjectedIndex: Int?
     public let depth: Int
@@ -406,7 +406,7 @@ public struct AXProjectedNodeDTO: Codable {
     public let transformNotes: [String]
 }
 
-public struct AXV2VisibleLineMappingDTO: Codable {
+public struct AXV2VisibleLineMappingDTO: Codable, Sendable {
     public let displayIndex: Int
     public let projectedIndex: Int
     public let primaryCanonicalIndex: Int
@@ -414,7 +414,7 @@ public struct AXV2VisibleLineMappingDTO: Codable {
     public let kind: String
 }
 
-public struct AXProjectedTreeDTO: Codable {
+public struct AXProjectedTreeDTO: Codable, Sendable {
     public let rootProjectedIndices: [Int]
     public let nodes: [AXProjectedNodeDTO]
     public let lineMappings: [AXV2VisibleLineMappingDTO]
@@ -427,7 +427,7 @@ public struct AXProjectedTreeDTO: Codable {
     public let selectionSummary: AXFocusSelectionSnapshotDTO?
 }
 
-public struct AXPipelineV2DiagnosticsDTO: Codable {
+public struct AXPipelineV2DiagnosticsDTO: Codable, Sendable {
     public let rawNodeCount: Int
     public let semanticNodeCount: Int
     public let projectedNodeCount: Int
@@ -442,7 +442,7 @@ public struct AXPipelineV2DiagnosticsDTO: Codable {
     public let notes: [String]
 }
 
-public struct AXPipelineV2SurfaceNodeDTO: Codable {
+public struct AXPipelineV2SurfaceNodeDTO: Codable, Sendable {
     public let index: Int
     public let displayIndex: Int?
     public let projectedIndex: Int
@@ -484,7 +484,7 @@ public struct AXPipelineV2SurfaceNodeDTO: Codable {
     public let transformNotes: [String]
 }
 
-public struct AXPipelineV2TreeDTO: Codable {
+public struct AXPipelineV2TreeDTO: Codable, Sendable {
     public let nodeCount: Int
     public let truncated: Bool
     public let renderedText: String
@@ -493,7 +493,7 @@ public struct AXPipelineV2TreeDTO: Codable {
     public let profile: String?
 }
 
-public struct AXPipelineV2Response: Codable {
+public struct AXPipelineV2Response: Codable, Sendable {
     public let contractVersion: String
     public let stateToken: String
     public let window: ResolvedWindowDTO
@@ -506,41 +506,41 @@ public struct AXPipelineV2Response: Codable {
     public let notes: [String]
 }
 
-public struct AXPipelineV2Envelope: Codable {
-    public let response: AXPipelineV2Response
-    public let rawCapture: AXRawCaptureResult
-    public let platformProfile: AXPlatformProfileDTO
-    public let semanticTree: AXSemanticTreeDTO
-    public let projectedTree: AXProjectedTreeDTO
-    public let menuPresentation: AXMenuPresentationDTO?
-    public let diagnostics: AXPipelineV2DiagnosticsDTO
+struct AXPipelineV2Envelope: Codable, Sendable {
+    let response: AXPipelineV2Response
+    let rawCapture: AXRawCaptureResult
+    let platformProfile: AXPlatformProfileDTO
+    let semanticTree: AXSemanticTreeDTO
+    let projectedTree: AXProjectedTreeDTO
+    let menuPresentation: AXMenuPresentationDTO?
+    let diagnostics: AXPipelineV2DiagnosticsDTO
 }
 
-public struct AXPipelineV2Fixture: Codable {
-    public let generatedAt: String
-    public let scenarioID: String?
-    public let appQuery: String?
-    public let includeMenuBar: Bool
-    public let menuMode: AXMenuMode?
-    public let maxNodes: Int
-    public let window: ResolvedWindowDTO
-    public let rawCapture: AXRawCaptureResult
-    public let platformProfile: AXPlatformProfileDTO
-    public let menuPresentation: AXMenuPresentationDTO?
-    public let notes: [String]
+struct AXPipelineV2Fixture: Codable, Sendable {
+    let generatedAt: String
+    let scenarioID: String?
+    let appQuery: String?
+    let includeMenuBar: Bool
+    let menuMode: AXMenuMode?
+    let maxNodes: Int
+    let window: ResolvedWindowDTO
+    let rawCapture: AXRawCaptureResult
+    let platformProfile: AXPlatformProfileDTO
+    let menuPresentation: AXMenuPresentationDTO?
+    let notes: [String]
 }
 
-public struct AXPipelineV2Scenario: Codable {
-    public let id: String
-    public let title: String
-    public let appQuery: String
-    public let bundleID: String
-    public let includeMenuBar: Bool
-    public let menuMode: AXMenuMode?
-    public let maxNodes: Int
-    public let windowTitleContains: String?
-    public let menuPathComponents: [String]?
-    public let keywords: [String]
-    public let manualSetupSteps: [String]
-    public let notes: [String]
+struct AXPipelineV2Scenario: Codable, Sendable {
+    let id: String
+    let title: String
+    let appQuery: String
+    let bundleID: String
+    let includeMenuBar: Bool
+    let menuMode: AXMenuMode?
+    let maxNodes: Int
+    let windowTitleContains: String?
+    let menuPathComponents: [String]?
+    let keywords: [String]
+    let manualSetupSteps: [String]
+    let notes: [String]
 }

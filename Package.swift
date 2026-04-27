@@ -5,12 +5,18 @@ let package = Package(
     name: "BackgroundComputerUse",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "BackgroundComputerUse", targets: ["BackgroundComputerUse"]),
+        .library(name: "BackgroundComputerUseKit", targets: ["BackgroundComputerUse"]),
+        .executable(name: "BackgroundComputerUse", targets: ["BackgroundComputerUseServer"]),
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "BackgroundComputerUse",
             path: "Sources/BackgroundComputerUse"
+        ),
+        .executableTarget(
+            name: "BackgroundComputerUseServer",
+            dependencies: ["BackgroundComputerUse"],
+            path: "Sources/BackgroundComputerUseServer"
         ),
         .testTarget(
             name: "BackgroundComputerUseTests",

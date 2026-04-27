@@ -4,27 +4,27 @@ enum StatePipelineContractVersion {
     static let current = "state-pipeline.sky-techniques"
 }
 
-public struct PointDTO: Codable {
+public struct PointDTO: Codable, Sendable {
     public let x: Double
     public let y: Double
 
-    init(x: Double, y: Double) {
+    public init(x: Double, y: Double) {
         self.x = sanitizedJSONDouble(x)
         self.y = sanitizedJSONDouble(y)
     }
 }
 
-public struct FrontmostAppObservationDTO: Codable {
+public struct FrontmostAppObservationDTO: Codable, Sendable {
     public let bundleID: String?
 }
 
-public struct BackgroundSafetyDTO: Codable {
+public struct BackgroundSafetyDTO: Codable, Sendable {
     public let frontmostBefore: FrontmostAppObservationDTO?
     public let frontmostAfter: FrontmostAppObservationDTO?
     public let backgroundSafeReadObserved: Bool?
     public let backgroundSafeObserved: Bool?
 
-    init(
+    public init(
         frontmostBefore: FrontmostAppObservationDTO?,
         frontmostAfter: FrontmostAppObservationDTO?,
         backgroundSafeReadObserved: Bool? = nil,
@@ -37,7 +37,7 @@ public struct BackgroundSafetyDTO: Codable {
     }
 }
 
-public struct ResolvedWindowDTO: Codable {
+public struct ResolvedWindowDTO: Codable, Sendable {
     public let windowID: String
     public let title: String
     public let bundleID: String
@@ -48,7 +48,7 @@ public struct ResolvedWindowDTO: Codable {
     public let resolutionStrategy: String
 }
 
-public struct ScreenshotImageDTO: Codable {
+public struct ScreenshotImageDTO: Codable, Sendable {
     public let imagePath: String?
     public let imageBase64: String?
     public let mimeType: String?
@@ -59,7 +59,7 @@ public struct ScreenshotImageDTO: Codable {
     public let captureKind: String
 }
 
-public struct ScreenshotDTO: Codable {
+public struct ScreenshotDTO: Codable, Sendable {
     public let status: String
     public let image: ScreenshotImageDTO?
     public let rawRetinaCapture: ScreenshotImageDTO?
@@ -67,14 +67,14 @@ public struct ScreenshotDTO: Codable {
     public let captureError: String?
 }
 
-public struct ReadPerformanceDTO: Codable {
+public struct ReadPerformanceDTO: Codable, Sendable {
     public let resolveMs: Double
     public let captureMs: Double
     public let projectionMs: Double
     public let screenshotMs: Double
     public let totalMs: Double
 
-    init(resolveMs: Double, captureMs: Double, projectionMs: Double, screenshotMs: Double, totalMs: Double) {
+    public init(resolveMs: Double, captureMs: Double, projectionMs: Double, screenshotMs: Double, totalMs: Double) {
         self.resolveMs = sanitizedJSONDouble(resolveMs)
         self.captureMs = sanitizedJSONDouble(captureMs)
         self.projectionMs = sanitizedJSONDouble(projectionMs)
@@ -83,14 +83,14 @@ public struct ReadPerformanceDTO: Codable {
     }
 }
 
-public struct ValueSummaryDTO: Codable {
+public struct ValueSummaryDTO: Codable, Sendable {
     public let kind: String?
     public let preview: String?
     public let length: Int?
     public let truncated: Bool
 }
 
-public struct FocusedElementDTO: Codable {
+public struct FocusedElementDTO: Codable, Sendable {
     public let index: Int?
     public let displayRole: String?
     public let title: String?
@@ -98,7 +98,7 @@ public struct FocusedElementDTO: Codable {
     public let secondaryActions: [String]
 }
 
-public struct GetWindowStateDebugDTO: Codable {
+public struct GetWindowStateDebugDTO: Codable, Sendable {
     public let diagnostics: AXPipelineV2DiagnosticsDTO?
     public let platformProfile: AXPlatformProfileDTO?
     public let rawCapture: AXRawCaptureResult?
@@ -106,7 +106,7 @@ public struct GetWindowStateDebugDTO: Codable {
     public let projectedTree: AXProjectedTreeDTO?
 }
 
-public struct GetWindowStateResponse: Codable {
+public struct GetWindowStateResponse: Codable, Sendable {
     public let contractVersion: String
     public let stateToken: String
     public let window: ResolvedWindowDTO

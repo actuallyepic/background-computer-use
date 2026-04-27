@@ -6,8 +6,13 @@ private func elapsedMilliseconds(since start: UInt64, to end: UInt64 = DispatchT
 }
 
 struct WindowStateService {
+    private let executionOptions: ActionExecutionOptions
     private let resolver = WindowTargetResolver()
     private let statePipeline = StatePipelineExperiment()
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+    }
 
     func getWindowState(request: GetWindowStateRequest) throws -> GetWindowStateResponse {
         let totalStarted = DispatchTime.now().uptimeNanoseconds
@@ -33,7 +38,8 @@ struct WindowStateService {
             window: capture.envelope.response.window,
             stateToken: capture.envelope.response.stateToken,
             imageMode: request.imageMode ?? .path,
-            includeRawRetinaCapture: request.includeRawScreenshot ?? false
+            includeRawRetinaCapture: request.includeRawScreenshot ?? false,
+            includeCursorOverlay: executionOptions.visualCursorEnabled
         )
         let screenshotFinished = DispatchTime.now().uptimeNanoseconds
 

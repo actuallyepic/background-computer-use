@@ -1,131 +1,131 @@
 import Foundation
 
-struct HealthResponse: Encodable {
-    let ok: Bool
-    let contractVersion: String
-    let timestamp: String
+public struct HealthResponse: Encodable, Sendable {
+    public let ok: Bool
+    public let contractVersion: String
+    public let timestamp: String
 }
 
-struct BootstrapRouteDTO: Encodable {
-    let id: String
-    let method: String
-    let path: String
-    let url: String
-    let category: String
-    let summary: String
+public struct BootstrapRouteDTO: Encodable, Sendable {
+    public let id: String
+    public let method: String
+    public let path: String
+    public let url: String
+    public let category: String
+    public let summary: String
 }
 
-struct RouteFieldDTO: Encodable {
-    let name: String
-    let type: String
-    let required: Bool
-    let description: String?
-    let defaultValue: String?
+public struct RouteFieldDTO: Encodable, Sendable {
+    public let name: String
+    public let type: String
+    public let required: Bool
+    public let description: String?
+    public let defaultValue: String?
 }
 
-struct RouteBodySchemaDTO: Encodable {
-    let contentType: String?
-    let fields: [RouteFieldDTO]
+public struct RouteBodySchemaDTO: Encodable, Sendable {
+    public let contentType: String?
+    public let fields: [RouteFieldDTO]
 }
 
-struct APIConceptDTO: Encodable {
-    let name: String
-    let description: String
-    let fields: [RouteFieldDTO]?
+public struct APIConceptDTO: Encodable, Sendable {
+    public let name: String
+    public let description: String
+    public let fields: [RouteFieldDTO]?
 }
 
-struct APIGuideDTO: Encodable {
-    let summary: String
-    let flow: [String]
-    let concepts: [APIConceptDTO]
-    let responseReading: [String]
-    let troubleshooting: [String]
+public struct APIGuideDTO: Encodable, Sendable {
+    public let summary: String
+    public let flow: [String]
+    public let concepts: [APIConceptDTO]
+    public let responseReading: [String]
+    public let troubleshooting: [String]
 }
 
-struct RouteUsageDTO: Encodable {
-    let whenToUse: String
-    let useAfter: [String]
-    let successSignals: [String]
-    let nextSteps: [String]
-    let exampleRequest: String?
+public struct RouteUsageDTO: Encodable, Sendable {
+    public let whenToUse: String
+    public let useAfter: [String]
+    public let successSignals: [String]
+    public let nextSteps: [String]
+    public let exampleRequest: String?
 }
 
-struct RouteErrorDTO: Encodable {
-    let statusCode: Int
-    let error: String
-    let meaning: String
-    let recovery: [String]
+public struct RouteErrorDTO: Encodable, Sendable {
+    public let statusCode: Int
+    public let error: String
+    public let meaning: String
+    public let recovery: [String]
 }
 
-struct APIRouteDTO: Encodable {
-    let id: String
-    let method: String
-    let path: String
-    let category: String
-    let summary: String
-    let notes: [String]
-    let execution: RouteExecutionPolicyDTO
-    let implementationStatus: RouteImplementationStatusDTO
-    let usage: RouteUsageDTO
-    let request: RouteBodySchemaDTO?
-    let response: RouteBodySchemaDTO
-    let errors: [RouteErrorDTO]
+public struct APIRouteDTO: Encodable, Sendable {
+    public let id: String
+    public let method: String
+    public let path: String
+    public let category: String
+    public let summary: String
+    public let notes: [String]
+    public let execution: RouteExecutionPolicyDTO
+    public let implementationStatus: RouteImplementationStatusDTO
+    public let usage: RouteUsageDTO
+    public let request: RouteBodySchemaDTO?
+    public let response: RouteBodySchemaDTO
+    public let errors: [RouteErrorDTO]
 }
 
-struct PermissionStatusDTO: Encodable {
-    let granted: Bool
-    let promptable: Bool
+public struct PermissionStatusDTO: Encodable, Sendable {
+    public let granted: Bool
+    public let promptable: Bool
 }
 
-struct RuntimePermissionsDTO: Encodable {
-    let accessibility: PermissionStatusDTO
-    let screenRecording: PermissionStatusDTO
-    let checkedAt: String
-    let checkMs: Double
+public struct RuntimePermissionsDTO: Encodable, Sendable {
+    public let accessibility: PermissionStatusDTO
+    public let screenRecording: PermissionStatusDTO
+    public let checkedAt: String
+    public let checkMs: Double
 }
 
-struct BootstrapInstructionsDTO: Encodable {
-    let ready: Bool
-    let summary: String
-    let agent: [String]
-    let user: [String]
+public struct BootstrapInstructionsDTO: Encodable, Sendable {
+    public let ready: Bool
+    public let summary: String
+    public let agent: [String]
+    public let user: [String]
 }
 
-struct BootstrapResponse: Encodable {
-    let contractVersion: String
-    let baseURL: String?
-    let startedAt: String?
-    let permissions: RuntimePermissionsDTO
-    let instructions: BootstrapInstructionsDTO
-    let guide: APIGuideDTO
-    let routes: [BootstrapRouteDTO]
+public struct BootstrapResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let baseURL: String?
+    public let startedAt: String?
+    public let permissions: RuntimePermissionsDTO
+    public let instructions: BootstrapInstructionsDTO
+    public let guide: APIGuideDTO
+    public let routes: [BootstrapRouteDTO]
 }
 
-struct RuntimeManifestDTO: Encodable {
-    let contractVersion: String
-    let baseURL: String
-    let startedAt: String
-    let permissions: RuntimePermissionsDTO
-    let instructions: BootstrapInstructionsDTO
-    let guide: APIGuideDTO
-    let routes: [BootstrapRouteDTO]
+public struct RuntimeManifestDTO: Encodable, Sendable {
+    public let contractVersion: String
+    public let baseURL: String
+    public let startedAt: String
+    public let permissions: RuntimePermissionsDTO
+    public let instructions: BootstrapInstructionsDTO
+    public let guide: APIGuideDTO
+    public let routes: [BootstrapRouteDTO]
 }
 
-struct RouteListResponse: Encodable {
-    let contractVersion: String
-    let guide: APIGuideDTO
-    let routes: [APIRouteDTO]
+public struct RouteListResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let guide: APIGuideDTO
+    public let routes: [APIRouteDTO]
 }
 
-struct ErrorResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let error: String
-    let message: String
-    let requestID: String
-    let recovery: [String]
+public struct ErrorResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let error: String
+    public let message: String
+    public let requestID: String
+    public let recovery: [String]
 
-    init(
+    public init(
         error: String,
         message: String,
         requestID: String,

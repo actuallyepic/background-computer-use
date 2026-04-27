@@ -1,18 +1,24 @@
 import Foundation
 
 struct SetWindowFrameRouteService {
+    private let executionOptions: ActionExecutionOptions
     private let snapshotService = WindowGeometrySnapshotService()
     private let planner = WindowMotionPlanner()
-    private let engine = WindowMotionEngine()
+    private let engine: WindowMotionEngine
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        engine = WindowMotionEngine(executionOptions: executionOptions)
+    }
 
     func setWindowFrame(request: SetWindowFrameRequest) throws -> SetWindowFrameResponse {
-        let cursor = CursorRuntime.resolve(requested: request.cursor)
+        let cursor = cursorSession(request.cursor)
         let totalStarted = DispatchTime.now().uptimeNanoseconds
         let resolveStarted = DispatchTime.now().uptimeNanoseconds
         let snapshot = try snapshotService.snapshot(windowID: request.window)
         let resolveFinished = DispatchTime.now().uptimeNanoseconds
 
-        let animate = request.animate ?? true
+        let animate = executionOptions.visualCursorEnabled ? (request.animate ?? true) : false
         let planningStarted = DispatchTime.now().uptimeNanoseconds
         let warnings = [
             "set_window_frame accepts one canonical AppKit-global frame and routes it through the shared motion planner.",
@@ -209,5 +215,11 @@ struct SetWindowFrameRouteService {
                 )
             )
         }
+    }
+
+    private func cursorSession(_ request: CursorRequestDTO?) -> CursorResponseDTO {
+        executionOptions.visualCursorEnabled
+            ? CursorRuntime.resolve(requested: request)
+            : AXCursorTargeting.disabledSession(requested: request)
     }
 }

@@ -81,8 +81,14 @@ private struct CandidateExecutionResult {
 }
 
 struct ScrollRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let rereadDelaysMilliseconds = [80, 180, 320]
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func scroll(request: ScrollRequest) throws -> ScrollResponse {
         let capture = try targetResolver.capture(
@@ -126,7 +132,8 @@ struct ScrollRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the scroll target was not resolved."
+                    reason: "Cursor movement was not attempted because the scroll target was not resolved.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -167,7 +174,8 @@ struct ScrollRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because no scroll container candidate was ranked."
+                    reason: "Cursor movement was not attempted because no scroll container candidate was ranked.",
+                    options: executionOptions
                 ),
                 frontmostBundleBefore: frontmostBefore,
                 frontmostBundleBeforeDispatch: nil,
@@ -183,7 +191,8 @@ struct ScrollRouteService {
         var allVerificationReads: [ScrollVerificationReadDTO] = []
         var latestCursor = AXCursorTargeting.notAttempted(
             requested: request.cursor,
-            reason: "Cursor movement was not attempted before scroll dispatch."
+            reason: "Cursor movement was not attempted before scroll dispatch.",
+            options: executionOptions
         )
         var latestPostStateToken: String?
         var latestFrontmostBeforeDispatch: String?
@@ -388,7 +397,8 @@ struct ScrollRouteService {
             requested: cursorRequest,
             target: candidate.target,
             window: capture.envelope.response.window,
-            direction: direction
+            direction: direction,
+            options: executionOptions
         )
         let finishCursor = {
             if cursor.moved {

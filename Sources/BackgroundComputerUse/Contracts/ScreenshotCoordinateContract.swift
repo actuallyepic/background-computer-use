@@ -698,7 +698,7 @@ public struct ScreenshotCoordinateContract: Codable, Equatable, Sendable {
     }
 }
 
-public enum ScreenshotCoordinateError: Error, CustomStringConvertible, Equatable {
+public enum ScreenshotCoordinateError: Error, CustomStringConvertible, Equatable, Sendable {
     case unsupportedVersion(String)
     case invalidWindowFrame
     case invalidImageSize(String)

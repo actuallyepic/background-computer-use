@@ -2,10 +2,16 @@ import ApplicationServices
 import Foundation
 
 struct TypeTextRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let dispatchPrimitive = "CGEvent.keyboardSetUnicodeString + postToPid"
     private let elementValueDispatchPrimitive = "AXUIElementSetAttributeValue(kAXValueAttribute) + AXUIElementSetAttributeValue(kAXSelectedTextRangeAttribute)"
     private let settleDelay: TimeInterval = 0.35
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func typeText(request: TypeTextRequest) throws -> TypeTextResponse {
         let focusAssistMode = request.focusAssistMode ?? .none
@@ -53,7 +59,8 @@ struct TypeTextRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the action target was not resolved."
+                    reason: "Cursor movement was not attempted because the action target was not resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -82,7 +89,8 @@ struct TypeTextRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because type_text rejected the target as semantically unsupported."
+                    reason: "Cursor movement was not attempted because type_text rejected the target as semantically unsupported.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -111,7 +119,8 @@ struct TypeTextRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the live AX element could not be resolved."
+                    reason: "Cursor movement was not attempted because the live AX element could not be resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -123,7 +132,8 @@ struct TypeTextRouteService {
         let cursor = AXCursorTargeting.prepareTypeText(
             requested: request.cursor,
             target: target,
-            window: capture.envelope.response.window
+            window: capture.envelope.response.window,
+            options: executionOptions
         )
         warnings.append(contentsOf: cursor.warnings)
 

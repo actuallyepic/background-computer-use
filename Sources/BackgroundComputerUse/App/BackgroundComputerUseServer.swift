@@ -1,8 +1,7 @@
 import Foundation
 
-@main
-enum BackgroundComputerUseMain {
-    static func main() {
+package enum BackgroundComputerUseServer {
+    package static func run() {
         AppKitRuntimeBootstrap.startIfNeeded()
 
         let bootstrap = RuntimeBootstrap()

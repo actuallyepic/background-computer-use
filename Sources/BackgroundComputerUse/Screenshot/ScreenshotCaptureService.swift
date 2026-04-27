@@ -7,7 +7,8 @@ enum ScreenshotCaptureService {
         window: ResolvedWindowDTO,
         stateToken: String,
         imageMode: ImageMode,
-        includeRawRetinaCapture: Bool = false
+        includeRawRetinaCapture: Bool = false,
+        includeCursorOverlay: Bool = true
     ) -> ScreenshotDTO {
         if imageMode == .omit {
             return makeResponse(
@@ -67,7 +68,9 @@ enum ScreenshotCaptureService {
         }
 
         var cursorOverlayError: String?
-        let cursorSnapshots = CursorRuntime.snapshots(forWindowNumber: window.windowNumber)
+        let cursorSnapshots = includeCursorOverlay
+            ? CursorRuntime.snapshots(forWindowNumber: window.windowNumber)
+            : []
         if cursorSnapshots.isEmpty == false {
             let windowFrameAppKit = CGRect(
                 x: window.frameAppKit.x,

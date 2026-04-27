@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScrollActionClassificationDTO: String, Encodable {
+public enum ScrollActionClassificationDTO: String, Encodable, Sendable {
     case success
     case boundary
     case unsupported
@@ -8,7 +8,7 @@ enum ScrollActionClassificationDTO: String, Encodable {
     case verifierAmbiguous = "verifier_ambiguous"
 }
 
-enum ScrollIssueBucketDTO: String, Encodable {
+public enum ScrollIssueBucketDTO: String, Encodable, Sendable {
     case none
     case targeting
     case transport
@@ -16,13 +16,13 @@ enum ScrollIssueBucketDTO: String, Encodable {
     case opacity
 }
 
-enum ScrollTransportModeDTO: String, Encodable {
+public enum ScrollTransportModeDTO: String, Encodable, Sendable {
     case backgroundSafeAXLadder = "background_safe_ax_ladder"
     case postToPIDPaging = "post_to_pid_paging"
     case targetedScrollWheelPostToPID = "targeted_scroll_wheel_post_to_pid"
 }
 
-enum ScrollStrategyDTO: String, Encodable {
+public enum ScrollStrategyDTO: String, Encodable, Sendable {
     case axScrollToShowDescendant = "ax_scroll_to_show_descendant"
     case scrollbarValue = "scrollbar_value"
     case axPageAction = "ax_page_action"
@@ -30,78 +30,78 @@ enum ScrollStrategyDTO: String, Encodable {
     case targetedScrollWheelPostToPID = "targeted_scroll_wheel_post_to_pid"
 }
 
-struct ScrollCandidateDTO: Encodable {
-    let rank: Int
-    let score: Int
-    let reasons: [String]
-    let target: AXActionTargetSnapshotDTO
+public struct ScrollCandidateDTO: Encodable, Sendable {
+    public let rank: Int
+    public let score: Int
+    public let reasons: [String]
+    public let target: AXActionTargetSnapshotDTO
 }
 
-struct ScrollTransportAttemptDTO: Encodable {
-    let mode: ScrollTransportModeDTO
-    let strategy: ScrollStrategyDTO
-    let candidateRank: Int
-    let actedOnTarget: AXActionTargetSnapshotDTO
-    let liveElementResolution: String?
-    let rawStatus: String
-    let transportSuccess: Bool
-    let didDispatch: Bool
-    let boundaryReason: String?
-    let notes: [String]
+public struct ScrollTransportAttemptDTO: Encodable, Sendable {
+    public let mode: ScrollTransportModeDTO
+    public let strategy: ScrollStrategyDTO
+    public let candidateRank: Int
+    public let actedOnTarget: AXActionTargetSnapshotDTO
+    public let liveElementResolution: String?
+    public let rawStatus: String
+    public let transportSuccess: Bool
+    public let didDispatch: Bool
+    public let boundaryReason: String?
+    public let notes: [String]
 }
 
-struct ScrollVerificationReadDTO: Encodable {
-    let readOrdinal: Int
-    let delayMilliseconds: Int
-    let stateToken: String?
-    let observedDirection: String
-    let targetedScrollBarDelta: Double?
-    let visibleCharacterRangeDelta: Int?
-    let visibleTextChanged: Bool
-    let visibleLabelSetChanged: Bool
-    let sameLabelFrameShift: Double?
-    let sameLabelFrameDirectionMatched: Bool
-    let targetRegionChangeRatio: Double?
-    let fullWindowChangeRatio: Double?
-    let directTargetRegionChangeRatio: Double?
-    let directFullWindowChangeRatio: Double?
-    let wrongPaneMovementLikely: Bool
-    let strongEvidence: Bool
-    let evidence: [String]
+public struct ScrollVerificationReadDTO: Encodable, Sendable {
+    public let readOrdinal: Int
+    public let delayMilliseconds: Int
+    public let stateToken: String?
+    public let observedDirection: String
+    public let targetedScrollBarDelta: Double?
+    public let visibleCharacterRangeDelta: Int?
+    public let visibleTextChanged: Bool
+    public let visibleLabelSetChanged: Bool
+    public let sameLabelFrameShift: Double?
+    public let sameLabelFrameDirectionMatched: Bool
+    public let targetRegionChangeRatio: Double?
+    public let fullWindowChangeRatio: Double?
+    public let directTargetRegionChangeRatio: Double?
+    public let directFullWindowChangeRatio: Double?
+    public let wrongPaneMovementLikely: Bool
+    public let strongEvidence: Bool
+    public let evidence: [String]
 }
 
-struct ScrollVerificationSummaryDTO: Encodable {
-    let classification: ScrollActionClassificationDTO
-    let issueBucket: ScrollIssueBucketDTO
-    let matchedOnReadOrdinal: Int?
-    let finalObservedDirection: String
-    let evidence: [String]
+public struct ScrollVerificationSummaryDTO: Encodable, Sendable {
+    public let classification: ScrollActionClassificationDTO
+    public let issueBucket: ScrollIssueBucketDTO
+    public let matchedOnReadOrdinal: Int?
+    public let finalObservedDirection: String
+    public let evidence: [String]
 }
 
-struct ScrollResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let classification: ScrollActionClassificationDTO
-    let failureDomain: ActionFailureDomainDTO?
-    let issueBucket: ScrollIssueBucketDTO
-    let summary: String
-    let window: ResolvedWindowDTO?
-    let requestedTarget: AXActionTargetSnapshotDTO?
-    let chosenContainer: AXActionTargetSnapshotDTO?
-    let direction: ScrollDirectionDTO
-    let pages: Int
-    let winningMode: ScrollTransportModeDTO?
-    let winningStrategy: ScrollStrategyDTO?
-    let planCandidates: [ScrollCandidateDTO]
-    let transports: [ScrollTransportAttemptDTO]
-    let preStateToken: String?
-    let postStateToken: String?
-    let cursor: ActionCursorTargetResponseDTO
-    let frontmostBundleBefore: String?
-    let frontmostBundleBeforeDispatch: String?
-    let frontmostBundleAfter: String?
-    let warnings: [String]
-    let notes: [String]
-    let verification: ScrollVerificationSummaryDTO?
-    let verificationReads: [ScrollVerificationReadDTO]
+public struct ScrollResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let classification: ScrollActionClassificationDTO
+    public let failureDomain: ActionFailureDomainDTO?
+    public let issueBucket: ScrollIssueBucketDTO
+    public let summary: String
+    public let window: ResolvedWindowDTO?
+    public let requestedTarget: AXActionTargetSnapshotDTO?
+    public let chosenContainer: AXActionTargetSnapshotDTO?
+    public let direction: ScrollDirectionDTO
+    public let pages: Int
+    public let winningMode: ScrollTransportModeDTO?
+    public let winningStrategy: ScrollStrategyDTO?
+    public let planCandidates: [ScrollCandidateDTO]
+    public let transports: [ScrollTransportAttemptDTO]
+    public let preStateToken: String?
+    public let postStateToken: String?
+    public let cursor: ActionCursorTargetResponseDTO
+    public let frontmostBundleBefore: String?
+    public let frontmostBundleBeforeDispatch: String?
+    public let frontmostBundleAfter: String?
+    public let warnings: [String]
+    public let notes: [String]
+    public let verification: ScrollVerificationSummaryDTO?
+    public let verificationReads: [ScrollVerificationReadDTO]
 }

@@ -1,94 +1,77 @@
 import Foundation
 
-enum RouteExecutionLaneDTO: String, Encodable {
+public enum RouteExecutionLaneDTO: String, Encodable, Sendable {
     case sharedRead = "shared_read"
     case windowRead = "window_read"
     case windowWrite = "window_write"
 }
 
-enum BackgroundBehaviorDTO: String, Encodable {
+public enum BackgroundBehaviorDTO: String, Encodable, Sendable {
     case backgroundRequired = "background_required"
     case backgroundPreferred = "background_preferred"
     case foregroundAllowed = "foreground_allowed"
     case foregroundRequired = "foreground_required"
 }
 
-enum FocusStealPolicyDTO: String, Encodable {
+public enum FocusStealPolicyDTO: String, Encodable, Sendable {
     case forbidden
     case discouraged
     case allowed
     case required
 }
 
-enum MainThreadBehaviorDTO: String, Encodable {
+public enum MainThreadBehaviorDTO: String, Encodable, Sendable {
     case avoid = "avoid_main_thread"
     case allowed = "main_thread_allowed"
     case required = "main_thread_required"
 }
 
-enum RouteImplementationStatusDTO: String, Encodable {
+public enum RouteImplementationStatusDTO: String, Encodable, Sendable {
     case implemented
-    case scaffolded
 }
 
-struct RouteExecutionPolicyDTO: Encodable {
-    let lane: RouteExecutionLaneDTO
-    let backgroundBehavior: BackgroundBehaviorDTO
-    let focusStealPolicy: FocusStealPolicyDTO
-    let mainThreadBehavior: MainThreadBehaviorDTO
-    let readActRead: Bool
-    let allowsConcurrentClients: Bool
-    let notes: [String]
+public struct RouteExecutionPolicyDTO: Encodable, Sendable {
+    public let lane: RouteExecutionLaneDTO
+    public let backgroundBehavior: BackgroundBehaviorDTO
+    public let focusStealPolicy: FocusStealPolicyDTO
+    public let mainThreadBehavior: MainThreadBehaviorDTO
+    public let readActRead: Bool
+    public let allowsConcurrentClients: Bool
+    public let notes: [String]
 }
 
-struct RouteDescriptorDTO: Encodable {
-    let id: String
-    let method: String
-    let path: String
-    let category: String
-    let summary: String
-    let execution: RouteExecutionPolicyDTO
-    let implementationStatus: RouteImplementationStatusDTO
-    let notes: [String]
+public struct RouteDescriptorDTO: Encodable, Sendable {
+    public let id: String
+    public let method: String
+    public let path: String
+    public let category: String
+    public let summary: String
+    public let execution: RouteExecutionPolicyDTO
+    public let implementationStatus: RouteImplementationStatusDTO
+    public let notes: [String]
 }
 
-enum RouteTargetKindDTO: String, Encodable {
+public enum RouteTargetKindDTO: String, Encodable, Sendable {
     case shared
     case appQuery = "app_query"
     case window
 }
 
-struct RouteTargetSummaryDTO: Encodable {
-    let kind: RouteTargetKindDTO
-    let appQuery: String?
-    let windowID: String?
+public struct RouteTargetSummaryDTO: Encodable, Sendable {
+    public let kind: RouteTargetKindDTO
+    public let appQuery: String?
+    public let windowID: String?
 
     static let shared = RouteTargetSummaryDTO(kind: .shared, appQuery: nil, windowID: nil)
 }
 
-struct RouteExecutionReceiptDTO: Encodable {
-    let laneKey: String
-    let lane: RouteExecutionLaneDTO
-    let backgroundBehavior: BackgroundBehaviorDTO
-    let focusStealPolicy: FocusStealPolicyDTO
-    let mainThreadBehavior: MainThreadBehaviorDTO
-    let coordinatedAt: String
-    let executedOnMainThread: Bool
-    let readActRead: Bool
-}
-
-struct RouteSummaryDTO: Encodable {
-    let id: String
-    let method: String
-    let path: String
-    let summary: String
-}
-
-struct RouteScaffoldResponse: Encodable {
-    let contractVersion: String
-    let requestID: String
-    let status: String
-    let route: RouteSummaryDTO
-    let target: RouteTargetSummaryDTO
-    let notes: [String]
+public struct RouteExecutionReceiptDTO: Encodable, Sendable {
+    public let laneKey: String
+    public let lane: RouteExecutionLaneDTO
+    public let backgroundBehavior: BackgroundBehaviorDTO
+    public let focusStealPolicy: FocusStealPolicyDTO
+    public let mainThreadBehavior: MainThreadBehaviorDTO
+    public let coordinatedAt: String
+    public let executedOnMainThread: Bool
+    public let readActRead: Bool
 }

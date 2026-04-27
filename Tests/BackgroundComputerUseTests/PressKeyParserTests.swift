@@ -1,48 +1,63 @@
-import XCTest
+import Testing
 @testable import BackgroundComputerUse
 
-final class PressKeyParserTests: XCTestCase {
+@Suite
+struct PressKeyParserTests {
+    @Test
     func testParserMatchesDocumentedBackspaceParity() throws {
         let accepted = try PressKeyParser.parse("BackSpace")
-        XCTAssertEqual(accepted.key, "backspace")
-        XCTAssertEqual(Int(accepted.keyCode), 51)
+        #expect(accepted.key == "backspace")
+        #expect(Int(accepted.keyCode) == 51)
 
-        XCTAssertThrowsError(try PressKeyParser.parse("Backspace"))
-        XCTAssertThrowsError(try PressKeyParser.parse("backspace"))
+        #expect(throws: (any Error).self) {
+            try PressKeyParser.parse("Backspace")
+        }
+        #expect(throws: (any Error).self) {
+            try PressKeyParser.parse("backspace")
+        }
     }
 
+    @Test
     func testParserRejectsRawSlashButAcceptsSlashToken() throws {
-        XCTAssertThrowsError(try PressKeyParser.parse("/"))
+        #expect(throws: (any Error).self) {
+            try PressKeyParser.parse("/")
+        }
 
         let accepted = try PressKeyParser.parse("slash")
-        XCTAssertEqual(accepted.key, "/")
-        XCTAssertEqual(Int(accepted.keyCode), 44)
+        #expect(accepted.key == "/")
+        #expect(Int(accepted.keyCode) == 44)
     }
 
+    @Test
     func testParserAcceptsKeypadDigits() throws {
         let zero = try PressKeyParser.parse("KP_0")
-        XCTAssertEqual(zero.key, "kp_0")
-        XCTAssertEqual(Int(zero.keyCode), 82)
+        #expect(zero.key == "kp_0")
+        #expect(Int(zero.keyCode) == 82)
 
         let nine = try PressKeyParser.parse("KP_9")
-        XCTAssertEqual(nine.key, "kp_9")
-        XCTAssertEqual(Int(nine.keyCode), 92)
+        #expect(nine.key == "kp_9")
+        #expect(Int(nine.keyCode) == 92)
     }
 
+    @Test
     func testParserRejectsEnterButAcceptsReturn() throws {
-        XCTAssertThrowsError(try PressKeyParser.parse("Enter"))
+        #expect(throws: (any Error).self) {
+            try PressKeyParser.parse("Enter")
+        }
 
         let accepted = try PressKeyParser.parse("Return")
-        XCTAssertEqual(accepted.key, "return")
-        XCTAssertEqual(Int(accepted.keyCode), 36)
+        #expect(accepted.key == "return")
+        #expect(Int(accepted.keyCode) == 36)
     }
 
+    @Test
     func testParserNormalizesCommandFIntent() throws {
         let parsed = try PressKeyParser.parse("super+f")
-        XCTAssertEqual(parsed.dto.normalized, "command+f")
-        XCTAssertEqual(parsed.intent, .openFindOrSearch)
+        #expect(parsed.dto.normalized == "command+f")
+        #expect(parsed.intent == .openFindOrSearch)
     }
 
+    @Test
     func testNativeCommandFRequiresSearchEvidenceBeyondVisualChange() throws {
         let service = PressKeyRouteService()
         let parsed = try PressKeyParser.parse("super+f")
@@ -58,7 +73,7 @@ final class PressKeyParserTests: XCTestCase {
             frontmostBundleIDAfter: nil
         )
 
-        XCTAssertFalse(service.nativeEffectVerified(
+        #expect(!service.nativeEffectVerified(
             dispatchSucceeded: true,
             parsed: parsed,
             renderedChanged: false,
@@ -70,6 +85,7 @@ final class PressKeyParserTests: XCTestCase {
         ))
     }
 
+    @Test
     func testNativeCommandFVerifiesSearchFieldAppearing() throws {
         let service = PressKeyRouteService()
         let parsed = try PressKeyParser.parse("super+f")
@@ -85,7 +101,7 @@ final class PressKeyParserTests: XCTestCase {
             frontmostBundleIDAfter: nil
         )
 
-        XCTAssertTrue(service.nativeEffectVerified(
+        #expect(service.nativeEffectVerified(
             dispatchSucceeded: true,
             parsed: parsed,
             renderedChanged: false,
@@ -97,11 +113,12 @@ final class PressKeyParserTests: XCTestCase {
         ))
     }
 
+    @Test
     func testNativeCommandChordDoesNotVerifyVisualOnlyChange() throws {
         let service = PressKeyRouteService()
         let parsed = try PressKeyParser.parse("super+shift+p")
 
-        XCTAssertFalse(service.nativeEffectVerified(
+        #expect(!service.nativeEffectVerified(
             dispatchSucceeded: true,
             parsed: parsed,
             renderedChanged: false,
@@ -113,6 +130,7 @@ final class PressKeyParserTests: XCTestCase {
         ))
     }
 
+    @Test
     func testWindowServerPreparationRequiresSuccessfulTargetFocusAndKeyWindowRecordsForKeys() {
         let preparedForClick = NativeWindowServerPreparationResult(
             psnStatus: 0,
@@ -121,8 +139,8 @@ final class PressKeyParserTests: XCTestCase {
             notes: [],
             warnings: []
         )
-        XCTAssertTrue(preparedForClick.preparedTargetWindow(requireKeyWindowRecords: false))
-        XCTAssertFalse(preparedForClick.preparedTargetWindow(requireKeyWindowRecords: true))
+        #expect(preparedForClick.preparedTargetWindow(requireKeyWindowRecords: false))
+        #expect(!preparedForClick.preparedTargetWindow(requireKeyWindowRecords: true))
 
         let preparedForKeys = NativeWindowServerPreparationResult(
             psnStatus: 0,
@@ -131,7 +149,7 @@ final class PressKeyParserTests: XCTestCase {
             notes: [],
             warnings: []
         )
-        XCTAssertTrue(preparedForKeys.preparedTargetWindow(requireKeyWindowRecords: true))
+        #expect(preparedForKeys.preparedTargetWindow(requireKeyWindowRecords: true))
 
         let skipped = NativeWindowServerPreparationResult(
             psnStatus: nil,
@@ -140,7 +158,7 @@ final class PressKeyParserTests: XCTestCase {
             notes: [],
             warnings: []
         )
-        XCTAssertFalse(skipped.preparedTargetWindow(requireKeyWindowRecords: false))
+        #expect(!skipped.preparedTargetWindow(requireKeyWindowRecords: false))
 
         let partialKeyWindow = NativeWindowServerPreparationResult(
             psnStatus: 0,
@@ -149,7 +167,7 @@ final class PressKeyParserTests: XCTestCase {
             notes: [],
             warnings: []
         )
-        XCTAssertFalse(partialKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
+        #expect(!partialKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
 
         let nonZeroKeyWindow = NativeWindowServerPreparationResult(
             psnStatus: 0,
@@ -158,6 +176,6 @@ final class PressKeyParserTests: XCTestCase {
             notes: [],
             warnings: []
         )
-        XCTAssertFalse(nonZeroKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
+        #expect(!nonZeroKeyWindow.preparedTargetWindow(requireKeyWindowRecords: true))
     }
 }

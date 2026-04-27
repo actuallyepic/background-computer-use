@@ -6,19 +6,7 @@ struct RouterContext {
 }
 
 struct Router {
-    private let coordinator = RuntimeCoordinator()
-    private let runningAppService = RunningAppService()
-    private let windowListService = WindowListService()
-    private let windowStateService = WindowStateService()
-    private let windowDragRouteService = WindowDragRouteService()
-    private let windowResizeRouteService = WindowResizeRouteService()
-    private let setWindowFrameRouteService = SetWindowFrameRouteService()
-    private let setValueRouteService = SetValueRouteService()
-    private let typeTextRouteService = TypeTextRouteService()
-    private let pressKeyRouteService = PressKeyRouteService()
-    private let scrollRouteService = ScrollRouteService()
-    private let secondaryActionRouteService = SecondaryActionRouteService()
-    private let clickRouteService = ClickRouteService()
+    private let services = RuntimeServices()
 
     func response(for request: HTTPRequest, context: RouterContext) -> HTTPResponse {
         switch (request.method, request.path) {
@@ -61,8 +49,7 @@ struct Router {
                 ListAppsRequest.self,
                 routeID: .listApps,
                 from: request,
-                target: { _ in .shared },
-                work: { _ in runningAppService.listApps() }
+                work: { _ in services.listApps() }
             )
 
         case (.post, "/v1/list_windows"):
@@ -70,11 +57,8 @@ struct Router {
                 ListWindowsRequest.self,
                 routeID: .listWindows,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .appQuery, appQuery: payload.app, windowID: nil)
-                },
                 work: { payload in
-                    try windowListService.listWindows(appQuery: payload.app)
+                    try services.listWindows(payload)
                 }
             )
 
@@ -83,11 +67,8 @@ struct Router {
                 GetWindowStateRequest.self,
                 routeID: .getWindowState,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try windowStateService.getWindowState(request: payload)
+                    try services.getWindowState(payload)
                 }
             )
 
@@ -96,11 +77,8 @@ struct Router {
                 ClickRequest.self,
                 routeID: .click,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try clickRouteService.click(request: payload)
+                    try services.click(payload)
                 }
             )
 
@@ -109,11 +87,8 @@ struct Router {
                 ScrollRequest.self,
                 routeID: .scroll,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try scrollRouteService.scroll(request: payload)
+                    try services.scroll(payload)
                 }
             )
 
@@ -122,11 +97,8 @@ struct Router {
                 PerformSecondaryActionRequest.self,
                 routeID: .performSecondaryAction,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try secondaryActionRouteService.performSecondaryAction(request: payload)
+                    try services.performSecondaryAction(payload)
                 }
             )
 
@@ -135,11 +107,8 @@ struct Router {
                 DragRequest.self,
                 routeID: .drag,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try windowDragRouteService.drag(request: payload)
+                    try services.drag(payload)
                 }
             )
 
@@ -148,11 +117,8 @@ struct Router {
                 ResizeRequest.self,
                 routeID: .resize,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try windowResizeRouteService.resize(request: payload)
+                    try services.resize(payload)
                 }
             )
 
@@ -161,11 +127,8 @@ struct Router {
                 SetWindowFrameRequest.self,
                 routeID: .setWindowFrame,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try setWindowFrameRouteService.setWindowFrame(request: payload)
+                    try services.setWindowFrame(payload)
                 }
             )
 
@@ -174,11 +137,8 @@ struct Router {
                 TypeTextRequest.self,
                 routeID: .typeText,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try typeTextRouteService.typeText(request: payload)
+                    try services.typeText(payload)
                 }
             )
 
@@ -187,11 +147,8 @@ struct Router {
                 PressKeyRequest.self,
                 routeID: .pressKey,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try pressKeyRouteService.pressKey(request: payload)
+                    try services.pressKey(payload)
                 }
             )
 
@@ -200,11 +157,8 @@ struct Router {
                 SetValueRequest.self,
                 routeID: .setValue,
                 from: request,
-                target: { payload in
-                    RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: payload.window)
-                },
                 work: { payload in
-                    try setValueRouteService.setValue(request: payload)
+                    try services.setValue(payload)
                 }
             )
 
@@ -225,36 +179,16 @@ struct Router {
         }
     }
 
-    private func execute<Response: Encodable>(
-        routeID: RouteID,
-        target: RouteTargetSummaryDTO,
-        work: () throws -> Response
-    ) -> HTTPResponse {
-        let route = RouteRegistry.descriptor(for: routeID)
-        do {
-            let response = try coordinator.execute(route: route, target: target, work)
-            return .json(response)
-        } catch {
-            return errorResponse(for: error, routeID: routeID)
-        }
-    }
-
     private func decodeAndExecute<Request: Decodable, Response: Encodable>(
         _ type: Request.Type,
         routeID: RouteID,
         from request: HTTPRequest,
-        target: (Request) -> RouteTargetSummaryDTO,
         work: (Request) throws -> Response
     ) -> HTTPResponse {
         do {
             let payload = try JSONSupport.decoder.decode(Request.self, from: request.body)
-            let routeTarget = target(payload)
-            let route = RouteRegistry.descriptor(for: routeID)
-            let coordinatedResponse = try coordinator.execute(route: route, target: routeTarget) {
-                try work(payload)
-            }
             return .json(
-                coordinatedResponse,
+                try work(payload),
                 includeDebugNotes: includeDebugNotes(for: routeID, payload: payload)
             )
         } catch {
@@ -263,23 +197,6 @@ struct Router {
             }
 
             return errorResponse(for: error, routeID: routeID)
-        }
-    }
-
-    private func decodeAndScaffold<Request: Decodable>(
-        _ type: Request.Type,
-        routeID: RouteID,
-        from request: HTTPRequest,
-        target: (Request) -> RouteTargetSummaryDTO
-    ) -> HTTPResponse {
-        do {
-            let payload = try JSONSupport.decoder.decode(Request.self, from: request.body)
-            return coordinator.scaffold(
-                route: RouteRegistry.descriptor(for: routeID),
-                target: target(payload)
-            )
-        } catch {
-            return invalidRequestResponse(for: error, routeID: routeID)
         }
     }
 

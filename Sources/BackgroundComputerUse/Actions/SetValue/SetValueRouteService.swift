@@ -2,9 +2,15 @@ import ApplicationServices
 import Foundation
 
 struct SetValueRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let writePrimitive = "AXUIElementSetAttributeValue(kAXValueAttribute)"
     private let settleDelay: TimeInterval = 0.35
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func setValue(request: SetValueRequest) throws -> SetValueResponse {
         let capture = try targetResolver.capture(
@@ -47,7 +53,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the action target was not resolved."
+                    reason: "Cursor movement was not attempted because the action target was not resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -79,7 +86,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because set_value rejected the target as unsupported."
+                    reason: "Cursor movement was not attempted because set_value rejected the target as unsupported.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -108,7 +116,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because set_value rejected the target as semantically unsupported."
+                    reason: "Cursor movement was not attempted because set_value rejected the target as semantically unsupported.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -140,7 +149,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the live AX element could not be resolved."
+                    reason: "Cursor movement was not attempted because the live AX element could not be resolved.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -171,7 +181,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the live AX value attribute was not settable."
+                    reason: "Cursor movement was not attempted because the live AX value attribute was not settable.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -204,7 +215,8 @@ struct SetValueRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because value coercion failed."
+                    reason: "Cursor movement was not attempted because value coercion failed.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -215,7 +227,8 @@ struct SetValueRouteService {
         let cursor = AXCursorTargeting.prepareSetValue(
             requested: request.cursor,
             target: target,
-            window: capture.envelope.response.window
+            window: capture.envelope.response.window,
+            options: executionOptions
         )
         warnings.append(contentsOf: cursor.warnings)
 

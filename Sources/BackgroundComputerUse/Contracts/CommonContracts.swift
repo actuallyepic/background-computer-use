@@ -1,24 +1,24 @@
 import Foundation
 
-public enum ImageMode: String, Decodable, Encodable, Hashable {
+public enum ImageMode: String, Decodable, Encodable, Hashable, Sendable {
     case path
     case base64
     case omit
 }
 
-enum StateDebugModeDTO: String, Decodable, Encodable {
+public enum StateDebugModeDTO: String, Decodable, Encodable, Sendable {
     case none
     case summary
     case full
 }
 
-enum MouseButtonDTO: String, Decodable, Encodable {
+public enum MouseButtonDTO: String, Decodable, Encodable, Sendable {
     case left
     case right
     case middle
 }
 
-enum ResizeHandleDTO: String, Decodable, Encodable {
+public enum ResizeHandleDTO: String, Decodable, Encodable, Sendable {
     case left
     case right
     case top
@@ -29,19 +29,19 @@ enum ResizeHandleDTO: String, Decodable, Encodable {
     case bottomRight
 }
 
-enum ScrollDirectionDTO: String, Decodable, Encodable {
+public enum ScrollDirectionDTO: String, Decodable, Encodable, Sendable {
     case up
     case down
     case left
     case right
 }
 
-enum ActionVerificationModeDTO: String, Decodable, Encodable {
+public enum ActionVerificationModeDTO: String, Decodable, Encodable, Sendable {
     case strict
     case fast
 }
 
-enum CoordinateSpaceDTO: String, Decodable, Encodable {
+public enum CoordinateSpaceDTO: String, Decodable, Encodable, Sendable {
     case modelFacingScreenshot
     case rawRetinaCapture
     case windowLocalTopLeft
@@ -51,27 +51,45 @@ enum CoordinateSpaceDTO: String, Decodable, Encodable {
     case appKitGlobal
 }
 
-enum MotionPresentationModeDTO: String, Encodable {
+public enum MotionPresentationModeDTO: String, Encodable, Sendable {
     case none
     case drag
     case resize
     case dragThenResize
 }
 
-struct CursorRequestDTO: Decodable, Encodable {
-    let id: String?
-    let name: String?
-    let color: String?
+public struct CursorRequestDTO: Decodable, Encodable, Sendable {
+    public let id: String?
+    public let name: String?
+    public let color: String?
+
+    public init(id: String? = nil, name: String? = nil, color: String? = nil) {
+        self.id = id
+        self.name = name
+        self.color = color
+    }
 }
 
-struct CursorResponseDTO: Encodable {
-    let id: String
-    let name: String
-    let color: String
-    let reused: Bool
+public struct CursorResponseDTO: Encodable, Sendable {
+    public let id: String
+    public let name: String
+    public let color: String
+    public let reused: Bool
+
+    public init(id: String, name: String, color: String, reused: Bool) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.reused = reused
+    }
 }
 
-struct ActionErrorDTO: Encodable {
-    let code: String
-    let message: String
+public struct ActionErrorDTO: Encodable, Sendable {
+    public let code: String
+    public let message: String
+
+    public init(code: String, message: String) {
+        self.code = code
+        self.message = message
+    }
 }

@@ -1,12 +1,18 @@
 import Foundation
 
 struct WindowResizeRouteService {
+    private let executionOptions: ActionExecutionOptions
     private let snapshotService = WindowGeometrySnapshotService()
     private let planner = WindowMotionPlanner()
-    private let engine = WindowMotionEngine()
+    private let engine: WindowMotionEngine
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        engine = WindowMotionEngine(executionOptions: executionOptions)
+    }
 
     func resize(request: ResizeRequest) throws -> ResizeResponse {
-        let cursor = CursorRuntime.resolve(requested: request.cursor)
+        let cursor = cursorSession(request.cursor)
         let totalStarted = DispatchTime.now().uptimeNanoseconds
         let resolveStarted = DispatchTime.now().uptimeNanoseconds
         let snapshot = try snapshotService.snapshot(windowID: request.window)
@@ -191,5 +197,11 @@ struct WindowResizeRouteService {
                 )
             )
         }
+    }
+
+    private func cursorSession(_ request: CursorRequestDTO?) -> CursorResponseDTO {
+        executionOptions.visualCursorEnabled
+            ? CursorRuntime.resolve(requested: request)
+            : AXCursorTargeting.disabledSession(requested: request)
     }
 }

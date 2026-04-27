@@ -4,22 +4,67 @@ protocol DebugNotesRequest {
     var debug: Bool? { get }
 }
 
-enum ActionTargetKindDTO: String, Decodable, Encodable {
+public enum ActionTargetRequestValidationError: Error, CustomStringConvertible, Sendable {
+    case invalidDisplayIndex(String)
+    case emptyTargetValue(ActionTargetKindDTO)
+
+    public var description: String {
+        switch self {
+        case .invalidDisplayIndex(let value):
+            return "display_index targets must use a non-negative integer value, got '\(value)'."
+        case .emptyTargetValue(let kind):
+            return "\(kind.rawValue) targets must use a non-empty string value."
+        }
+    }
+}
+
+public enum ActionTargetKindDTO: String, Decodable, Encodable, Sendable {
     case displayIndex = "display_index"
     case nodeID = "node_id"
     case refetchFingerprint = "refetch_fingerprint"
 }
 
-struct ActionTargetRequestDTO: Decodable, Encodable {
-    let kind: ActionTargetKindDTO
-    let value: String
+public struct ActionTargetRequestDTO: Decodable, Encodable, Sendable {
+    public let kind: ActionTargetKindDTO
+    public let value: String
 
-    var displayIndex: Int? {
+    private init(uncheckedKind kind: ActionTargetKindDTO, value: String) {
+        self.kind = kind
+        self.value = value
+    }
+
+    init(kind: ActionTargetKindDTO, value: String) throws {
+        self.kind = kind
+        self.value = try Self.validatedValue(kind: kind, value: value)
+    }
+
+    public static func displayIndex(_ index: Int) throws -> ActionTargetRequestDTO {
+        guard index >= 0 else {
+            throw ActionTargetRequestValidationError.invalidDisplayIndex(String(index))
+        }
+        return ActionTargetRequestDTO(uncheckedKind: .displayIndex, value: String(index))
+    }
+
+    public static func nodeID(_ value: String) throws -> ActionTargetRequestDTO {
+        ActionTargetRequestDTO(
+            uncheckedKind: .nodeID,
+            value: try validatedValue(kind: .nodeID, value: value)
+        )
+    }
+
+    public static func refetchFingerprint(_ value: String) throws -> ActionTargetRequestDTO {
+        ActionTargetRequestDTO(
+            uncheckedKind: .refetchFingerprint,
+            value: try validatedValue(kind: .refetchFingerprint, value: value)
+        )
+    }
+
+    public var displayIndex: Int? {
         guard kind == .displayIndex else { return nil }
         return Int(value)
     }
 
-    var summary: String {
+    public var summary: String {
         switch kind {
         case .displayIndex:
             return "display_index \(value)"
@@ -30,12 +75,30 @@ struct ActionTargetRequestDTO: Decodable, Encodable {
         }
     }
 
+    private static func validatedValue(kind: ActionTargetKindDTO, value: String) throws -> String {
+        switch kind {
+        case .displayIndex:
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let index = Int(trimmed), index >= 0 else {
+                throw ActionTargetRequestValidationError.invalidDisplayIndex(value)
+            }
+            return String(index)
+
+        case .nodeID, .refetchFingerprint:
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.isEmpty == false else {
+                throw ActionTargetRequestValidationError.emptyTargetValue(kind)
+            }
+            return trimmed
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case kind
         case value
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         kind = try container.decode(ActionTargetKindDTO.self, forKey: .kind)
 
@@ -65,7 +128,7 @@ struct ActionTargetRequestDTO: Decodable, Encodable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(kind, forKey: .kind)
         if let displayIndex {
@@ -76,43 +139,138 @@ struct ActionTargetRequestDTO: Decodable, Encodable {
     }
 }
 
-struct ListAppsRequest: Decodable {}
-
-struct ListWindowsRequest: Decodable {
-    let app: String
+public struct ListAppsRequest: Decodable, Sendable {
+    public init() {}
 }
 
-struct GetWindowStateRequest: Decodable {
-    let window: String
-    let includeMenuBar: Bool?
-    let menuPath: [String]?
-    let webTraversal: AXWebTraversalMode?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let includeRawScreenshot: Bool?
-    let debugMode: StateDebugModeDTO?
-    let debug: Bool?
-    let includeRawCapture: Bool?
-    let includeSemanticTree: Bool?
-    let includeProjectedTree: Bool?
-    let includePlatformProfile: Bool?
-    let includeDiagnostics: Bool?
+public struct ListWindowsRequest: Decodable, Sendable {
+    public let app: String
+
+    public init(app: String) {
+        self.app = app
+    }
 }
 
-struct ClickRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let target: ActionTargetRequestDTO?
-    let x: Double?
-    let y: Double?
-    let mode: ClickModeDTO?
-    let clickCount: Int?
-    let mouseButton: MouseButtonDTO?
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct GetWindowStateRequest: Decodable, Sendable {
+    public let window: String
+    public let includeMenuBar: Bool?
+    public let menuPath: [String]?
+    public let webTraversal: AXWebTraversalMode?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let includeRawScreenshot: Bool?
+    public let debugMode: StateDebugModeDTO?
+    public let debug: Bool?
+    public let includeRawCapture: Bool?
+    public let includeSemanticTree: Bool?
+    public let includeProjectedTree: Bool?
+    public let includePlatformProfile: Bool?
+    public let includeDiagnostics: Bool?
+
+    public init(
+        window: String,
+        includeMenuBar: Bool? = nil,
+        menuPath: [String]? = nil,
+        webTraversal: AXWebTraversalMode? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        includeRawScreenshot: Bool? = nil,
+        debugMode: StateDebugModeDTO? = nil,
+        debug: Bool? = nil,
+        includeRawCapture: Bool? = nil,
+        includeSemanticTree: Bool? = nil,
+        includeProjectedTree: Bool? = nil,
+        includePlatformProfile: Bool? = nil,
+        includeDiagnostics: Bool? = nil
+    ) {
+        self.window = window
+        self.includeMenuBar = includeMenuBar
+        self.menuPath = menuPath
+        self.webTraversal = webTraversal
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.includeRawScreenshot = includeRawScreenshot
+        self.debugMode = debugMode
+        self.debug = debug
+        self.includeRawCapture = includeRawCapture
+        self.includeSemanticTree = includeSemanticTree
+        self.includeProjectedTree = includeProjectedTree
+        self.includePlatformProfile = includePlatformProfile
+        self.includeDiagnostics = includeDiagnostics
+    }
+}
+
+public struct ClickRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let target: ActionTargetRequestDTO?
+    public let x: Double?
+    public let y: Double?
+    public let mode: ClickModeDTO?
+    public let clickCount: Int?
+    public let mouseButton: MouseButtonDTO?
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        target: ActionTargetRequestDTO,
+        mode: ClickModeDTO? = nil,
+        clickCount: Int? = nil,
+        mouseButton: MouseButtonDTO? = nil,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = target
+        self.x = nil
+        self.y = nil
+        self.mode = mode
+        self.clickCount = clickCount
+        self.mouseButton = mouseButton
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        x: Double,
+        y: Double,
+        mode: ClickModeDTO? = nil,
+        clickCount: Int? = nil,
+        mouseButton: MouseButtonDTO? = nil,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = nil
+        self.x = x
+        self.y = y
+        self.mode = mode
+        self.clickCount = clickCount
+        self.mouseButton = mouseButton
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 
     enum CodingKeys: String, CodingKey {
         case window
@@ -130,7 +288,7 @@ struct ClickRequest: Decodable {
         case debug
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         window = try container.decode(String.self, forKey: .window)
         stateToken = try container.decodeIfPresent(String.self, forKey: .stateToken)
@@ -166,18 +324,44 @@ struct ClickRequest: Decodable {
     }
 }
 
-struct ScrollRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let target: ActionTargetRequestDTO
-    let direction: ScrollDirectionDTO
-    let pages: Int?
-    let verificationMode: ActionVerificationModeDTO?
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct ScrollRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let target: ActionTargetRequestDTO
+    public let direction: ScrollDirectionDTO
+    public let pages: Int?
+    public let verificationMode: ActionVerificationModeDTO?
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        target: ActionTargetRequestDTO,
+        direction: ScrollDirectionDTO,
+        pages: Int? = nil,
+        verificationMode: ActionVerificationModeDTO? = nil,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = target
+        self.direction = direction
+        self.pages = pages
+        self.verificationMode = verificationMode
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 
     enum CodingKeys: String, CodingKey {
         case window
@@ -193,7 +377,7 @@ struct ScrollRequest: Decodable {
         case debug
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         window = try container.decode(String.self, forKey: .window)
         stateToken = try container.decodeIfPresent(String.self, forKey: .stateToken)
@@ -209,19 +393,47 @@ struct ScrollRequest: Decodable {
     }
 }
 
-struct PerformSecondaryActionRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let target: ActionTargetRequestDTO
-    let action: String
-    let actionID: String?
-    let menuPath: [String]?
-    let webTraversal: AXWebTraversalMode?
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct PerformSecondaryActionRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let target: ActionTargetRequestDTO
+    public let action: String
+    public let actionID: String?
+    public let menuPath: [String]?
+    public let webTraversal: AXWebTraversalMode?
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        target: ActionTargetRequestDTO,
+        action: String,
+        actionID: String? = nil,
+        menuPath: [String]? = nil,
+        webTraversal: AXWebTraversalMode? = nil,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = target
+        self.action = action
+        self.actionID = actionID
+        self.menuPath = menuPath
+        self.webTraversal = webTraversal
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 
     enum CodingKeys: String, CodingKey {
         case window
@@ -238,7 +450,7 @@ struct PerformSecondaryActionRequest: Decodable {
         case debug
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         window = try container.decode(String.self, forKey: .window)
         stateToken = try container.decodeIfPresent(String.self, forKey: .stateToken)
@@ -255,42 +467,105 @@ struct PerformSecondaryActionRequest: Decodable {
     }
 }
 
-struct DragRequest: Decodable {
-    let window: String
-    let toX: Double
-    let toY: Double
-    let cursor: CursorRequestDTO?
+public struct DragRequest: Decodable, Sendable {
+    public let window: String
+    public let toX: Double
+    public let toY: Double
+    public let cursor: CursorRequestDTO?
+
+    public init(window: String, toX: Double, toY: Double, cursor: CursorRequestDTO? = nil) {
+        self.window = window
+        self.toX = toX
+        self.toY = toY
+        self.cursor = cursor
+    }
 }
 
-struct ResizeRequest: Decodable {
-    let window: String
-    let handle: ResizeHandleDTO
-    let toX: Double
-    let toY: Double
-    let cursor: CursorRequestDTO?
+public struct ResizeRequest: Decodable, Sendable {
+    public let window: String
+    public let handle: ResizeHandleDTO
+    public let toX: Double
+    public let toY: Double
+    public let cursor: CursorRequestDTO?
+
+    public init(
+        window: String,
+        handle: ResizeHandleDTO,
+        toX: Double,
+        toY: Double,
+        cursor: CursorRequestDTO? = nil
+    ) {
+        self.window = window
+        self.handle = handle
+        self.toX = toX
+        self.toY = toY
+        self.cursor = cursor
+    }
 }
 
-struct SetWindowFrameRequest: Decodable {
-    let window: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let animate: Bool?
-    let cursor: CursorRequestDTO?
+public struct SetWindowFrameRequest: Decodable, Sendable {
+    public let window: String
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+    public let animate: Bool?
+    public let cursor: CursorRequestDTO?
+
+    public init(
+        window: String,
+        x: Double,
+        y: Double,
+        width: Double,
+        height: Double,
+        animate: Bool? = nil,
+        cursor: CursorRequestDTO? = nil
+    ) {
+        self.window = window
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.animate = animate
+        self.cursor = cursor
+    }
 }
 
-struct TypeTextRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let target: ActionTargetRequestDTO?
-    let text: String
-    let focusAssistMode: TypeTextFocusAssistModeDTO?
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct TypeTextRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let target: ActionTargetRequestDTO?
+    public let text: String
+    public let focusAssistMode: TypeTextFocusAssistModeDTO?
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        target: ActionTargetRequestDTO? = nil,
+        text: String,
+        focusAssistMode: TypeTextFocusAssistModeDTO? = nil,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = target
+        self.text = text
+        self.focusAssistMode = focusAssistMode
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 
     enum CodingKeys: String, CodingKey {
         case window
@@ -305,7 +580,7 @@ struct TypeTextRequest: Decodable {
         case debug
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         window = try container.decode(String.self, forKey: .window)
         stateToken = try container.decodeIfPresent(String.self, forKey: .stateToken)
@@ -320,27 +595,69 @@ struct TypeTextRequest: Decodable {
     }
 }
 
-struct PressKeyRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let key: String
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct PressKeyRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let key: String
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        key: String,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.key = key
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 }
 
-struct SetValueRequest: Decodable {
-    let window: String
-    let stateToken: String?
-    let target: ActionTargetRequestDTO
-    let value: String
-    let cursor: CursorRequestDTO?
-    let includeMenuBar: Bool?
-    let maxNodes: Int?
-    let imageMode: ImageMode?
-    let debug: Bool?
+public struct SetValueRequest: Decodable, Sendable {
+    public let window: String
+    public let stateToken: String?
+    public let target: ActionTargetRequestDTO
+    public let value: String
+    public let cursor: CursorRequestDTO?
+    public let includeMenuBar: Bool?
+    public let maxNodes: Int?
+    public let imageMode: ImageMode?
+    public let debug: Bool?
+
+    public init(
+        window: String,
+        stateToken: String? = nil,
+        target: ActionTargetRequestDTO,
+        value: String,
+        cursor: CursorRequestDTO? = nil,
+        includeMenuBar: Bool? = nil,
+        maxNodes: Int? = nil,
+        imageMode: ImageMode? = nil,
+        debug: Bool? = nil
+    ) {
+        self.window = window
+        self.stateToken = stateToken
+        self.target = target
+        self.value = value
+        self.cursor = cursor
+        self.includeMenuBar = includeMenuBar
+        self.maxNodes = maxNodes
+        self.imageMode = imageMode
+        self.debug = debug
+    }
 
     enum CodingKeys: String, CodingKey {
         case window
@@ -354,7 +671,7 @@ struct SetValueRequest: Decodable {
         case debug
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         window = try container.decode(String.self, forKey: .window)
         stateToken = try container.decodeIfPresent(String.self, forKey: .stateToken)

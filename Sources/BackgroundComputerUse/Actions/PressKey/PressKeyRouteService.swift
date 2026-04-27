@@ -4,9 +4,15 @@ import CoreGraphics
 import Foundation
 
 struct PressKeyRouteService {
-    private let targetResolver = AXActionTargetResolver()
+    private let executionOptions: ActionExecutionOptions
+    private let targetResolver: AXActionTargetResolver
     private let nativeDispatchPrimitive = "SLPSPostEventRecordTo target-only focus + key-window records + CGEvent keyboard sequence + postToPid"
     private let settleDelay: TimeInterval = 0.35
+
+    init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
+        self.executionOptions = executionOptions
+        targetResolver = AXActionTargetResolver(executionOptions: executionOptions)
+    }
 
     func pressKey(request: PressKeyRequest) throws -> PressKeyResponse {
         let capture = try targetResolver.capture(
@@ -36,7 +42,8 @@ struct PressKeyRouteService {
                 postStateToken: nil,
                 cursor: AXCursorTargeting.notAttempted(
                     requested: request.cursor,
-                    reason: "Cursor movement was not attempted because the key syntax was rejected."
+                    reason: "Cursor movement was not attempted because the key syntax was rejected.",
+                    options: executionOptions
                 ),
                 warnings: warnings,
                 notes: notes,
@@ -577,7 +584,8 @@ struct PressKeyRouteService {
         return AXCursorTargeting.preparePressKey(
             requested: requested,
             window: window,
-            keyLabel: keyLabel
+            keyLabel: keyLabel,
+            options: executionOptions
         )
     }
 }

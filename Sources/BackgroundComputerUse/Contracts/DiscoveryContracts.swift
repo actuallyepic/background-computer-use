@@ -1,31 +1,31 @@
 import Foundation
 
-struct RunningAppDTO: Encodable {
-    let name: String
-    let bundleID: String
-    let pid: Int32
-    let launchDate: String?
-    let activationPolicy: String
-    let isActive: Bool
-    let isHidden: Bool
-    let isFrontmost: Bool
-    let onscreenWindowCount: Int
+public struct RunningAppDTO: Encodable, Sendable {
+    public let name: String
+    public let bundleID: String
+    public let pid: Int32
+    public let launchDate: String?
+    public let activationPolicy: String
+    public let isActive: Bool
+    public let isHidden: Bool
+    public let isFrontmost: Bool
+    public let onscreenWindowCount: Int
 }
 
-struct ListAppsResponse: Encodable {
-    let contractVersion: String
-    let frontmostApp: RunningAppDTO?
-    let runningApps: [RunningAppDTO]
-    let notes: [String]
+public struct ListAppsResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let frontmostApp: RunningAppDTO?
+    public let runningApps: [RunningAppDTO]
+    public let notes: [String]
 }
 
-public struct RectDTO: Codable {
+public struct RectDTO: Codable, Sendable {
     public let x: Double
     public let y: Double
     public let width: Double
     public let height: Double
 
-    init(x: Double, y: Double, width: Double, height: Double) {
+    public init(x: Double, y: Double, width: Double, height: Double) {
         self.x = sanitizedJSONDouble(x)
         self.y = sanitizedJSONDouble(y)
         self.width = sanitizedJSONDouble(width)
@@ -33,32 +33,32 @@ public struct RectDTO: Codable {
     }
 }
 
-struct WindowDTO: Encodable {
-    let windowID: String
-    let title: String
-    let bundleID: String
-    let pid: Int32
-    let launchDate: String?
-    let role: String?
-    let subrole: String?
-    let windowNumber: Int
-    let frameAppKit: RectDTO
-    let isFocused: Bool
-    let isMain: Bool
-    let isMinimized: Bool
-    let isOnScreen: Bool
+public struct WindowDTO: Encodable, Sendable {
+    public let windowID: String
+    public let title: String
+    public let bundleID: String
+    public let pid: Int32
+    public let launchDate: String?
+    public let role: String?
+    public let subrole: String?
+    public let windowNumber: Int
+    public let frameAppKit: RectDTO
+    public let isFocused: Bool
+    public let isMain: Bool
+    public let isMinimized: Bool
+    public let isOnScreen: Bool
 }
 
-struct AppReferenceDTO: Encodable {
-    let name: String
-    let bundleID: String
-    let pid: Int32
-    let launchDate: String?
+public struct AppReferenceDTO: Encodable, Sendable {
+    public let name: String
+    public let bundleID: String
+    public let pid: Int32
+    public let launchDate: String?
 }
 
-struct ListWindowsResponse: Encodable {
-    let contractVersion: String
-    let app: AppReferenceDTO
-    let windows: [WindowDTO]
-    let notes: [String]
+public struct ListWindowsResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let app: AppReferenceDTO
+    public let windows: [WindowDTO]
+    public let notes: [String]
 }

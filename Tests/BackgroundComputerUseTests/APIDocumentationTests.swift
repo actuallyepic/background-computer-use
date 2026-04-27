@@ -1,21 +1,26 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BackgroundComputerUse
 
-final class APIDocumentationTests: XCTestCase {
-    func testEveryPublicRouteIncludesOperationalDocumentation() {
+@Suite
+
+struct APIDocumentationTests {
+    @Test
+    func everyPublicRouteIncludesOperationalDocumentation() {
         let routes = RouteRegistry.publicRoutes()
 
-        XCTAssertEqual(routes.count, RouteID.allCases.count)
+        #expect(routes.count == RouteID.allCases.count)
 
         for route in routes {
-            XCTAssertFalse(route.usage.whenToUse.isEmpty, route.id)
-            XCTAssertFalse(route.usage.successSignals.isEmpty, route.id)
-            XCTAssertFalse(route.errors.isEmpty, route.id)
-            XCTAssertEqual(route.implementationStatus, .implemented, route.id)
+            #expect(!route.usage.whenToUse.isEmpty)
+            #expect(!route.usage.successSignals.isEmpty)
+            #expect(!route.errors.isEmpty)
+            #expect(route.implementationStatus == .implemented)
         }
     }
 
-    func testRouteListResponseDocumentsGuideExecutionAndErrors() throws {
+    @Test
+    func routeListResponseDocumentsGuideExecutionAndErrors() throws {
         let response = RouteListResponse(
             contractVersion: ContractVersion.current,
             guide: APIDocumentation.guide,
@@ -23,20 +28,21 @@ final class APIDocumentationTests: XCTestCase {
         )
 
         let data = try JSONSupport.encoder.encode(response)
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertNotNil(json["guide"])
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(json["guide"] != nil)
 
-        let routes = try XCTUnwrap(json["routes"] as? [[String: Any]])
-        let click = try XCTUnwrap(routes.first { $0["id"] as? String == RouteID.click.rawValue })
-        XCTAssertNotNil(click["execution"])
-        XCTAssertNotNil(click["usage"])
+        let routes = try #require(json["routes"] as? [[String: Any]])
+        let click = try #require(routes.first { $0["id"] as? String == RouteID.click.rawValue })
+        #expect(click["execution"] != nil)
+        #expect(click["usage"] != nil)
 
-        let errors = try XCTUnwrap(click["errors"] as? [[String: Any]])
-        XCTAssertTrue(errors.contains { $0["error"] as? String == "invalid_request" })
-        XCTAssertTrue(errors.contains { $0["error"] as? String == "window_not_found" })
+        let errors = try #require(click["errors"] as? [[String: Any]])
+        #expect(errors.contains { $0["error"] as? String == "invalid_request" })
+        #expect(errors.contains { $0["error"] as? String == "window_not_found" })
     }
 
-    func testActionRoutesDocumentCanonicalTargetOnly() throws {
+    @Test
+    func actionRoutesDocumentCanonicalTargetOnly() throws {
         let response = RouteListResponse(
             contractVersion: ContractVersion.current,
             guide: APIDocumentation.guide,
@@ -44,13 +50,13 @@ final class APIDocumentationTests: XCTestCase {
         )
 
         let data = try JSONSupport.encoder.encode(response)
-        let encoded = try XCTUnwrap(String(data: data, encoding: .utf8))
+        let encoded = try #require(String(data: data, encoding: .utf8))
 
         let removedFieldName = "element" + "Index"
-        XCTAssertFalse(encoded.contains(removedFieldName))
+        #expect(!encoded.contains(removedFieldName))
 
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let routes = try XCTUnwrap(json["routes"] as? [[String: Any]])
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let routes = try #require(json["routes"] as? [[String: Any]])
         for routeID in [
             RouteID.click.rawValue,
             RouteID.scroll.rawValue,
@@ -58,14 +64,15 @@ final class APIDocumentationTests: XCTestCase {
             RouteID.typeText.rawValue,
             RouteID.setValue.rawValue
         ] {
-            let route = try XCTUnwrap(routes.first { $0["id"] as? String == routeID })
-            let request = try XCTUnwrap(route["request"] as? [String: Any])
-            let fields = try XCTUnwrap(request["fields"] as? [[String: Any]])
-            XCTAssertTrue(fields.contains { $0["name"] as? String == "target" }, routeID)
+            let route = try #require(routes.first { $0["id"] as? String == routeID })
+            let request = try #require(route["request"] as? [String: Any])
+            let fields = try #require(request["fields"] as? [[String: Any]])
+            #expect(fields.contains { $0["name"] as? String == "target" })
         }
     }
 
-    func testInvalidRequestErrorIsVersionedAndActionable() throws {
+    @Test
+    func invalidRequestErrorIsVersionedAndActionable() throws {
         let request = try makeRequest(
             method: "POST",
             path: "/v1/list_windows",
@@ -77,16 +84,16 @@ final class APIDocumentationTests: XCTestCase {
             context: RouterContext(baseURL: nil, startedAt: nil)
         )
 
-        XCTAssertEqual(response.statusCode, 400)
+        #expect(response.statusCode == 400)
 
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: response.body) as? [String: Any])
-        XCTAssertEqual(json["contractVersion"] as? String, ContractVersion.current)
-        XCTAssertEqual(json["ok"] as? Bool, false)
-        XCTAssertEqual(json["error"] as? String, "invalid_request")
-        XCTAssertTrue((json["message"] as? String)?.contains("Missing required field 'app'") == true)
+        let json = try #require(JSONSerialization.jsonObject(with: response.body) as? [String: Any])
+        #expect(json["contractVersion"] as? String == ContractVersion.current)
+        #expect(json["ok"] as? Bool == false)
+        #expect(json["error"] as? String == "invalid_request")
+        #expect((json["message"] as? String)?.contains("Missing required field 'app'") == true)
 
-        let recovery = try XCTUnwrap(json["recovery"] as? [String])
-        XCTAssertTrue(recovery.contains { $0.contains("/v1/routes") })
+        let recovery = try #require(json["recovery"] as? [String])
+        #expect(recovery.contains { $0.contains("/v1/routes") })
     }
 
     private func makeRequest(method: String, path: String, body: String = "") throws -> HTTPRequest {
@@ -104,13 +111,13 @@ final class APIDocumentationTests: XCTestCase {
         case .complete(let parsed):
             return parsed
         case .incomplete:
-            XCTFail("Request parser returned incomplete")
+            Issue.record("Request parser returned incomplete")
             throw TestRequestError.parseFailed
         case .invalid:
-            XCTFail("Request parser returned invalid")
+            Issue.record("Request parser returned invalid")
             throw TestRequestError.parseFailed
         case .tooLarge:
-            XCTFail("Request parser rejected the fixture as too large")
+            Issue.record("Request parser rejected the fixture as too large")
             throw TestRequestError.parseFailed
         }
     }

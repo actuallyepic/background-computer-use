@@ -4,16 +4,17 @@ import Foundation
 enum AXCursorTargeting {
     static func notAttempted(
         requested: CursorRequestDTO?,
-        reason: String
+        reason: String,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
-        let session = CursorRuntime.resolve(requested: requested)
-        return ActionCursorTargetResponseDTO(
-            session: session,
+        cursorResponse(
+            requested: requested,
+            options: options,
             targetPointAppKit: nil,
             targetPointSource: nil,
             moved: false,
             moveDurationMs: nil,
-            movement: "not_attempted",
+            movement: options.visualCursorEnabled ? "not_attempted" : "disabled",
             warnings: [reason]
         )
     }
@@ -21,13 +22,15 @@ enum AXCursorTargeting {
     static func moveToTarget(
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach"
+            movement: "approach",
+            options: options
         ) { point, windowNumber, cursorID in
             let duration = CursorRuntime.approach(
                 to: point,
@@ -42,13 +45,15 @@ enum AXCursorTargeting {
     static func prepareClick(
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach_click_choreography"
+            movement: "approach_click_choreography",
+            options: options
         ) { point, windowNumber, cursorID in
             let duration = CursorRuntime.approach(
                 to: point,
@@ -66,11 +71,25 @@ enum AXCursorTargeting {
         requested: CursorRequestDTO?,
         pointAppKit: CGPoint,
         targetPointSource: String,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
-        let session = CursorRuntime.resolve(requested: requested)
         var warnings: [String] = []
         let point = clampVisualPoint(pointAppKit, window: window, warnings: &warnings)
+        guard options.visualCursorEnabled else {
+            return cursorResponse(
+                requested: requested,
+                options: options,
+                targetPointAppKit: PointDTO(x: point.x, y: point.y),
+                targetPointSource: targetPointSource,
+                moved: false,
+                moveDurationMs: nil,
+                movement: "disabled",
+                warnings: warnings
+            )
+        }
+
+        let session = CursorRuntime.resolve(requested: requested)
         let duration = CursorRuntime.approach(
             to: point,
             attachedWindowNumber: window.windowNumber,
@@ -99,13 +118,15 @@ enum AXCursorTargeting {
     static func prepareSecondaryAction(
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach_secondary_choreography"
+            movement: "approach_secondary_choreography",
+            options: options
         ) { point, windowNumber, cursorID in
             CursorRuntime.prepareSecondaryAction(to: point, attachedWindowNumber: windowNumber, cursorID: cursorID)
         }
@@ -120,14 +141,16 @@ enum AXCursorTargeting {
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
         window: ResolvedWindowDTO,
-        direction: ScrollDirectionDTO
+        direction: ScrollDirectionDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         let mapped = cursorScrollMapping(for: direction)
         return prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach_scroll_choreography"
+            movement: "approach_scroll_choreography",
+            options: options
         ) { point, windowNumber, cursorID in
             CursorRuntime.prepareScroll(
                 to: point,
@@ -147,13 +170,15 @@ enum AXCursorTargeting {
     static func prepareSetValue(
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach_set_value_choreography"
+            movement: "approach_set_value_choreography",
+            options: options
         ) { point, windowNumber, cursorID in
             CursorRuntime.prepareSetValue(to: point, attachedWindowNumber: windowNumber, cursorID: cursorID)
         }
@@ -167,13 +192,15 @@ enum AXCursorTargeting {
     static func prepareTypeText(
         requested: CursorRequestDTO?,
         target: AXActionTargetSnapshot,
-        window: ResolvedWindowDTO
+        window: ResolvedWindowDTO,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
         prepareTargetedCursor(
             requested: requested,
             target: target,
             window: window,
-            movement: "approach_type_text_choreography"
+            movement: "approach_type_text_choreography",
+            options: options
         ) { point, windowNumber, cursorID in
             CursorRuntime.prepareTypeText(to: point, attachedWindowNumber: windowNumber, cursorID: cursorID)
         }
@@ -187,10 +214,24 @@ enum AXCursorTargeting {
     static func preparePressKey(
         requested: CursorRequestDTO?,
         window: ResolvedWindowDTO,
-        keyLabel: String
+        keyLabel: String,
+        options: ActionExecutionOptions = .visualCursorEnabled
     ) -> ActionCursorTargetResponseDTO {
-        let session = CursorRuntime.resolve(requested: requested)
         let point = pressKeyAnchor(in: window)
+        guard options.visualCursorEnabled else {
+            return cursorResponse(
+                requested: requested,
+                options: options,
+                targetPointAppKit: PointDTO(x: point.x, y: point.y),
+                targetPointSource: "window_titlebar_keyboard_anchor",
+                moved: false,
+                moveDurationMs: nil,
+                movement: "disabled",
+                warnings: []
+            )
+        }
+
+        let session = CursorRuntime.resolve(requested: requested)
         let duration = CursorRuntime.preparePressKey(
             to: point,
             label: keyLabel,
@@ -219,8 +260,36 @@ enum AXCursorTargeting {
         target: AXActionTargetSnapshot,
         window: ResolvedWindowDTO,
         movement: String,
+        options: ActionExecutionOptions,
         prepare: (CGPoint, Int, String) -> TimeInterval
     ) -> ActionCursorTargetResponseDTO {
+        guard options.visualCursorEnabled else {
+            let resolvedPoint = targetPoint(for: target, window: window)
+            guard let point = resolvedPoint.point else {
+                return cursorResponse(
+                    requested: requested,
+                    options: options,
+                    targetPointAppKit: nil,
+                    targetPointSource: nil,
+                    moved: false,
+                    moveDurationMs: nil,
+                    movement: "disabled",
+                    warnings: resolvedPoint.warnings
+                )
+            }
+
+            return cursorResponse(
+                requested: requested,
+                options: options,
+                targetPointAppKit: PointDTO(x: point.x, y: point.y),
+                targetPointSource: resolvedPoint.source,
+                moved: false,
+                moveDurationMs: nil,
+                movement: "disabled",
+                warnings: resolvedPoint.warnings
+            )
+        }
+
         let session = CursorRuntime.resolve(requested: requested)
         let resolvedPoint = visualTargetPoint(
             for: target,
@@ -250,6 +319,38 @@ enum AXCursorTargeting {
             moveDurationMs: sanitizedJSONDouble(duration * 1_000),
             movement: movement,
             warnings: resolvedPoint.warnings
+        )
+    }
+
+    private static func cursorResponse(
+        requested: CursorRequestDTO?,
+        options: ActionExecutionOptions,
+        targetPointAppKit: PointDTO?,
+        targetPointSource: String?,
+        moved: Bool,
+        moveDurationMs: Double?,
+        movement: String,
+        warnings: [String]
+    ) -> ActionCursorTargetResponseDTO {
+        ActionCursorTargetResponseDTO(
+            session: options.visualCursorEnabled
+                ? CursorRuntime.resolve(requested: requested)
+                : disabledSession(requested: requested),
+            targetPointAppKit: targetPointAppKit,
+            targetPointSource: targetPointSource,
+            moved: moved,
+            moveDurationMs: moveDurationMs,
+            movement: movement,
+            warnings: warnings
+        )
+    }
+
+    static func disabledSession(requested: CursorRequestDTO?) -> CursorResponseDTO {
+        CursorResponseDTO(
+            id: normalizedCursorID(requested?.id) ?? "visual-cursor-disabled",
+            name: normalizedCursorName(requested?.name) ?? "Visual Cursor Disabled",
+            color: normalizedCursorHex(requested?.color) ?? "#7A7A7A",
+            reused: true
         )
     }
 

@@ -1,22 +1,22 @@
 import Foundation
 
-enum SecondaryActionBindingSourceDTO: String, Encodable {
+public enum SecondaryActionBindingSourceDTO: String, Encodable, Sendable {
     case directPublicAction = "direct_public_action"
     case foldedAffordance = "folded_affordance"
     case inferredAffordance = "inferred_affordance"
     case stateBinding = "state_binding"
 }
 
-enum SecondaryActionDispatchMethodDTO: String, Encodable {
+public enum SecondaryActionDispatchMethodDTO: String, Encodable, Sendable {
     case axPerformAction = "AXPerformAction"
 }
 
-enum SecondaryActionTransportDispositionDTO: String, Encodable {
+public enum SecondaryActionTransportDispositionDTO: String, Encodable, Sendable {
     case accepted
     case returnedError = "returned_error"
 }
 
-enum SecondaryActionSemanticKindDTO: String, Encodable {
+public enum SecondaryActionSemanticKindDTO: String, Encodable, Sendable {
     case stateToggle = "state_toggle"
     case cancel
     case close
@@ -24,14 +24,14 @@ enum SecondaryActionSemanticKindDTO: String, Encodable {
     case genericAXAction = "generic_ax_action"
 }
 
-enum SecondaryActionRouteDTO: String, Encodable {
+public enum SecondaryActionRouteDTO: String, Encodable, Sendable {
     case directPublicAction = "direct_public_action"
     case foldedAffordance = "folded_affordance"
     case inferredAffordance = "inferred_affordance"
     case stateBinding = "state_binding"
 }
 
-enum SecondaryActionOutcomeStatusDTO: String, Encodable {
+public enum SecondaryActionOutcomeStatusDTO: String, Encodable, Sendable {
     case effectVerified = "effect_verified"
     case acceptedWithoutVerifier = "accepted_without_verifier"
     case noEffectVerified = "no_effect_verified"
@@ -41,7 +41,7 @@ enum SecondaryActionOutcomeStatusDTO: String, Encodable {
     case verifierAmbiguous = "verifier_ambiguous"
 }
 
-enum SecondaryActionOutcomeReasonDTO: String, Encodable {
+public enum SecondaryActionOutcomeReasonDTO: String, Encodable, Sendable {
     case expectedEffectObserved = "expected_effect_observed"
     case axAcceptedNoVerifier = "ax_accepted_no_verifier"
     case rawTransportErrorNoEffect = "raw_transport_error_no_effect"
@@ -53,88 +53,88 @@ enum SecondaryActionOutcomeReasonDTO: String, Encodable {
     case postStateUnavailable = "post_state_unavailable"
 }
 
-struct SecondaryActionRequestedDTO: Encodable {
-    let target: ActionTargetRequestDTO
-    let label: String
-    let actionID: String?
+public struct SecondaryActionRequestedDTO: Encodable, Sendable {
+    public let target: ActionTargetRequestDTO
+    public let label: String
+    public let actionID: String?
 }
 
-struct SecondaryActionBindingDTO: Encodable {
-    let actionID: String?
-    let label: String
-    let source: SecondaryActionBindingSourceDTO
-    let dispatchMethod: SecondaryActionDispatchMethodDTO
-    let rawName: String
-    let dispatchCanonicalIndex: Int
-    let dispatchNodeID: String?
-    let dispatchRole: String?
-    let dispatchSubrole: String?
-    let dispatchTitle: String?
-    let dispatchURL: String?
-    let risk: String?
-    let exposure: String?
-    let executionDisposition: String?
-    let evidence: [String]
+public struct SecondaryActionBindingDTO: Encodable, Sendable {
+    public let actionID: String?
+    public let label: String
+    public let source: SecondaryActionBindingSourceDTO
+    public let dispatchMethod: SecondaryActionDispatchMethodDTO
+    public let rawName: String
+    public let dispatchCanonicalIndex: Int
+    public let dispatchNodeID: String?
+    public let dispatchRole: String?
+    public let dispatchSubrole: String?
+    public let dispatchTitle: String?
+    public let dispatchURL: String?
+    public let risk: String?
+    public let exposure: String?
+    public let executionDisposition: String?
+    public let evidence: [String]
 }
 
-struct SecondaryActionTransportAttemptDTO: Encodable {
-    let dispatchMethod: SecondaryActionDispatchMethodDTO
-    let rawName: String
-    let rawAXStatus: String
-    let transportDisposition: SecondaryActionTransportDispositionDTO
-    let transportSuccess: Bool
-    let liveElementResolution: String?
-    let notes: [String]
+public struct SecondaryActionTransportAttemptDTO: Encodable, Sendable {
+    public let dispatchMethod: SecondaryActionDispatchMethodDTO
+    public let rawName: String
+    public let rawAXStatus: String
+    public let transportDisposition: SecondaryActionTransportDispositionDTO
+    public let transportSuccess: Bool
+    public let liveElementResolution: String?
+    public let notes: [String]
 }
 
-struct SecondaryActionActionDTO: Encodable {
-    let semanticKind: SecondaryActionSemanticKindDTO
-    let route: SecondaryActionRouteDTO
-    let dispatchPrimitive: String?
-    let dispatchSucceeded: Bool?
-    let rawAXStatus: String?
-    let detail: String
+public struct SecondaryActionActionDTO: Encodable, Sendable {
+    public let semanticKind: SecondaryActionSemanticKindDTO
+    public let route: SecondaryActionRouteDTO
+    public let dispatchPrimitive: String?
+    public let dispatchSucceeded: Bool?
+    public let rawAXStatus: String?
+    public let detail: String
 }
 
-struct SecondaryActionOutcomeDTO: Encodable {
-    let status: SecondaryActionOutcomeStatusDTO
-    let reason: SecondaryActionOutcomeReasonDTO
-    let detail: String
-    let screenshotRecommended: Bool
+public struct SecondaryActionOutcomeDTO: Encodable, Sendable {
+    public let status: SecondaryActionOutcomeStatusDTO
+    public let reason: SecondaryActionOutcomeReasonDTO
+    public let detail: String
+    public let screenshotRecommended: Bool
 }
 
-struct SecondaryActionVerificationDTO: Encodable {
-    let beforeTargetSecondaryActions: [String]
-    let afterTargetSecondaryActions: [String]?
-    let expectedAfterSecondaryAction: String?
-    let targetRelocated: Bool
-    let refreshedTargetMatchStrategy: String?
-    let renderedTextChanged: Bool?
-    let menuVisibleBefore: Bool?
-    let menuVisibleAfter: Bool?
-    let observedEffect: Bool
-    let evidence: [String]
+public struct SecondaryActionVerificationDTO: Encodable, Sendable {
+    public let beforeTargetSecondaryActions: [String]
+    public let afterTargetSecondaryActions: [String]?
+    public let expectedAfterSecondaryAction: String?
+    public let targetRelocated: Bool
+    public let refreshedTargetMatchStrategy: String?
+    public let renderedTextChanged: Bool?
+    public let menuVisibleBefore: Bool?
+    public let menuVisibleAfter: Bool?
+    public let observedEffect: Bool
+    public let evidence: [String]
 }
 
-struct PerformSecondaryActionResponse: Encodable {
-    let contractVersion: String
-    let ok: Bool
-    let classification: ActionClassificationDTO
-    let failureDomain: ActionFailureDomainDTO?
-    let summary: String
-    let window: ResolvedWindowDTO?
-    let requestedAction: SecondaryActionRequestedDTO
-    let action: SecondaryActionActionDTO?
-    let outcome: SecondaryActionOutcomeDTO
-    let target: AXActionTargetSnapshotDTO?
-    let dispatchTarget: AXActionTargetSnapshotDTO?
-    let binding: SecondaryActionBindingDTO?
-    let transports: [SecondaryActionTransportAttemptDTO]
-    let preStateToken: String?
-    let postStateToken: String?
-    let postState: AXPipelineV2Response?
-    let cursor: ActionCursorTargetResponseDTO
-    let warnings: [String]
-    let notes: [String]
-    let verification: SecondaryActionVerificationDTO?
+public struct PerformSecondaryActionResponse: Encodable, Sendable {
+    public let contractVersion: String
+    public let ok: Bool
+    public let classification: ActionClassificationDTO
+    public let failureDomain: ActionFailureDomainDTO?
+    public let summary: String
+    public let window: ResolvedWindowDTO?
+    public let requestedAction: SecondaryActionRequestedDTO
+    public let action: SecondaryActionActionDTO?
+    public let outcome: SecondaryActionOutcomeDTO
+    public let target: AXActionTargetSnapshotDTO?
+    public let dispatchTarget: AXActionTargetSnapshotDTO?
+    public let binding: SecondaryActionBindingDTO?
+    public let transports: [SecondaryActionTransportAttemptDTO]
+    public let preStateToken: String?
+    public let postStateToken: String?
+    public let postState: AXPipelineV2Response?
+    public let cursor: ActionCursorTargetResponseDTO
+    public let warnings: [String]
+    public let notes: [String]
+    public let verification: SecondaryActionVerificationDTO?
 }
