@@ -217,6 +217,9 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
             defer: false
         )
         webView = WKWebView(frame: .zero, configuration: configuration)
+        if #available(macOS 13.3, *) {
+            webView.isInspectable = true
+        }
 
         super.init()
 
@@ -306,18 +309,7 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
 
     func evaluateJavaScript(_ source: String) async throws -> BrowserEvaluateJavaScriptResponse {
         try await ensureBootstrap()
-        let value = try await webView.callAsyncJavaScript(
-            """
-            const value = await eval(source);
-            if (window.__bcu && window.__bcu.serialize) {
-              return window.__bcu.serialize(value);
-            }
-            return value;
-            """,
-            arguments: ["source": source],
-            in: nil,
-            contentWorld: .page
-        )
+        let value = try await webView.evaluateJavaScript(source)
         return BrowserEvaluateJavaScriptResponse(
             contractVersion: ContractVersion.current,
             ok: true,

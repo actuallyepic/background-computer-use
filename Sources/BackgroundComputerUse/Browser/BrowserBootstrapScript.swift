@@ -391,6 +391,59 @@ enum BrowserBootstrapScript {
     return message;
   }
 
+  function consoleArgument(value) {
+    try {
+      return serialize(value);
+    } catch (error) {
+      try {
+        return String(value);
+      } catch (stringError) {
+        return "[unserializable]";
+      }
+    }
+  }
+
+  function installConsoleBridge() {
+    if (window.__bcuConsoleBridgeInstalled) return;
+    window.__bcuConsoleBridgeInstalled = true;
+
+    ["debug", "log", "info", "warn", "error"].forEach((level) => {
+      const original = console[level];
+      console[level] = function(...args) {
+        try {
+          emit("browser_console", {
+            level,
+            args: args.map(consoleArgument)
+          }, { scriptID: "console" });
+        } catch (bridgeError) {
+        }
+        if (typeof original === "function") {
+          return original.apply(this, args);
+        }
+      };
+    });
+
+    window.addEventListener("error", (event) => {
+      emit("browser_page_error", {
+        message: event.message || String(event.error || "Error"),
+        source: event.filename || null,
+        line: event.lineno || null,
+        column: event.colno || null,
+        error: event.error ? String(event.error.stack || event.error) : null
+      }, { scriptID: "page-error" });
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event.reason;
+      emit("browser_unhandled_rejection", {
+        message: reason ? String(reason.message || reason) : "Unhandled promise rejection",
+        error: reason ? String(reason.stack || reason) : null
+      }, { scriptID: "page-error" });
+    });
+  }
+
+  installConsoleBridge();
+
   window.__bcu = {
     version: 1,
     snapshot,
