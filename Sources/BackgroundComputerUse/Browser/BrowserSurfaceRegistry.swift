@@ -23,6 +23,9 @@ private struct BrowserResolveResult: Decodable, Sendable {
     let candidates: [BrowserInteractableDTO]?
 }
 
+private let defaultDesktopBrowserUserAgent =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15"
+
 @MainActor
 final class BrowserSurfaceRegistry {
     static let shared = BrowserSurfaceRegistry()
@@ -217,6 +220,10 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
             defer: false
         )
         webView = WKWebView(frame: .zero, configuration: configuration)
+        let customUserAgent = request.userAgent?.trimmingCharacters(in: .whitespacesAndNewlines)
+        webView.customUserAgent = customUserAgent?.isEmpty == false
+            ? customUserAgent
+            : defaultDesktopBrowserUserAgent
         if #available(macOS 13.3, *) {
             webView.isInspectable = true
         }

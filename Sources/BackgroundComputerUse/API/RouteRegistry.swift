@@ -643,6 +643,7 @@ enum RouteRegistry {
                 field("y", "number"),
                 field("width", "number"),
                 field("height", "number"),
+                field("userAgent", "string", "Optional browser user agent. Defaults to a desktop Safari user agent for site compatibility."),
                 field("activate", "boolean", defaultValue: "true"),
                 field("imageMode", "path | base64 | omit", defaultValue: "omit"),
                 debugField()

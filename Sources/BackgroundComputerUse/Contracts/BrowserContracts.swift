@@ -290,6 +290,7 @@ public struct BrowserCreateWindowRequest: Decodable, Sendable, DebugNotesRequest
     public let y: Double?
     public let width: Double?
     public let height: Double?
+    public let userAgent: String?
     public let activate: Bool?
     public let imageMode: ImageMode?
     public let debug: Bool?
@@ -301,6 +302,7 @@ public struct BrowserCreateWindowRequest: Decodable, Sendable, DebugNotesRequest
         y: Double? = nil,
         width: Double? = nil,
         height: Double? = nil,
+        userAgent: String? = nil,
         activate: Bool? = nil,
         imageMode: ImageMode? = nil,
         debug: Bool? = nil
@@ -311,6 +313,7 @@ public struct BrowserCreateWindowRequest: Decodable, Sendable, DebugNotesRequest
         self.y = y
         self.width = width
         self.height = height
+        self.userAgent = userAgent
         self.activate = activate
         self.imageMode = imageMode
         self.debug = debug
