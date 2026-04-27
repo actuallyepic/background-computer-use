@@ -483,9 +483,10 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
     func viewportPointToAppKit(_ point: PointDTO) -> CGPoint {
         let viewportWidth = max(webView.bounds.width, 1)
         let viewportHeight = max(webView.bounds.height, 1)
+        let y = CGFloat(point.y) * viewportHeight / max(viewportHeight, 1)
         let localPoint = NSPoint(
             x: CGFloat(point.x) * viewportWidth / max(viewportWidth, 1),
-            y: viewportHeight - (CGFloat(point.y) * viewportHeight / max(viewportHeight, 1))
+            y: webView.isFlipped ? y : viewportHeight - y
         )
         let windowPoint = webView.convert(localPoint, to: nil)
         return window.convertPoint(toScreen: windowPoint)
