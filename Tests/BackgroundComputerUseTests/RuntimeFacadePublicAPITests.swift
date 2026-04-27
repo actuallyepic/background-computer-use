@@ -31,6 +31,47 @@ struct RuntimeFacadePublicAPITests {
         let typeText = TypeTextRequest(window: "window-id", target: target, text: "hello")
         let pressKey = PressKeyRequest(window: "window-id", key: "command+a")
         let setValue = SetValueRequest(window: "window-id", target: target, value: "hello")
+        let browserTarget = BrowserActionTargetRequestDTO.domSelector("#name")
+        let browserCreate = BrowserCreateWindowRequest(url: "about:blank", title: "Owned Browser")
+        let browserState = BrowserGetStateRequest(browser: "bt_1", imageMode: .omit)
+        let browserEvaluate = BrowserEvaluateJavaScriptRequest(browser: "bt_1", javaScript: "document.title")
+        let browserClick = BrowserClickRequest(browser: "bt_1", target: browserTarget, cursor: cursor)
+        let browserCoordinateClick = BrowserClickRequest(browser: "bt_1", x: 10, y: 20)
+        let browserType = BrowserTypeTextRequest(browser: "bt_1", target: browserTarget, text: "Ada")
+        let browserScroll = BrowserScrollRequest(browser: "bt_1", target: browserTarget, direction: .down)
+        let browserInject = BrowserInjectJavaScriptRequest(
+            browser: "bt_1",
+            scriptID: "helper",
+            javaScript: "window.__bcu.emit('ready')"
+        )
+        let browserEvent = BrowserEmitEventRequest(
+            browser: "bt_1",
+            scriptID: "helper",
+            type: "ready",
+            payload: .object(["ok": .bool(true)])
+        )
+        let browserCaps = BrowserTargetCapabilitiesDTO(
+            readDom: true,
+            evaluateJavaScript: true,
+            injectJavaScript: true,
+            emitPageEvents: true,
+            dispatchDomEvents: true,
+            nativeClickFallback: false,
+            screenshot: true,
+            hostWindowMetadata: true
+        )
+        let providerSurface = BrowserRegisteredProviderSurfaceDTO(
+            surfaceID: "main",
+            title: "Registered Browser",
+            url: "http://localhost:3000",
+            capabilities: browserCaps
+        )
+        let provider = BrowserRegisterProviderRequest(
+            providerID: "com.example.browser",
+            displayName: "Example",
+            protocolVersion: 1,
+            browserSurfaces: [providerSurface]
+        )
 
         #expect(listWindows.app == "Safari")
         #expect(state.imageMode == .path)
@@ -44,6 +85,16 @@ struct RuntimeFacadePublicAPITests {
         #expect(typeText.text == "hello")
         #expect(pressKey.key == "command+a")
         #expect(setValue.value == "hello")
+        #expect(browserCreate.title == "Owned Browser")
+        #expect(browserState.imageMode == .omit)
+        #expect(browserEvaluate.javaScript == "document.title")
+        #expect(browserClick.target?.value == "#name")
+        #expect(browserCoordinateClick.x == 10)
+        #expect(browserType.text == "Ada")
+        #expect(browserScroll.direction == .down)
+        #expect(browserInject.scriptID == "helper")
+        #expect(browserEvent.type == "ready")
+        #expect(provider.browserSurfaces.first?.capabilities.readDom == true)
     }
 
     @Test

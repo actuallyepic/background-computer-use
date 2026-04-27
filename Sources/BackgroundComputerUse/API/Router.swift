@@ -162,6 +162,96 @@ struct Router {
                 }
             )
 
+        case (.post, "/v1/browser/create_window"):
+            return decodeAndExecute(BrowserCreateWindowRequest.self, routeID: .browserCreateWindow, from: request) {
+                try services.browserCreateWindow($0)
+            }
+
+        case (.post, "/v1/browser/list_targets"):
+            return decodeAndExecute(BrowserListTargetsRequest.self, routeID: .browserListTargets, from: request) {
+                try services.browserListTargets($0)
+            }
+
+        case (.post, "/v1/browser/navigate"):
+            return decodeAndExecute(BrowserNavigateRequest.self, routeID: .browserNavigate, from: request) {
+                try services.browserNavigate($0)
+            }
+
+        case (.post, "/v1/browser/get_state"):
+            return decodeAndExecute(BrowserGetStateRequest.self, routeID: .browserGetState, from: request) {
+                try services.browserGetState($0)
+            }
+
+        case (.post, "/v1/browser/evaluate_js"):
+            return decodeAndExecute(BrowserEvaluateJavaScriptRequest.self, routeID: .browserEvaluateJS, from: request) {
+                try services.browserEvaluateJavaScript($0)
+            }
+
+        case (.post, "/v1/browser/inject_js"):
+            return decodeAndExecute(BrowserInjectJavaScriptRequest.self, routeID: .browserInjectJS, from: request) {
+                try services.browserInjectJavaScript($0)
+            }
+
+        case (.post, "/v1/browser/remove_injected_js"):
+            return decodeAndExecute(BrowserRemoveInjectedJavaScriptRequest.self, routeID: .browserRemoveInjectedJS, from: request) {
+                try services.browserRemoveInjectedJavaScript($0)
+            }
+
+        case (.post, "/v1/browser/list_injected_js"):
+            return decodeAndExecute(BrowserListInjectedJavaScriptRequest.self, routeID: .browserListInjectedJS, from: request) {
+                try services.browserListInjectedJavaScript($0)
+            }
+
+        case (.post, "/v1/browser/click"):
+            return decodeAndExecute(BrowserClickRequest.self, routeID: .browserClick, from: request) {
+                try services.browserClick($0)
+            }
+
+        case (.post, "/v1/browser/type_text"):
+            return decodeAndExecute(BrowserTypeTextRequest.self, routeID: .browserTypeText, from: request) {
+                try services.browserTypeText($0)
+            }
+
+        case (.post, "/v1/browser/scroll"):
+            return decodeAndExecute(BrowserScrollRequest.self, routeID: .browserScroll, from: request) {
+                try services.browserScroll($0)
+            }
+
+        case (.post, "/v1/browser/reload"):
+            return decodeAndExecute(BrowserReloadRequest.self, routeID: .browserReload, from: request) {
+                try services.browserReload($0)
+            }
+
+        case (.post, "/v1/browser/close"):
+            return decodeAndExecute(BrowserCloseRequest.self, routeID: .browserClose, from: request) {
+                try services.browserClose($0)
+            }
+
+        case (.post, "/v1/browser/events/emit"):
+            return decodeAndExecute(BrowserEmitEventRequest.self, routeID: .browserEventsEmit, from: request) {
+                services.browserEmitEvent($0)
+            }
+
+        case (.post, "/v1/browser/events/poll"):
+            return decodeAndExecute(BrowserPollEventsRequest.self, routeID: .browserEventsPoll, from: request) {
+                services.browserPollEvents($0)
+            }
+
+        case (.post, "/v1/browser/events/clear"):
+            return decodeAndExecute(BrowserClearEventsRequest.self, routeID: .browserEventsClear, from: request) {
+                services.browserClearEvents($0)
+            }
+
+        case (.post, "/v1/browser/providers/register"):
+            return decodeAndExecute(BrowserRegisterProviderRequest.self, routeID: .browserRegisterProvider, from: request) {
+                try services.browserRegisterProvider($0)
+            }
+
+        case (.post, "/v1/browser/providers/unregister"):
+            return decodeAndExecute(BrowserUnregisterProviderRequest.self, routeID: .browserUnregisterProvider, from: request) {
+                try services.browserUnregisterProvider($0)
+            }
+
         default:
             return .json(
                 ErrorResponse(
@@ -210,7 +300,8 @@ struct Router {
 
     private func isActionRoute(_ routeID: RouteID) -> Bool {
         switch routeID {
-        case .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue:
+        case .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue,
+             .browserClick, .browserTypeText, .browserScroll:
             return true
         default:
             return false
@@ -309,6 +400,32 @@ struct Router {
                 ),
                 statusCode: 404,
                 reasonPhrase: "Not Found"
+            )
+
+        case let error as BrowserSurfaceError:
+            let status: (Int, String, String)
+            switch error {
+            case .targetNotFound:
+                status = (404, "browser_target_not_found", "Not Found")
+            case .invalidURL, .invalidRequest, .targetAmbiguous, .scriptNotFound:
+                status = (400, "browser_invalid_request", "Bad Request")
+            case .unsupportedRegisteredProvider:
+                status = (501, "browser_provider_unsupported", "Not Implemented")
+            case .javascriptFailed, .timedOut:
+                status = (500, "browser_runtime_error", "Internal Server Error")
+            }
+            return .json(
+                ErrorResponse(
+                    error: status.1,
+                    message: error.description,
+                    requestID: UUID().uuidString,
+                    recovery: [
+                        "Call POST /v1/browser/list_targets and use a current browser target ID.",
+                        "For owned browser targets, call POST /v1/browser/get_state and retry with current DOM targets."
+                    ]
+                ),
+                statusCode: status.0,
+                reasonPhrase: status.2
             )
 
         default:

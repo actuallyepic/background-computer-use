@@ -16,6 +16,24 @@ enum RouteID: String, CaseIterable {
     case typeText = "type_text"
     case pressKey = "press_key"
     case setValue = "set_value"
+    case browserCreateWindow = "browser_create_window"
+    case browserListTargets = "browser_list_targets"
+    case browserNavigate = "browser_navigate"
+    case browserGetState = "browser_get_state"
+    case browserEvaluateJS = "browser_evaluate_js"
+    case browserInjectJS = "browser_inject_js"
+    case browserRemoveInjectedJS = "browser_remove_injected_js"
+    case browserListInjectedJS = "browser_list_injected_js"
+    case browserClick = "browser_click"
+    case browserTypeText = "browser_type_text"
+    case browserScroll = "browser_scroll"
+    case browserReload = "browser_reload"
+    case browserClose = "browser_close"
+    case browserEventsEmit = "browser_events_emit"
+    case browserEventsPoll = "browser_events_poll"
+    case browserEventsClear = "browser_events_clear"
+    case browserRegisterProvider = "browser_register_provider"
+    case browserUnregisterProvider = "browser_unregister_provider"
 }
 
 enum RouteRegistry {
@@ -254,7 +272,199 @@ enum RouteRegistry {
                 "Outcome classification is verifier-first. rawAXStatus is diagnostic AX telemetry and does not by itself decide success or failure."
             ]
         ),
+        browserRoute(
+            .browserCreateWindow,
+            path: "/v1/browser/create_window",
+            category: "browser",
+            summary: "Create a BCU-owned native WKWebView browser window.",
+            lane: .sharedRead,
+            mainThreadBehavior: .required,
+            readActRead: false,
+            notes: [
+                "Creates only BCU-owned browser surfaces. It does not create a separate window API surface.",
+                "The response includes hostWindow metadata so clients can reuse existing native window routes for shell movement when needed."
+            ]
+        ),
+        browserRoute(
+            .browserListTargets,
+            path: "/v1/browser/list_targets",
+            category: "browser",
+            summary: "List BCU-owned and registered browser surfaces.",
+            lane: .sharedRead,
+            mainThreadBehavior: .required,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserNavigate,
+            path: "/v1/browser/navigate",
+            category: "browser",
+            summary: "Navigate an owned browser target and return refreshed DOM state.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserGetState,
+            path: "/v1/browser/get_state",
+            category: "browser",
+            summary: "Read DOM state, interactables, geometry, and screenshot for an owned browser target.",
+            lane: .windowRead,
+            mainThreadBehavior: .required,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserEvaluateJS,
+            path: "/v1/browser/evaluate_js",
+            category: "browser",
+            summary: "Evaluate JavaScript in an owned browser target.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserInjectJS,
+            path: "/v1/browser/inject_js",
+            category: "browser",
+            summary: "Install named JavaScript into an owned browser target.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserRemoveInjectedJS,
+            path: "/v1/browser/remove_injected_js",
+            category: "browser",
+            summary: "Remove a named injected script from an owned browser target.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserListInjectedJS,
+            path: "/v1/browser/list_injected_js",
+            category: "browser",
+            summary: "List injected scripts installed on owned browser targets.",
+            lane: .sharedRead,
+            mainThreadBehavior: .required,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserClick,
+            path: "/v1/browser/click",
+            category: "browser",
+            summary: "Move the existing BCU cursor to a DOM target and dispatch a browser click.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserTypeText,
+            path: "/v1/browser/type_text",
+            category: "browser",
+            summary: "Move the existing BCU cursor to a DOM target and type text through DOM input events.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserScroll,
+            path: "/v1/browser/scroll",
+            category: "browser",
+            summary: "Move the existing BCU cursor to a DOM target or viewport region and scroll.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserReload,
+            path: "/v1/browser/reload",
+            category: "browser",
+            summary: "Reload an owned browser target and return refreshed DOM state.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserClose,
+            path: "/v1/browser/close",
+            category: "browser",
+            summary: "Close an owned browser target.",
+            lane: .windowWrite,
+            mainThreadBehavior: .required
+        ),
+        browserRoute(
+            .browserEventsEmit,
+            path: "/v1/browser/events/emit",
+            category: "browser_events",
+            summary: "Emit a generic browser event into the BCU event buffer.",
+            lane: .sharedRead,
+            mainThreadBehavior: .avoid,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserEventsPoll,
+            path: "/v1/browser/events/poll",
+            category: "browser_events",
+            summary: "Poll generic browser events emitted by injected scripts or clients.",
+            lane: .sharedRead,
+            mainThreadBehavior: .avoid,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserEventsClear,
+            path: "/v1/browser/events/clear",
+            category: "browser_events",
+            summary: "Clear generic browser events from the local event buffer.",
+            lane: .sharedRead,
+            mainThreadBehavior: .avoid,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserRegisterProvider,
+            path: "/v1/browser/providers/register",
+            category: "browser_provider",
+            summary: "Register browser surfaces exposed by a cooperating macOS app.",
+            lane: .sharedRead,
+            mainThreadBehavior: .required,
+            readActRead: false
+        ),
+        browserRoute(
+            .browserUnregisterProvider,
+            path: "/v1/browser/providers/unregister",
+            category: "browser_provider",
+            summary: "Unregister browser surfaces exposed by a cooperating macOS app.",
+            lane: .sharedRead,
+            mainThreadBehavior: .required,
+            readActRead: false
+        ),
     ]
+
+    private static func browserRoute(
+        _ id: RouteID,
+        path: String,
+        category: String,
+        summary: String,
+        lane: RouteExecutionLaneDTO,
+        mainThreadBehavior: MainThreadBehaviorDTO,
+        readActRead: Bool = true,
+        notes: [String] = []
+    ) -> RouteDescriptorDTO {
+        RouteDescriptorDTO(
+            id: id.rawValue,
+            method: "POST",
+            path: path,
+            category: category,
+            summary: summary,
+            execution: RouteExecutionPolicyDTO(
+                lane: lane,
+                backgroundBehavior: .foregroundAllowed,
+                focusStealPolicy: .allowed,
+                mainThreadBehavior: mainThreadBehavior,
+                readActRead: readActRead,
+                allowsConcurrentClients: true,
+                notes: [
+                    "Browser routes target BCU-owned WKWebViews or cooperating registered browser surfaces.",
+                    "Browser routes stay separate from the original native macOS app/window API surface."
+                ]
+            ),
+            implementationStatus: .implemented,
+            notes: notes.isEmpty ? [
+                "Owned browser routes reuse existing BCU cursor sessions and per-target execution lanes."
+            ] : notes
+        )
+    }
 
     static func descriptor(for routeID: RouteID) -> RouteDescriptorDTO {
         descriptors.first(where: { $0.id == routeID.rawValue })!
@@ -425,6 +635,122 @@ enum RouteRegistry {
                 field("imageMode", "path | base64 | omit"),
                 debugField()
             ])
+        case RouteID.browserCreateWindow.rawValue:
+            return json([
+                field("url", "string", "Initial URL. Supports normal URLs, file URLs, about:blank, and localhost URLs."),
+                field("title", "string"),
+                field("x", "number"),
+                field("y", "number"),
+                field("width", "number"),
+                field("height", "number"),
+                field("activate", "boolean", defaultValue: "true"),
+                field("imageMode", "path | base64 | omit", defaultValue: "omit"),
+                debugField()
+            ])
+        case RouteID.browserListTargets.rawValue:
+            return json([
+                field("includeRegistered", "boolean", defaultValue: "true")
+            ])
+        case RouteID.browserNavigate.rawValue:
+            return json([
+                field("browser", "string", required: true, "Browser target ID from browser/create_window or browser/list_targets."),
+                field("url", "string", required: true),
+                field("waitUntilLoaded", "boolean", defaultValue: "true"),
+                field("timeoutMs", "integer", defaultValue: "8000"),
+                field("imageMode", "path | base64 | omit", defaultValue: "path"),
+                debugField()
+            ])
+        case RouteID.browserGetState.rawValue:
+            return json([
+                field("browser", "string", required: true),
+                field("maxElements", "integer", defaultValue: "500"),
+                field("includeRawText", "boolean", defaultValue: "false"),
+                field("imageMode", "path | base64 | omit", defaultValue: "path"),
+                debugField()
+            ])
+        case RouteID.browserEvaluateJS.rawValue:
+            return json([
+                field("browser", "string", required: true),
+                field("javaScript", "string", required: true, "JavaScript expression or statement evaluated in the page context."),
+                field("timeoutMs", "integer", defaultValue: "8000"),
+                debugField()
+            ])
+        case RouteID.browserInjectJS.rawValue:
+            return json([
+                field("browser", "string", required: true),
+                field("scriptID", "string", required: true),
+                field("javaScript", "string", required: true),
+                field("runAt", "document_start | document_end | document_idle", defaultValue: "document_idle"),
+                field("persistAcrossReloads", "boolean", defaultValue: "true"),
+                field("injectImmediately", "boolean", defaultValue: "true"),
+                debugField()
+            ])
+        case RouteID.browserRemoveInjectedJS.rawValue:
+            return json([
+                field("browser", "string", required: true),
+                field("scriptID", "string", required: true)
+            ])
+        case RouteID.browserListInjectedJS.rawValue:
+            return json([
+                field("browser", "string")
+            ])
+        case RouteID.browserClick.rawValue:
+            return json(browserActionFields(extra: [
+                field("x", "number", "Viewport x coordinate. Must be supplied with y and without target."),
+                field("y", "number", "Viewport y coordinate. Must be supplied with x and without target."),
+                field("clickCount", "integer", defaultValue: "1")
+            ]))
+        case RouteID.browserTypeText.rawValue:
+            return json(browserActionFields(extra: [
+                field("text", "string", required: true),
+                field("append", "boolean", defaultValue: "false")
+            ]))
+        case RouteID.browserScroll.rawValue:
+            return json(browserActionFields(extra: [
+                field("direction", "up | down | left | right", required: true),
+                field("pages", "integer", defaultValue: "1")
+            ]))
+        case RouteID.browserReload.rawValue:
+            return json([
+                field("browser", "string", required: true),
+                field("waitUntilLoaded", "boolean", defaultValue: "true"),
+                field("timeoutMs", "integer", defaultValue: "8000"),
+                field("imageMode", "path | base64 | omit", defaultValue: "path"),
+                debugField()
+            ])
+        case RouteID.browserClose.rawValue:
+            return json([
+                field("browser", "string", required: true)
+            ])
+        case RouteID.browserEventsEmit.rawValue:
+            return json([
+                field("browser", "string"),
+                field("scriptID", "string"),
+                field("type", "string", required: true),
+                field("payload", "JSON")
+            ])
+        case RouteID.browserEventsPoll.rawValue:
+            return json([
+                field("sinceEventID", "string"),
+                field("browser", "string"),
+                field("limit", "integer", defaultValue: "100")
+            ])
+        case RouteID.browserEventsClear.rawValue:
+            return json([
+                field("browser", "string")
+            ])
+        case RouteID.browserRegisterProvider.rawValue:
+            return json([
+                field("providerID", "string", required: true),
+                field("displayName", "string", required: true),
+                field("baseURL", "string"),
+                field("protocolVersion", "integer", required: true),
+                field("browserSurfaces", "RegisteredBrowserSurface[]", required: true)
+            ])
+        case RouteID.browserUnregisterProvider.rawValue:
+            return json([
+                field("providerID", "string", required: true)
+            ])
         default:
             return nil
         }
@@ -501,6 +827,121 @@ enum RouteRegistry {
             return pressKeyActionResponse()
         case RouteID.setValue.rawValue:
             return textActionResponse("SetValueResponse")
+        case RouteID.browserCreateWindow.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("target", "BrowserTarget", required: true),
+                field("state", "BrowserGetStateResponse | null"),
+                debugNotesField()
+            ])
+        case RouteID.browserListTargets.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("targets", "BrowserTarget[]", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserNavigate.rawValue, RouteID.browserGetState.rawValue, RouteID.browserReload.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("stateToken", "string", required: true),
+                field("target", "BrowserTarget", required: true),
+                field("screenshot", "Screenshot", required: true),
+                field("dom", "BrowserDOMSnapshot", required: true),
+                field("performance", "BrowserPerformance", required: true),
+                field("warnings", "string[]", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserEvaluateJS.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("target", "BrowserTarget", required: true),
+                field("result", "JSON | null"),
+                field("resultDescription", "string | null"),
+                field("error", "string | null"),
+                debugNotesField()
+            ])
+        case RouteID.browserInjectJS.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("script", "BrowserInjectedScript", required: true),
+                field("immediateResult", "BrowserEvaluateJavaScriptResponse | null"),
+                debugNotesField()
+            ])
+        case RouteID.browserRemoveInjectedJS.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("removed", "boolean", required: true),
+                field("remainingScripts", "BrowserInjectedScript[]", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserListInjectedJS.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("scripts", "BrowserInjectedScript[]", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserClick.rawValue, RouteID.browserTypeText.rawValue, RouteID.browserScroll.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("classification", "success | unsupported | effect_not_verified | verifier_ambiguous", required: true),
+                field("failureDomain", "targeting | unsupported | transport | verification | null"),
+                field("summary", "string", required: true),
+                field("target", "BrowserTarget | null"),
+                field("requestedTarget", "BrowserActionTarget | null"),
+                field("preStateToken", "string | null"),
+                field("postStateToken", "string | null"),
+                field("cursor", "ActionCursorTarget", required: true),
+                field("screenshot", "Screenshot | null"),
+                field("warnings", "string[]", required: true),
+                debugNotesField(),
+                field("debug", "BrowserActionDebug | null")
+            ])
+        case RouteID.browserClose.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("closed", "boolean", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserEventsEmit.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("event", "BrowserEvent", required: true)
+            ])
+        case RouteID.browserEventsPoll.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("events", "BrowserEvent[]", required: true),
+                field("latestEventID", "string | null")
+            ])
+        case RouteID.browserEventsClear.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("removedCount", "integer", required: true)
+            ])
+        case RouteID.browserRegisterProvider.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("providerID", "string", required: true),
+                field("targets", "BrowserTarget[]", required: true),
+                debugNotesField()
+            ])
+        case RouteID.browserUnregisterProvider.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("removedTargetCount", "integer", required: true),
+                debugNotesField()
+            ])
         default:
             return json([
                 field("contractVersion", "string", required: true),
@@ -715,6 +1156,22 @@ enum RouteRegistry {
             required: required,
             description
         )
+    }
+
+    private static func browserActionFields(extra: [RouteFieldDTO]) -> [RouteFieldDTO] {
+        [
+            field("browser", "string", required: true, "Browser target ID from browser/create_window or browser/list_targets."),
+            field("stateToken", "string"),
+            field(
+                "target",
+                #"{"kind":"display_index"|"browser_node_id"|"dom_selector","value":integer|string}"#,
+                required: false,
+                "DOM target from browser/get_state. browser/click may use x/y instead."
+            ),
+            field("cursor", "CursorRequest"),
+            field("imageMode", "path | base64 | omit", defaultValue: "path"),
+            debugField()
+        ] + extra
     }
 
     private static func debugField() -> RouteFieldDTO {

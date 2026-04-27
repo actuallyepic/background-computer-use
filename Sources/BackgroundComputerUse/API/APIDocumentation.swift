@@ -191,6 +191,96 @@ enum APIDocumentation {
                 nextSteps: ["Use type_text instead when you need keystroke semantics, focus movement, autocomplete, or submission behavior."],
                 exampleRequest: #"{"window":"WINDOW_ID","stateToken":"STATE_TOKEN","target":{"kind":"display_index","value":4},"value":"hello","imageMode":"path"}"#
             )
+        case .browserCreateWindow:
+            return browserUsage(
+                whenToUse: "Create a BCU-owned WKWebView browser window.",
+                exampleRequest: #"{"url":"about:blank","width":1100,"height":760,"imageMode":"omit"}"#
+            )
+        case .browserListTargets:
+            return browserUsage(
+                whenToUse: "List BCU-owned and cooperating registered browser surfaces.",
+                exampleRequest: #"{"includeRegistered":true}"#
+            )
+        case .browserNavigate:
+            return browserUsage(
+                whenToUse: "Navigate an owned browser target and read refreshed DOM state.",
+                exampleRequest: #"{"browser":"bt_123","url":"https://example.com","imageMode":"path"}"#
+            )
+        case .browserGetState:
+            return browserUsage(
+                whenToUse: "Read DOM state, interactable elements, geometry, and screenshot for a browser target.",
+                exampleRequest: #"{"browser":"bt_123","imageMode":"path","maxElements":500}"#
+            )
+        case .browserEvaluateJS:
+            return browserUsage(
+                whenToUse: "Run one-off JavaScript in an owned browser target.",
+                exampleRequest: #"{"browser":"bt_123","javaScript":"document.title"}"#
+            )
+        case .browserInjectJS:
+            return browserUsage(
+                whenToUse: "Install named JavaScript in an owned browser target so external apps can observe or manipulate the page.",
+                exampleRequest: #"{"browser":"bt_123","scriptID":"observer","javaScript":"window.__bcu.emit('ready',{title:document.title},{scriptID:'observer'})"}"#
+            )
+        case .browserRemoveInjectedJS:
+            return browserUsage(
+                whenToUse: "Remove a named injected script from an owned browser target.",
+                exampleRequest: #"{"browser":"bt_123","scriptID":"observer"}"#
+            )
+        case .browserListInjectedJS:
+            return browserUsage(
+                whenToUse: "Inspect installed browser scripts.",
+                exampleRequest: #"{"browser":"bt_123"}"#
+            )
+        case .browserClick:
+            return browserUsage(
+                whenToUse: "Move the existing BCU cursor to a DOM element or viewport point, then dispatch DOM click events.",
+                exampleRequest: #"{"browser":"bt_123","target":{"kind":"dom_selector","value":"button"},"cursor":{"id":"agent-1"},"imageMode":"path"}"#
+            )
+        case .browserTypeText:
+            return browserUsage(
+                whenToUse: "Move the existing BCU cursor to a DOM text target, then set text through DOM input/change events.",
+                exampleRequest: #"{"browser":"bt_123","target":{"kind":"dom_selector","value":"input[name=q]"},"text":"hello","cursor":{"id":"agent-1"}}"#
+            )
+        case .browserScroll:
+            return browserUsage(
+                whenToUse: "Move the existing BCU cursor to a DOM element or viewport center, then scroll through DOM primitives.",
+                exampleRequest: #"{"browser":"bt_123","direction":"down","pages":1,"cursor":{"id":"agent-1"}}"#
+            )
+        case .browserReload:
+            return browserUsage(
+                whenToUse: "Reload an owned browser target and read refreshed DOM state.",
+                exampleRequest: #"{"browser":"bt_123","imageMode":"path"}"#
+            )
+        case .browserClose:
+            return browserUsage(
+                whenToUse: "Close a BCU-owned browser target.",
+                exampleRequest: #"{"browser":"bt_123"}"#
+            )
+        case .browserEventsEmit:
+            return browserUsage(
+                whenToUse: "Emit a generic browser event from a client or injected script.",
+                exampleRequest: #"{"browser":"bt_123","scriptID":"observer","type":"person_context","payload":{"name":"Jane"}}"#
+            )
+        case .browserEventsPoll:
+            return browserUsage(
+                whenToUse: "Poll browser events emitted by injected scripts or clients.",
+                exampleRequest: #"{"browser":"bt_123","limit":50}"#
+            )
+        case .browserEventsClear:
+            return browserUsage(
+                whenToUse: "Clear buffered browser events.",
+                exampleRequest: #"{"browser":"bt_123"}"#
+            )
+        case .browserRegisterProvider:
+            return browserUsage(
+                whenToUse: "Register WKWebView surfaces exposed by a cooperating macOS app.",
+                exampleRequest: #"{"providerID":"com.example.app","displayName":"Example","protocolVersion":1,"browserSurfaces":[]}"#
+            )
+        case .browserUnregisterProvider:
+            return browserUsage(
+                whenToUse: "Remove browser surfaces registered by a cooperating macOS app.",
+                exampleRequest: #"{"providerID":"com.example.app"}"#
+            )
         }
     }
 
@@ -271,6 +361,16 @@ enum APIDocumentation {
         )
     }
 
+    private static func browserUsage(whenToUse: String, exampleRequest: String) -> RouteUsageDTO {
+        usage(
+            whenToUse: whenToUse,
+            useAfter: ["Call /v1/browser/create_window or /v1/browser/list_targets and use a browser target ID."],
+            successSignals: ["HTTP 200 with ok=true where applicable, and route-specific target/state/action fields are present."],
+            nextSteps: ["Use browser/get_state after meaningful changes, and reuse cursor.id across browser and native routes when visual cursor continuity matters."],
+            exampleRequest: exampleRequest
+        )
+    }
+
     private static func routeHasJSONBody(_ id: RouteID) -> Bool {
         switch id {
         case .health, .bootstrap, .routes:
@@ -282,7 +382,12 @@ enum APIDocumentation {
 
     private static func routeNeedsAccessibility(_ id: RouteID) -> Bool {
         switch id {
-        case .health, .bootstrap, .routes:
+        case .health, .bootstrap, .routes,
+             .browserCreateWindow, .browserListTargets, .browserNavigate, .browserGetState,
+             .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
+             .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
+             .browserEventsEmit, .browserEventsPoll, .browserEventsClear,
+             .browserRegisterProvider, .browserUnregisterProvider:
             return false
         default:
             return true
@@ -293,7 +398,12 @@ enum APIDocumentation {
         switch id {
         case .getWindowState, .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue:
             return true
-        case .health, .bootstrap, .routes, .listApps, .listWindows:
+        case .health, .bootstrap, .routes, .listApps, .listWindows,
+             .browserCreateWindow, .browserListTargets, .browserNavigate, .browserGetState,
+             .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
+             .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
+             .browserEventsEmit, .browserEventsPoll, .browserEventsClear,
+             .browserRegisterProvider, .browserUnregisterProvider:
             return false
         }
     }

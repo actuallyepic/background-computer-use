@@ -74,4 +74,76 @@ public final class BackgroundComputerUseRuntime {
     public func setValue(_ request: SetValueRequest) throws -> SetValueResponse {
         try services.setValue(request)
     }
+
+    public func browserCreateWindow(_ request: BrowserCreateWindowRequest) throws -> BrowserCreateWindowResponse {
+        try services.browserCreateWindow(request)
+    }
+
+    public func browserListTargets(_ request: BrowserListTargetsRequest) throws -> BrowserListTargetsResponse {
+        try services.browserListTargets(request)
+    }
+
+    public func browserNavigate(_ request: BrowserNavigateRequest) throws -> BrowserGetStateResponse {
+        try services.browserNavigate(request)
+    }
+
+    public func browserGetState(_ request: BrowserGetStateRequest) throws -> BrowserGetStateResponse {
+        try services.browserGetState(request)
+    }
+
+    public func browserEvaluateJavaScript(_ request: BrowserEvaluateJavaScriptRequest) throws -> BrowserEvaluateJavaScriptResponse {
+        try services.browserEvaluateJavaScript(request)
+    }
+
+    public func browserInjectJavaScript(_ request: BrowserInjectJavaScriptRequest) throws -> BrowserInjectJavaScriptResponse {
+        try services.browserInjectJavaScript(request)
+    }
+
+    public func browserRemoveInjectedJavaScript(_ request: BrowserRemoveInjectedJavaScriptRequest) throws -> BrowserRemoveInjectedJavaScriptResponse {
+        try services.browserRemoveInjectedJavaScript(request)
+    }
+
+    public func browserListInjectedJavaScript(_ request: BrowserListInjectedJavaScriptRequest) throws -> BrowserListInjectedJavaScriptResponse {
+        try services.browserListInjectedJavaScript(request)
+    }
+
+    public func browserClick(_ request: BrowserClickRequest) throws -> BrowserActionResponse {
+        try services.browserClick(request)
+    }
+
+    public func browserTypeText(_ request: BrowserTypeTextRequest) throws -> BrowserActionResponse {
+        try services.browserTypeText(request)
+    }
+
+    public func browserScroll(_ request: BrowserScrollRequest) throws -> BrowserActionResponse {
+        try services.browserScroll(request)
+    }
+
+    public func browserReload(_ request: BrowserReloadRequest) throws -> BrowserGetStateResponse {
+        try services.browserReload(request)
+    }
+
+    public func browserClose(_ request: BrowserCloseRequest) throws -> BrowserCloseResponse {
+        try services.browserClose(request)
+    }
+
+    public func browserEmitEvent(_ request: BrowserEmitEventRequest) -> BrowserEmitEventResponse {
+        services.browserEmitEvent(request)
+    }
+
+    public func browserPollEvents(_ request: BrowserPollEventsRequest) -> BrowserPollEventsResponse {
+        services.browserPollEvents(request)
+    }
+
+    public func browserClearEvents(_ request: BrowserClearEventsRequest) -> BrowserClearEventsResponse {
+        services.browserClearEvents(request)
+    }
+
+    public func browserRegisterProvider(_ request: BrowserRegisterProviderRequest) throws -> BrowserRegisterProviderResponse {
+        try services.browserRegisterProvider(request)
+    }
+
+    public func browserUnregisterProvider(_ request: BrowserUnregisterProviderRequest) throws -> BrowserUnregisterProviderResponse {
+        try services.browserUnregisterProvider(request)
+    }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 struct SetWindowFrameRouteService {
@@ -14,11 +15,34 @@ struct SetWindowFrameRouteService {
     func setWindowFrame(request: SetWindowFrameRequest) throws -> SetWindowFrameResponse {
         let cursor = cursorSession(request.cursor)
         let totalStarted = DispatchTime.now().uptimeNanoseconds
+        let animate = executionOptions.visualCursorEnabled ? (request.animate ?? true) : false
+        if request.x.isFinite, request.y.isFinite, request.width.isFinite, request.height.isFinite,
+           let ownedBrowserResponse = try BrowserMainActor.sync({
+               BrowserSurfaceRegistry.shared.setOwnedHostWindowFrame(
+                   windowID: request.window,
+                   frame: CGRect(
+                       x: request.x,
+                       y: request.y,
+                       width: request.width,
+                       height: request.height
+                   ),
+                   animate: animate
+               )
+           }) {
+            return ownedBrowserHostWindowResponse(
+                request: request,
+                cursor: cursor,
+                animate: animate,
+                before: ownedBrowserResponse.before,
+                after: ownedBrowserResponse.after,
+                totalStarted: totalStarted
+            )
+        }
+
         let resolveStarted = DispatchTime.now().uptimeNanoseconds
         let snapshot = try snapshotService.snapshot(windowID: request.window)
         let resolveFinished = DispatchTime.now().uptimeNanoseconds
 
-        let animate = executionOptions.visualCursorEnabled ? (request.animate ?? true) : false
         let planningStarted = DispatchTime.now().uptimeNanoseconds
         let warnings = [
             "set_window_frame accepts one canonical AppKit-global frame and routes it through the shared motion planner.",
@@ -221,5 +245,73 @@ struct SetWindowFrameRouteService {
         executionOptions.visualCursorEnabled
             ? CursorRuntime.resolve(requested: request)
             : AXCursorTargeting.disabledSession(requested: request)
+    }
+
+    private func ownedBrowserHostWindowResponse(
+        request: SetWindowFrameRequest,
+        cursor: CursorResponseDTO,
+        animate: Bool,
+        before: ResolvedWindowDTO,
+        after: ResolvedWindowDTO,
+        totalStarted: UInt64
+    ) -> SetWindowFrameResponse {
+        let now = DispatchTime.now().uptimeNanoseconds
+        let effectVerified = abs(after.frameAppKit.x - request.x) < 1.5 &&
+            abs(after.frameAppKit.y - request.y) < 1.5 &&
+            abs(after.frameAppKit.width - request.width) < 1.5 &&
+            abs(after.frameAppKit.height - request.height) < 1.5
+        return SetWindowFrameResponse(
+            contractVersion: ContractVersion.current,
+            ok: effectVerified,
+            cursor: cursor,
+            action: SetWindowFrameActionDTO(
+                kind: "set_window_frame",
+                requested: SetWindowFrameRequestedDTO(
+                    window: request.window,
+                    x: request.x,
+                    y: request.y,
+                    width: request.width,
+                    height: request.height,
+                    animate: animate,
+                    coordinateSpace: .appKitGlobal
+                ),
+                strategyUsed: "owned_browser_host_window_appkit_main_actor",
+                presentationMode: .none,
+                rawStatus: effectVerified ? "success" : "effect_not_verified",
+                effectVerified: effectVerified,
+                warnings: [
+                    "Detected a BCU-owned browser host window and applied the frame directly on the main actor instead of using AX frame writes against this process."
+                ]
+            ),
+            window: MotionWindowDTO(
+                windowID: before.windowID,
+                title: after.title,
+                bundleID: after.bundleID,
+                pid: after.pid,
+                launchDate: after.launchDate,
+                windowNumber: after.windowNumber,
+                frameBeforeAppKit: before.frameAppKit,
+                frameAfterAppKit: after.frameAppKit
+            ),
+            backgroundSafety: BackgroundSafetyDTO(
+                frontmostBefore: nil,
+                frontmostAfter: FrontmostAppObservationDTO(
+                    bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+                ),
+                backgroundSafeObserved: true
+            ),
+            performance: MotionPerformanceDTO(
+                resolveMs: 0,
+                planningMs: 0,
+                projectionMs: 0,
+                settleMs: 0,
+                totalMs: sanitizedJSONDouble(Double(now - totalStarted) / 1_000_000),
+                projectionDiagnostics: nil
+            ),
+            error: effectVerified ? nil : ActionErrorDTO(
+                code: "effect_not_verified",
+                message: "The BCU-owned browser host window did not settle at the requested frame."
+            )
+        )
     }
 }

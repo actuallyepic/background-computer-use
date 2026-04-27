@@ -14,6 +14,7 @@ struct RuntimeServices {
     private let scrollRouteService: ScrollRouteService
     private let secondaryActionRouteService: SecondaryActionRouteService
     private let clickRouteService: ClickRouteService
+    private let browserRouteService: BrowserRouteService
 
     init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
         windowStateService = WindowStateService(executionOptions: executionOptions)
@@ -26,6 +27,7 @@ struct RuntimeServices {
         scrollRouteService = ScrollRouteService(executionOptions: executionOptions)
         secondaryActionRouteService = SecondaryActionRouteService(executionOptions: executionOptions)
         clickRouteService = ClickRouteService(executionOptions: executionOptions)
+        browserRouteService = BrowserRouteService(executionOptions: executionOptions)
     }
 
     func permissions() -> RuntimePermissionsDTO {
@@ -107,6 +109,114 @@ struct RuntimeServices {
         }
     }
 
+    func browserCreateWindow(_ request: BrowserCreateWindowRequest) throws -> BrowserCreateWindowResponse {
+        try execute(routeID: .browserCreateWindow, target: .shared) {
+            try browserRouteService.createWindow(request)
+        }
+    }
+
+    func browserListTargets(_ request: BrowserListTargetsRequest) throws -> BrowserListTargetsResponse {
+        try execute(routeID: .browserListTargets, target: .shared) {
+            try browserRouteService.listTargets(request)
+        }
+    }
+
+    func browserNavigate(_ request: BrowserNavigateRequest) throws -> BrowserGetStateResponse {
+        try execute(routeID: .browserNavigate, target: browserTarget(request.browser)) {
+            try browserRouteService.navigate(request)
+        }
+    }
+
+    func browserGetState(_ request: BrowserGetStateRequest) throws -> BrowserGetStateResponse {
+        try execute(routeID: .browserGetState, target: browserTarget(request.browser)) {
+            try browserRouteService.getState(request)
+        }
+    }
+
+    func browserEvaluateJavaScript(_ request: BrowserEvaluateJavaScriptRequest) throws -> BrowserEvaluateJavaScriptResponse {
+        try execute(routeID: .browserEvaluateJS, target: browserTarget(request.browser)) {
+            try browserRouteService.evaluateJavaScript(request)
+        }
+    }
+
+    func browserInjectJavaScript(_ request: BrowserInjectJavaScriptRequest) throws -> BrowserInjectJavaScriptResponse {
+        try execute(routeID: .browserInjectJS, target: browserTarget(request.browser ?? "__global_browser_script__")) {
+            try browserRouteService.injectJavaScript(request)
+        }
+    }
+
+    func browserRemoveInjectedJavaScript(_ request: BrowserRemoveInjectedJavaScriptRequest) throws -> BrowserRemoveInjectedJavaScriptResponse {
+        try execute(routeID: .browserRemoveInjectedJS, target: browserTarget(request.browser ?? "__global_browser_script__")) {
+            try browserRouteService.removeInjectedJavaScript(request)
+        }
+    }
+
+    func browserListInjectedJavaScript(_ request: BrowserListInjectedJavaScriptRequest) throws -> BrowserListInjectedJavaScriptResponse {
+        try execute(routeID: .browserListInjectedJS, target: request.browser.map(browserTarget) ?? .shared) {
+            try browserRouteService.listInjectedJavaScript(request)
+        }
+    }
+
+    func browserClick(_ request: BrowserClickRequest) throws -> BrowserActionResponse {
+        try execute(routeID: .browserClick, target: browserTarget(request.browser)) {
+            try browserRouteService.click(request)
+        }
+    }
+
+    func browserTypeText(_ request: BrowserTypeTextRequest) throws -> BrowserActionResponse {
+        try execute(routeID: .browserTypeText, target: browserTarget(request.browser)) {
+            try browserRouteService.typeText(request)
+        }
+    }
+
+    func browserScroll(_ request: BrowserScrollRequest) throws -> BrowserActionResponse {
+        try execute(routeID: .browserScroll, target: browserTarget(request.browser)) {
+            try browserRouteService.scroll(request)
+        }
+    }
+
+    func browserReload(_ request: BrowserReloadRequest) throws -> BrowserGetStateResponse {
+        try execute(routeID: .browserReload, target: browserTarget(request.browser)) {
+            try browserRouteService.reload(request)
+        }
+    }
+
+    func browserClose(_ request: BrowserCloseRequest) throws -> BrowserCloseResponse {
+        try execute(routeID: .browserClose, target: browserTarget(request.browser)) {
+            try browserRouteService.close(request)
+        }
+    }
+
+    func browserEmitEvent(_ request: BrowserEmitEventRequest) -> BrowserEmitEventResponse {
+        execute(routeID: .browserEventsEmit, target: request.browser.map(browserTarget) ?? .shared) {
+            browserRouteService.emitEvent(request)
+        }
+    }
+
+    func browserPollEvents(_ request: BrowserPollEventsRequest) -> BrowserPollEventsResponse {
+        execute(routeID: .browserEventsPoll, target: request.browser.map(browserTarget) ?? .shared) {
+            browserRouteService.pollEvents(request)
+        }
+    }
+
+    func browserClearEvents(_ request: BrowserClearEventsRequest) -> BrowserClearEventsResponse {
+        execute(routeID: .browserEventsClear, target: request.browser.map(browserTarget) ?? .shared) {
+            browserRouteService.clearEvents(request)
+        }
+    }
+
+    func browserRegisterProvider(_ request: BrowserRegisterProviderRequest) throws -> BrowserRegisterProviderResponse {
+        try execute(routeID: .browserRegisterProvider, target: .shared) {
+            try browserRouteService.registerProvider(request)
+        }
+    }
+
+    func browserUnregisterProvider(_ request: BrowserUnregisterProviderRequest) throws -> BrowserUnregisterProviderResponse {
+        try execute(routeID: .browserUnregisterProvider, target: .shared) {
+            try browserRouteService.unregisterProvider(request)
+        }
+    }
+
     private func execute<Response>(
         routeID: RouteID,
         target: RouteTargetSummaryDTO,
@@ -118,5 +228,9 @@ struct RuntimeServices {
 
     private func windowTarget(_ windowID: String) -> RouteTargetSummaryDTO {
         RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: windowID)
+    }
+
+    private func browserTarget(_ targetID: String) -> RouteTargetSummaryDTO {
+        RouteTargetSummaryDTO(kind: .window, appQuery: nil, windowID: targetID)
     }
 }
