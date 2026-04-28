@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "BackgroundComputerUse",
+    name: "SpotifyBackgroundComputerUse",
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "BackgroundComputerUseKit", targets: ["BackgroundComputerUse"]),

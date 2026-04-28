@@ -10,16 +10,47 @@ struct SpotifyCodexModelOption: Sendable, Equatable {
     let supportedReasoning: [String]
 }
 
+struct SpotifyCodexReasoningTrace: Identifiable, Sendable, Equatable {
+    let id: String
+    var title: String
+    var text: String
+    var isComplete: Bool
+}
+
 struct SpotifyCodexChatMessage: Sendable, Equatable {
     enum Role: Sendable {
         case user
         case assistant
     }
 
+    enum Phase: Sendable {
+        case complete
+        case thinking
+        case responding
+    }
+
     let id: UUID
     let role: Role
     var text: String
+    var traces: [SpotifyCodexReasoningTrace]
+    var phase: Phase
     let createdAt: Date
+
+    init(
+        id: UUID,
+        role: Role,
+        text: String,
+        traces: [SpotifyCodexReasoningTrace] = [],
+        phase: Phase = .complete,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.traces = traces
+        self.phase = phase
+        self.createdAt = createdAt
+    }
 }
 
 @MainActor
@@ -29,13 +60,17 @@ final class SpotifyCodexSidebarController {
     var onModelsChanged: ([SpotifyCodexModelOption], String?, [String], String?) -> Void = { _, _, _, _ in }
     var onBusyChanged: (Bool) -> Void = { _ in }
     var onMessageAppended: (SpotifyCodexChatMessage) -> Void = { _ in }
-    var onMessageUpdated: (UUID, String) -> Void = { _, _ in }
+    var onMessageUpdated: (SpotifyCodexChatMessage) -> Void = { _ in }
     var onMessagesCleared: () -> Void = {}
 
     private let workspaceURL: URL
     private let sidecar: PersistentCodexAppServer
+    private let preferredModelName = "gpt-5.5"
+    private let legacyFallbackModelName = "gpt-5.4"
+    private let preferredServiceTier = ServiceTier.fast
     private var client: CodexClient?
     private var threadID: String?
+    private var hasValidatedThread = false
     private var controlPlaneBaseURL: URL?
     private var browserTargetID: String?
     private var models: [SpotifyCodexModelOption] = []
@@ -65,7 +100,8 @@ final class SpotifyCodexSidebarController {
                 try await ensureThread(client: client)
                 startModelRefreshLoop()
             } catch {
-                reportStatus("Spotify AI unavailable")
+                NSLog("Spotify AI startup failed: \(error.localizedDescription)")
+                reportStatus("Spotify AI unavailable: \(error.localizedDescription)")
             }
         }
     }
@@ -116,15 +152,14 @@ final class SpotifyCodexSidebarController {
         let userMessage = SpotifyCodexChatMessage(id: UUID(), role: .user, text: trimmed, createdAt: Date())
         onMessageAppended(userMessage)
 
-        let assistantID = UUID()
-        onMessageAppended(
-            SpotifyCodexChatMessage(
-                id: assistantID,
-                role: .assistant,
-                text: "",
-                createdAt: Date()
-            )
+        var assistantMessage = SpotifyCodexChatMessage(
+            id: UUID(),
+            role: .assistant,
+            text: "",
+            phase: .thinking,
+            createdAt: Date()
         )
+        onMessageAppended(assistantMessage)
 
         isBusy = true
         onBusyChanged(true)
@@ -132,6 +167,9 @@ final class SpotifyCodexSidebarController {
         sendTask = Task {
             do {
                 let client = try await connectIfNeeded()
+                if models.isEmpty {
+                    try await refreshModels(client: client)
+                }
                 let turn = try await startTurnRecoveringThread(client: client, text: trimmed)
                 activeTurn = (threadID: turn.threadID, turnID: turn.turnID)
                 var output = ""
@@ -142,18 +180,93 @@ final class SpotifyCodexSidebarController {
                     guard case .notification(let notification) = event else { continue }
 
                     switch notification {
+                    case .turnStarted(let started) where started.turn.id == turn.turnID:
+                        assistantMessage.phase = .thinking
+                        onMessageUpdated(assistantMessage)
+                    case .itemStarted(let started) where started.turnId == turn.turnID:
+                        if started.item.type == .reasoning {
+                            upsertReasoningTrace(
+                                in: &assistantMessage,
+                                id: reasoningTraceID(itemID: started.item.id, summaryIndex: 0),
+                                title: "Thinking"
+                            )
+                            assistantMessage.phase = .thinking
+                            onMessageUpdated(assistantMessage)
+                        } else if let title = activityTraceTitle(for: started.item) {
+                            upsertReasoningTrace(
+                                in: &assistantMessage,
+                                id: activityTraceID(itemID: started.item.id),
+                                title: title,
+                                text: activityTraceText(forStartedItem: started.item)
+                            )
+                            assistantMessage.phase = .thinking
+                            onMessageUpdated(assistantMessage)
+                        }
+                    case .itemReasoningSummaryPartAdded(let part) where part.turnId == turn.turnID:
+                        upsertReasoningTrace(
+                            in: &assistantMessage,
+                            id: reasoningTraceID(itemID: part.itemId, summaryIndex: part.summaryIndex),
+                            title: "Thinking"
+                        )
+                        assistantMessage.phase = .thinking
+                        onMessageUpdated(assistantMessage)
+                    case .itemReasoningSummaryTextDelta(let delta) where delta.turnId == turn.turnID:
+                        appendReasoningTraceDelta(
+                            delta.delta,
+                            to: &assistantMessage,
+                            id: reasoningTraceID(itemID: delta.itemId, summaryIndex: delta.summaryIndex),
+                            title: "Thinking"
+                        )
+                        assistantMessage.phase = .thinking
+                        onMessageUpdated(assistantMessage)
                     case .itemAgentMessageDelta(let delta) where delta.turnId == turn.turnID:
                         output += delta.delta
-                        onMessageUpdated(assistantID, output)
-                    case .turnCompleted(let completed) where completed.turn.id == turn.turnID:
-                        if output.isEmpty {
-                            onMessageUpdated(assistantID, "Done.")
+                        assistantMessage.text = output
+                        assistantMessage.phase = .responding
+                        onMessageUpdated(assistantMessage)
+                    case .itemCompleted(let completed) where completed.turnId == turn.turnID:
+                        if completed.item.type == .agentMessage,
+                           let text = completed.item.text,
+                           !text.isEmpty {
+                            output = text
+                            assistantMessage.text = text
+                            assistantMessage.phase = .responding
                         }
+                        if activityTraceTitle(for: completed.item) != nil {
+                            setReasoningTraceText(
+                                activityCompletionText(for: completed.item),
+                                in: &assistantMessage,
+                                id: activityTraceID(itemID: completed.item.id),
+                                title: activityTraceTitle(for: completed.item) ?? "Action"
+                            )
+                        }
+                        markReasoningTracesComplete(for: completed.item.id, in: &assistantMessage)
+                        onMessageUpdated(assistantMessage)
+                    case .turnCompleted(let completed) where completed.turn.id == turn.turnID:
+                        if output.isEmpty && assistantMessage.traces.isEmpty {
+                            assistantMessage.text = "Done."
+                        }
+                        assistantMessage.phase = .complete
+                        onMessageUpdated(assistantMessage)
                         activeTurn = nil
                         finishSend(conversationID: currentConversationID)
                         return
-                    case .error:
+                    case .error(let error) where error.turnId == turn.turnID:
+                        if error.willRetry {
+                            reportStatus("Retrying")
+                            continue
+                        }
+                        if requiresNewerCodex(for: error.error) {
+                            selectedModelID = defaultModel?.id
+                            publishModels()
+                        }
+                        assistantMessage.text = userFacingTurnErrorMessage(for: error.error)
+                        assistantMessage.phase = .complete
+                        onMessageUpdated(assistantMessage)
                         reportStatus("Something went wrong")
+                        activeTurn = nil
+                        finishSend(conversationID: currentConversationID)
+                        return
                     default:
                         continue
                     }
@@ -166,7 +279,9 @@ final class SpotifyCodexSidebarController {
                 finishSend(conversationID: currentConversationID)
             } catch {
                 if conversationID == currentConversationID {
-                    onMessageUpdated(assistantID, userFacingErrorMessage(for: error))
+                    assistantMessage.text = userFacingErrorMessage(for: error)
+                    assistantMessage.phase = .complete
+                    onMessageUpdated(assistantMessage)
                 }
                 reportStatus("Something went wrong")
                 activeTurn = nil
@@ -185,6 +300,7 @@ final class SpotifyCodexSidebarController {
         onBusyChanged(false)
         onMessagesCleared()
         threadID = nil
+        hasValidatedThread = false
         Self.deletePersistedThreadID(workspaceURL: workspaceURL)
         if let previousTurn, let client {
             Task {
@@ -219,7 +335,18 @@ final class SpotifyCodexSidebarController {
            let model = models.first(where: { $0.id == selectedModelID }) {
             return model
         }
-        return models.first(where: \.isDefault) ?? models.first
+        return defaultModel
+    }
+
+    private var defaultModel: SpotifyCodexModelOption? {
+        models.first(where: { $0.model == preferredModelName })
+            ?? models.first(where: \.isDefault)
+            ?? models.first(where: { $0.model == legacyFallbackModelName })
+            ?? models.first
+    }
+
+    private var selectedModelName: String {
+        selectedModel?.model ?? preferredModelName
     }
 
     private func connectIfNeeded() async throws -> CodexClient {
@@ -255,11 +382,11 @@ final class SpotifyCodexSidebarController {
 
     @discardableResult
     private func ensureThread(client: CodexClient) async throws -> String {
-        if let threadID {
+        if let threadID, hasValidatedThread {
             return threadID
         }
 
-        if let persisted = Self.loadPersistedThreadID(workspaceURL: workspaceURL) {
+        if let persisted = threadID ?? Self.loadPersistedThreadID(workspaceURL: workspaceURL) {
             do {
                 let response = try await client.call(
                     RPC.ThreadResume.self,
@@ -267,20 +394,26 @@ final class SpotifyCodexSidebarController {
                         approvalPolicy: .enumeration(.never),
                         cwd: workspaceURL.path,
                         developerInstructions: developerInstructions(),
-                        model: selectedModel?.model,
+                        model: selectedModelName,
                         persistExtendedHistory: true,
                         sandbox: .dangerFullAccess,
+                        serviceTier: preferredServiceTier,
                         threadId: persisted
                     )
                 )
                 threadID = response.thread.id
+                hasValidatedThread = true
                 Self.persistThreadID(response.thread.id, workspaceURL: workspaceURL)
                 reportStatus("Resumed chat")
                 return response.thread.id
             } catch let error as CodexClientError where error.isThreadNotFound {
+                threadID = nil
+                hasValidatedThread = false
                 Self.deletePersistedThreadID(workspaceURL: workspaceURL)
                 reportStatus("Starting fresh chat")
             } catch {
+                threadID = nil
+                hasValidatedThread = false
                 reportStatus("Could not resume saved thread: \(error.localizedDescription)")
             }
         }
@@ -290,6 +423,9 @@ final class SpotifyCodexSidebarController {
 
     @discardableResult
     private func createThread(client: CodexClient) async throws -> String {
+        if models.isEmpty {
+            try await refreshModels(client: client)
+        }
         let response = try await client.call(
             RPC.ThreadStart.self,
             params: ThreadStartParams(
@@ -297,13 +433,15 @@ final class SpotifyCodexSidebarController {
                 cwd: workspaceURL.path,
                 developerInstructions: developerInstructions(),
                 ephemeral: false,
-                model: selectedModel?.model,
+                model: selectedModelName,
                 persistExtendedHistory: true,
                 sandbox: .dangerFullAccess,
-                serviceName: "spotify-webview-app"
+                serviceName: "spotify-webview-app",
+                serviceTier: preferredServiceTier
             )
         )
         threadID = response.thread.id
+        hasValidatedThread = true
         Self.persistThreadID(response.thread.id, workspaceURL: workspaceURL)
         reportStatus("New chat")
         return response.thread.id
@@ -321,6 +459,7 @@ final class SpotifyCodexSidebarController {
         } catch let error as CodexClientError where error.isThreadNotFound {
             reportStatus("Refreshing chat")
             threadID = nil
+            hasValidatedThread = false
             Self.deletePersistedThreadID(workspaceURL: workspaceURL)
             _ = try await createThread(client: client)
             return try await startTurnContext(client: client, text: text)
@@ -342,11 +481,138 @@ final class SpotifyCodexSidebarController {
                 cwd: workspaceURL.path,
                 effort: selectedReasoning.flatMap(ReasoningEffort.init(rawValue:)),
                 input: [.text(turnPrompt(for: text))],
-                model: selectedModel?.model,
+                model: selectedModelName,
+                serviceTier: preferredServiceTier,
+                summary: .auto,
                 threadId: threadID
             )
         )
         return response.turn.id
+    }
+
+    private func reasoningTraceID(itemID: String, summaryIndex: Int) -> String {
+        "\(itemID)#\(summaryIndex)"
+    }
+
+    private func activityTraceID(itemID: String) -> String {
+        "\(itemID)#activity"
+    }
+
+    private func upsertReasoningTrace(
+        in message: inout SpotifyCodexChatMessage,
+        id: String,
+        title: String,
+        text: String? = nil
+    ) {
+        if let index = message.traces.firstIndex(where: { $0.id == id }) {
+            if let text, message.traces[index].text.isEmpty {
+                message.traces[index].text = text
+            }
+            return
+        }
+        message.traces.append(
+            SpotifyCodexReasoningTrace(
+                id: id,
+                title: title,
+                text: text ?? "",
+                isComplete: false
+            )
+        )
+    }
+
+    private func setReasoningTraceText(
+        _ text: String,
+        in message: inout SpotifyCodexChatMessage,
+        id: String,
+        title: String
+    ) {
+        upsertReasoningTrace(in: &message, id: id, title: title)
+        guard let index = message.traces.firstIndex(where: { $0.id == id }) else { return }
+        message.traces[index].text = text
+    }
+
+    private func appendReasoningTraceDelta(
+        _ delta: String,
+        to message: inout SpotifyCodexChatMessage,
+        id: String,
+        title: String
+    ) {
+        upsertReasoningTrace(in: &message, id: id, title: title)
+        guard let index = message.traces.firstIndex(where: { $0.id == id }) else { return }
+        message.traces[index].text += delta
+    }
+
+    private func markReasoningTracesComplete(for itemID: String, in message: inout SpotifyCodexChatMessage) {
+        for index in message.traces.indices where message.traces[index].id.hasPrefix("\(itemID)#") {
+            message.traces[index].isComplete = true
+        }
+    }
+
+    private func activityTraceTitle(for item: ThreadItem) -> String? {
+        switch item.type {
+        case .commandExecution:
+            return "Action"
+        case .dynamicToolCall, .mcpToolCall:
+            return "Tool"
+        case .fileChange:
+            return "File update"
+        case .webSearch:
+            return "Search"
+        default:
+            return nil
+        }
+    }
+
+    private func activityTraceText(forStartedItem item: ThreadItem) -> String {
+        switch item.type {
+        case .commandExecution:
+            return "Using Spotify controls..."
+        case .dynamicToolCall, .mcpToolCall:
+            if let tool = item.tool, !tool.isEmpty {
+                return "Using \(tool)..."
+            }
+            return "Using a tool..."
+        case .fileChange:
+            return "Updating files..."
+        case .webSearch:
+            if let query = item.query, !query.isEmpty {
+                return "Searching for \(query)..."
+            }
+            return "Searching..."
+        default:
+            return "Working..."
+        }
+    }
+
+    private func activityCompletionText(for item: ThreadItem) -> String {
+        switch item.type {
+        case .commandExecution:
+            if let exitCode = item.exitCode, exitCode != 0 {
+                let output = item.aggregatedOutput?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if output.isEmpty {
+                    return "Action failed with exit code \(exitCode)."
+                }
+                return "Action failed with exit code \(exitCode).\n\(Self.truncatedActivityOutput(output))"
+            }
+            return "Action completed."
+        case .dynamicToolCall, .mcpToolCall:
+            if item.success == false {
+                return "Tool call failed."
+            }
+            return "Tool call completed."
+        case .fileChange:
+            return "File update completed."
+        case .webSearch:
+            return "Search completed."
+        default:
+            return "Completed."
+        }
+    }
+
+    private static func truncatedActivityOutput(_ output: String) -> String {
+        let limit = 480
+        guard output.count > limit else { return output }
+        return "\(output.prefix(limit))..."
     }
 
     private func refreshModels(client: CodexClient) async throws {
@@ -365,8 +631,8 @@ final class SpotifyCodexSidebarController {
                 supportedReasoning: supported.isEmpty ? [model.defaultReasoningEffort.rawValue] : supported
             )
         }
-        if selectedModelID == nil {
-            selectedModelID = selectedModel?.id
+        if selectedModelID == nil || !models.contains(where: { $0.id == selectedModelID }) {
+            selectedModelID = defaultModel?.id
         }
         if selectedReasoning == nil {
             selectedReasoning = selectedModel?.defaultReasoning
@@ -449,6 +715,34 @@ final class SpotifyCodexSidebarController {
             return "I opened a fresh chat. Please send that again."
         }
         return "I could not finish that request. Please try again."
+    }
+
+    private func userFacingTurnErrorMessage(for error: TurnError) -> String {
+        let message = nestedJSONErrorMessage(error.message) ?? error.message
+        if requiresNewerCodex(message: message) {
+            return "That model requires a newer Codex build. I switched to \(selectedModelName); please send that again."
+        }
+        return message.isEmpty ? "I could not finish that request. Please try again." : message
+    }
+
+    private func requiresNewerCodex(for error: TurnError) -> Bool {
+        requiresNewerCodex(message: nestedJSONErrorMessage(error.message) ?? error.message)
+    }
+
+    private func requiresNewerCodex(message: String) -> Bool {
+        message.localizedCaseInsensitiveContains("requires a newer version of Codex")
+    }
+
+    private func nestedJSONErrorMessage(_ raw: String) -> String? {
+        guard let data = raw.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        if let error = object["error"] as? [String: Any],
+           let message = error["message"] as? String {
+            return message
+        }
+        return object["message"] as? String
     }
 
     private func providerContextSummary() -> String {

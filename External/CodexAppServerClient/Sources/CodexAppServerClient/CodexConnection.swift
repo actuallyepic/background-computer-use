@@ -305,6 +305,7 @@ public extension CodexClientError {
                 || lower.contains("thread does not exist")
                 || lower.contains("unknown thread")
                 || lower.contains("no such thread")
+                || lower.contains("no rollout found")
         default:
             return false
         }

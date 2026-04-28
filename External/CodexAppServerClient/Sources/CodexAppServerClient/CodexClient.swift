@@ -481,6 +481,7 @@ public actor CodexClient {
             "thread does not exist",
             "unknown thread",
             "no such thread",
+            "no rollout found",
         ]
         if threadNotFoundPatterns.contains(where: { lower.contains($0) }) {
             return .threadNotFound(error.message)

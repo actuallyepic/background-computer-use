@@ -38,6 +38,13 @@ extension RPC {
         public static let method = ClientRequestMethod.accountRead
     }
 
+    /// Wire method: `account/sendAddCreditsNudgeEmail`.
+    public enum AccountSendAddCreditsNudgeEmail: CodexRPCMethod {
+        public typealias Params = SendAddCreditsNudgeEmailParams
+        public typealias Response = SendAddCreditsNudgeEmailResponse
+        public static let method = ClientRequestMethod.accountSendAddCreditsNudgeEmail
+    }
+
     /// EXPERIMENTAL - list available apps/connectors.
     ///
     /// Wire method: `app/list`.
@@ -127,6 +134,33 @@ extension RPC {
         public typealias Params = ConfigValueWriteParams
         public typealias Response = ConfigWriteResponse
         public static let method = ClientRequestMethod.configValueWrite
+    }
+
+    /// Create a controller-local device key with a random key id.
+    ///
+    /// Wire method: `device/key/create`.
+    public enum DeviceKeyCreate: CodexRPCMethod {
+        public typealias Params = DeviceKeyCreateParams
+        public typealias Response = DeviceKeyCreateResponse
+        public static let method = ClientRequestMethod.deviceKeyCreate
+    }
+
+    /// Fetch a controller-local device key public key by id.
+    ///
+    /// Wire method: `device/key/public`.
+    public enum DeviceKeyPublic: CodexRPCMethod {
+        public typealias Params = DeviceKeyPublicParams
+        public typealias Response = DeviceKeyPublicResponse
+        public static let method = ClientRequestMethod.deviceKeyPublic
+    }
+
+    /// Sign an accepted structured payload with a controller-local device key.
+    ///
+    /// Wire method: `device/key/sign`.
+    public enum DeviceKeySign: CodexRPCMethod {
+        public typealias Params = DeviceKeySignParams
+        public typealias Response = DeviceKeySignResponse
+        public static let method = ClientRequestMethod.deviceKeySign
     }
 
     /// Wire method: `experimentalFeature/enablement/set`.
@@ -287,6 +321,20 @@ extension RPC {
         public static let method = ClientRequestMethod.marketplaceAdd
     }
 
+    /// Wire method: `marketplace/remove`.
+    public enum MarketplaceRemove: CodexRPCMethod {
+        public typealias Params = MarketplaceRemoveParams
+        public typealias Response = MarketplaceRemoveResponse
+        public static let method = ClientRequestMethod.marketplaceRemove
+    }
+
+    /// Wire method: `marketplace/upgrade`.
+    public enum MarketplaceUpgrade: CodexRPCMethod {
+        public typealias Params = MarketplaceUpgradeParams
+        public typealias Response = MarketplaceUpgradeResponse
+        public static let method = ClientRequestMethod.marketplaceUpgrade
+    }
+
     /// Wire method: `mcpServer/oauth/login`.
     public enum McpServerOauthLogin: CodexRPCMethod {
         public typealias Params = MCPServerOauthLoginParams
@@ -383,6 +431,13 @@ extension RPC {
         public typealias Params = SkillsListParams
         public typealias Response = SkillsListResponse
         public static let method = ClientRequestMethod.skillsList
+    }
+
+    /// Wire method: `thread/approveGuardianDeniedAction`.
+    public enum ThreadApproveGuardianDeniedAction: CodexRPCMethod {
+        public typealias Params = ThreadApproveGuardianDeniedActionParams
+        public typealias Response = EmptyResponse
+        public static let method = ClientRequestMethod.threadApproveGuardianDeniedAction
     }
 
     /// Wire method: `thread/archive`.
@@ -565,6 +620,13 @@ extension RPC {
         public static let method = ClientRequestMethod.threadStart
     }
 
+    /// Wire method: `thread/turns/list`.
+    public enum ThreadTurnsList: CodexRPCMethod {
+        public typealias Params = ThreadTurnsListParams
+        public typealias Response = ThreadTurnsListResponse
+        public static let method = ClientRequestMethod.threadTurnsList
+    }
+
     /// Wire method: `thread/unarchive`.
     public enum ThreadUnarchive: CodexRPCMethod {
         public typealias Params = ThreadUnarchiveParams
@@ -620,6 +682,7 @@ extension RPC {
         RPC.AccountLogout.self,
         RPC.AccountRateLimitsRead.self,
         RPC.AccountRead.self,
+        RPC.AccountSendAddCreditsNudgeEmail.self,
         RPC.AppList.self,
         RPC.CollaborationModeList.self,
         RPC.CommandExec.self,
@@ -631,6 +694,9 @@ extension RPC {
         RPC.ConfigRead.self,
         RPC.ConfigRequirementsRead.self,
         RPC.ConfigValueWrite.self,
+        RPC.DeviceKeyCreate.self,
+        RPC.DeviceKeyPublic.self,
+        RPC.DeviceKeySign.self,
         RPC.ExperimentalFeatureEnablementSet.self,
         RPC.ExperimentalFeatureList.self,
         RPC.ExternalAgentConfigDetect.self,
@@ -651,6 +717,8 @@ extension RPC {
         RPC.FuzzyFileSearchSessionUpdate.self,
         RPC.Initialize.self,
         RPC.MarketplaceAdd.self,
+        RPC.MarketplaceRemove.self,
+        RPC.MarketplaceUpgrade.self,
         RPC.McpServerOauthLogin.self,
         RPC.McpServerResourceRead.self,
         RPC.McpServerStatusList.self,
@@ -665,6 +733,7 @@ extension RPC {
         RPC.ReviewStart.self,
         RPC.SkillsConfigWrite.self,
         RPC.SkillsList.self,
+        RPC.ThreadApproveGuardianDeniedAction.self,
         RPC.ThreadArchive.self,
         RPC.ThreadBackgroundTerminalsClean.self,
         RPC.ThreadCompactStart.self,
@@ -687,6 +756,7 @@ extension RPC {
         RPC.ThreadRollback.self,
         RPC.ThreadShellCommand.self,
         RPC.ThreadStart.self,
+        RPC.ThreadTurnsList.self,
         RPC.ThreadUnarchive.self,
         RPC.ThreadUnsubscribe.self,
         RPC.TurnInterrupt.self,

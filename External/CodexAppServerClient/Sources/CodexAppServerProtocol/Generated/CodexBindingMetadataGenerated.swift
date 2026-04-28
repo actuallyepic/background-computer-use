@@ -3,6 +3,6 @@
 import Foundation
 
 public enum CodexBindingMetadata {
-    public static let codexVersion = "0.121.0"
+    public static let codexVersion = "0.125.0"
     public static let includesExperimentalAPI = true
 }

@@ -57,6 +57,12 @@ extension ServerNotifications {
         public static let method = NotificationMethod.error
     }
 
+    /// Wire method: `externalAgentConfig/import/completed`.
+    public enum ExternalAgentConfigImportCompleted: CodexServerNotificationMethod {
+        public typealias Params = EmptyResponse
+        public static let method = NotificationMethod.externalAgentConfigImportCompleted
+    }
+
     /// Filesystem watch notification emitted for `fs/watch` subscribers.
     ///
     /// Wire method: `fs/changed`.
@@ -77,6 +83,12 @@ extension ServerNotifications {
         public static let method = NotificationMethod.fuzzyFileSearchSessionUpdated
     }
 
+    /// Wire method: `guardianWarning`.
+    public enum GuardianWarning: CodexServerNotificationMethod {
+        public typealias Params = GuardianWarningNotification
+        public static let method = NotificationMethod.guardianWarning
+    }
+
     /// Wire method: `hook/completed`.
     public enum HookCompleted: CodexServerNotificationMethod {
         public typealias Params = HookCompletedNotification
@@ -95,7 +107,7 @@ extension ServerNotifications {
         public static let method = NotificationMethod.itemAgentMessageDelta
     }
 
-    /// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This shape is expected to change soon.
+    /// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is expected to change soon.
     ///
     /// Wire method: `item/autoApprovalReview/completed`.
     public enum ItemAutoApprovalReviewCompleted: CodexServerNotificationMethod {
@@ -103,7 +115,7 @@ extension ServerNotifications {
         public static let method = NotificationMethod.itemAutoApprovalReviewCompleted
     }
 
-    /// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This shape is expected to change soon.
+    /// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is expected to change soon.
     ///
     /// Wire method: `item/autoApprovalReview/started`.
     public enum ItemAutoApprovalReviewStarted: CodexServerNotificationMethod {
@@ -133,6 +145,12 @@ extension ServerNotifications {
     public enum ItemFileChangeOutputDelta: CodexServerNotificationMethod {
         public typealias Params = FileChangeOutputDeltaNotification
         public static let method = NotificationMethod.itemFileChangeOutputDelta
+    }
+
+    /// Wire method: `item/fileChange/patchUpdated`.
+    public enum ItemFileChangePatchUpdated: CodexServerNotificationMethod {
+        public typealias Params = FileChangePatchUpdatedNotification
+        public static let method = NotificationMethod.itemFileChangePatchUpdated
     }
 
     /// Wire method: `item/mcpToolCall/progress`.
@@ -189,6 +207,12 @@ extension ServerNotifications {
     public enum ModelRerouted: CodexServerNotificationMethod {
         public typealias Params = ModelReroutedNotification
         public static let method = NotificationMethod.modelRerouted
+    }
+
+    /// Wire method: `model/verification`.
+    public enum ModelVerification: CodexServerNotificationMethod {
+        public typealias Params = ModelVerificationNotification
+        public static let method = NotificationMethod.modelVerification
     }
 
     /// Wire method: `serverRequest/resolved`.
@@ -347,6 +371,12 @@ extension ServerNotifications {
         public static let method = NotificationMethod.turnStarted
     }
 
+    /// Wire method: `warning`.
+    public enum Warning: CodexServerNotificationMethod {
+        public typealias Params = WarningNotification
+        public static let method = NotificationMethod.warning
+    }
+
     /// Wire method: `windowsSandbox/setupCompleted`.
     public enum WindowsSandboxSetupCompleted: CodexServerNotificationMethod {
         public typealias Params = WindowsSandboxSetupCompletedNotification
@@ -375,9 +405,11 @@ extension ServerNotifications {
         ServerNotifications.ConfigWarning.self,
         ServerNotifications.DeprecationNotice.self,
         ServerNotifications.Error.self,
+        ServerNotifications.ExternalAgentConfigImportCompleted.self,
         ServerNotifications.FsChanged.self,
         ServerNotifications.FuzzyFileSearchSessionCompleted.self,
         ServerNotifications.FuzzyFileSearchSessionUpdated.self,
+        ServerNotifications.GuardianWarning.self,
         ServerNotifications.HookCompleted.self,
         ServerNotifications.HookStarted.self,
         ServerNotifications.ItemAgentMessageDelta.self,
@@ -387,6 +419,7 @@ extension ServerNotifications {
         ServerNotifications.ItemCommandExecutionTerminalInteraction.self,
         ServerNotifications.ItemCompleted.self,
         ServerNotifications.ItemFileChangeOutputDelta.self,
+        ServerNotifications.ItemFileChangePatchUpdated.self,
         ServerNotifications.ItemMcpToolCallProgress.self,
         ServerNotifications.ItemPlanDelta.self,
         ServerNotifications.ItemReasoningSummaryPartAdded.self,
@@ -396,6 +429,7 @@ extension ServerNotifications {
         ServerNotifications.McpServerOauthLoginCompleted.self,
         ServerNotifications.McpServerStartupStatusUpdated.self,
         ServerNotifications.ModelRerouted.self,
+        ServerNotifications.ModelVerification.self,
         ServerNotifications.ServerRequestResolved.self,
         ServerNotifications.SkillsChanged.self,
         ServerNotifications.ThreadArchived.self,
@@ -418,6 +452,7 @@ extension ServerNotifications {
         ServerNotifications.TurnDiffUpdated.self,
         ServerNotifications.TurnPlanUpdated.self,
         ServerNotifications.TurnStarted.self,
+        ServerNotifications.Warning.self,
         ServerNotifications.WindowsSandboxSetupCompleted.self,
         ServerNotifications.WindowsWorldWritableWarning.self,
     ]
@@ -440,9 +475,11 @@ public enum ServerNotificationEvent: Sendable {
     case configWarning(ConfigWarningNotification)
     case deprecationNotice(DeprecationNoticeNotification)
     case error(ErrorNotification)
+    case externalAgentConfigImportCompleted(EmptyResponse)
     case fsChanged(FSChangedNotification)
     case fuzzyFileSearchSessionCompleted(FuzzyFileSearchSessionCompletedNotification)
     case fuzzyFileSearchSessionUpdated(FuzzyFileSearchSessionUpdatedNotification)
+    case guardianWarning(GuardianWarningNotification)
     case hookCompleted(HookCompletedNotification)
     case hookStarted(HookStartedNotification)
     case itemAgentMessageDelta(AgentMessageDeltaNotification)
@@ -452,6 +489,7 @@ public enum ServerNotificationEvent: Sendable {
     case itemCommandExecutionTerminalInteraction(TerminalInteractionNotification)
     case itemCompleted(ItemCompletedNotification)
     case itemFileChangeOutputDelta(FileChangeOutputDeltaNotification)
+    case itemFileChangePatchUpdated(FileChangePatchUpdatedNotification)
     case itemMcpToolCallProgress(MCPToolCallProgressNotification)
     case itemPlanDelta(PlanDeltaNotification)
     case itemReasoningSummaryPartAdded(ReasoningSummaryPartAddedNotification)
@@ -461,6 +499,7 @@ public enum ServerNotificationEvent: Sendable {
     case mcpServerOauthLoginCompleted(MCPServerOauthLoginCompletedNotification)
     case mcpServerStartupStatusUpdated(MCPServerStatusUpdatedNotification)
     case modelRerouted(ModelReroutedNotification)
+    case modelVerification(ModelVerificationNotification)
     case serverRequestResolved(ServerRequestResolvedNotification)
     case skillsChanged(EmptyResponse)
     case threadArchived(ThreadArchivedNotification)
@@ -483,6 +522,7 @@ public enum ServerNotificationEvent: Sendable {
     case turnDiffUpdated(TurnDiffUpdatedNotification)
     case turnPlanUpdated(TurnPlanUpdatedNotification)
     case turnStarted(TurnStartedNotification)
+    case warning(WarningNotification)
     case windowsSandboxSetupCompleted(WindowsSandboxSetupCompletedNotification)
     case windowsWorldWritableWarning(WindowsWorldWritableWarningNotification)
 
@@ -498,9 +538,11 @@ public enum ServerNotificationEvent: Sendable {
         case .configWarning: return .configWarning
         case .deprecationNotice: return .deprecationNotice
         case .error: return .error
+        case .externalAgentConfigImportCompleted: return .externalAgentConfigImportCompleted
         case .fsChanged: return .fsChanged
         case .fuzzyFileSearchSessionCompleted: return .fuzzyFileSearchSessionCompleted
         case .fuzzyFileSearchSessionUpdated: return .fuzzyFileSearchSessionUpdated
+        case .guardianWarning: return .guardianWarning
         case .hookCompleted: return .hookCompleted
         case .hookStarted: return .hookStarted
         case .itemAgentMessageDelta: return .itemAgentMessageDelta
@@ -510,6 +552,7 @@ public enum ServerNotificationEvent: Sendable {
         case .itemCommandExecutionTerminalInteraction: return .itemCommandExecutionTerminalInteraction
         case .itemCompleted: return .itemCompleted
         case .itemFileChangeOutputDelta: return .itemFileChangeOutputDelta
+        case .itemFileChangePatchUpdated: return .itemFileChangePatchUpdated
         case .itemMcpToolCallProgress: return .itemMcpToolCallProgress
         case .itemPlanDelta: return .itemPlanDelta
         case .itemReasoningSummaryPartAdded: return .itemReasoningSummaryPartAdded
@@ -519,6 +562,7 @@ public enum ServerNotificationEvent: Sendable {
         case .mcpServerOauthLoginCompleted: return .mcpServerOauthLoginCompleted
         case .mcpServerStartupStatusUpdated: return .mcpServerStartupStatusUpdated
         case .modelRerouted: return .modelRerouted
+        case .modelVerification: return .modelVerification
         case .serverRequestResolved: return .serverRequestResolved
         case .skillsChanged: return .skillsChanged
         case .threadArchived: return .threadArchived
@@ -541,6 +585,7 @@ public enum ServerNotificationEvent: Sendable {
         case .turnDiffUpdated: return .turnDiffUpdated
         case .turnPlanUpdated: return .turnPlanUpdated
         case .turnStarted: return .turnStarted
+        case .warning: return .warning
         case .windowsSandboxSetupCompleted: return .windowsSandboxSetupCompleted
         case .windowsWorldWritableWarning: return .windowsWorldWritableWarning
         }
@@ -569,12 +614,16 @@ public enum ServerNotificationEvent: Sendable {
             self = .deprecationNotice(try decoder.decode(_ServerNotificationPayload<DeprecationNoticeNotification>.self, from: data).params)
         case .error:
             self = .error(try decoder.decode(_ServerNotificationPayload<ErrorNotification>.self, from: data).params)
+        case .externalAgentConfigImportCompleted:
+            self = .externalAgentConfigImportCompleted(try decoder.decode(_ServerNotificationPayload<EmptyResponse>.self, from: data).params)
         case .fsChanged:
             self = .fsChanged(try decoder.decode(_ServerNotificationPayload<FSChangedNotification>.self, from: data).params)
         case .fuzzyFileSearchSessionCompleted:
             self = .fuzzyFileSearchSessionCompleted(try decoder.decode(_ServerNotificationPayload<FuzzyFileSearchSessionCompletedNotification>.self, from: data).params)
         case .fuzzyFileSearchSessionUpdated:
             self = .fuzzyFileSearchSessionUpdated(try decoder.decode(_ServerNotificationPayload<FuzzyFileSearchSessionUpdatedNotification>.self, from: data).params)
+        case .guardianWarning:
+            self = .guardianWarning(try decoder.decode(_ServerNotificationPayload<GuardianWarningNotification>.self, from: data).params)
         case .hookCompleted:
             self = .hookCompleted(try decoder.decode(_ServerNotificationPayload<HookCompletedNotification>.self, from: data).params)
         case .hookStarted:
@@ -593,6 +642,8 @@ public enum ServerNotificationEvent: Sendable {
             self = .itemCompleted(try decoder.decode(_ServerNotificationPayload<ItemCompletedNotification>.self, from: data).params)
         case .itemFileChangeOutputDelta:
             self = .itemFileChangeOutputDelta(try decoder.decode(_ServerNotificationPayload<FileChangeOutputDeltaNotification>.self, from: data).params)
+        case .itemFileChangePatchUpdated:
+            self = .itemFileChangePatchUpdated(try decoder.decode(_ServerNotificationPayload<FileChangePatchUpdatedNotification>.self, from: data).params)
         case .itemMcpToolCallProgress:
             self = .itemMcpToolCallProgress(try decoder.decode(_ServerNotificationPayload<MCPToolCallProgressNotification>.self, from: data).params)
         case .itemPlanDelta:
@@ -611,6 +662,8 @@ public enum ServerNotificationEvent: Sendable {
             self = .mcpServerStartupStatusUpdated(try decoder.decode(_ServerNotificationPayload<MCPServerStatusUpdatedNotification>.self, from: data).params)
         case .modelRerouted:
             self = .modelRerouted(try decoder.decode(_ServerNotificationPayload<ModelReroutedNotification>.self, from: data).params)
+        case .modelVerification:
+            self = .modelVerification(try decoder.decode(_ServerNotificationPayload<ModelVerificationNotification>.self, from: data).params)
         case .serverRequestResolved:
             self = .serverRequestResolved(try decoder.decode(_ServerNotificationPayload<ServerRequestResolvedNotification>.self, from: data).params)
         case .skillsChanged:
@@ -655,6 +708,8 @@ public enum ServerNotificationEvent: Sendable {
             self = .turnPlanUpdated(try decoder.decode(_ServerNotificationPayload<TurnPlanUpdatedNotification>.self, from: data).params)
         case .turnStarted:
             self = .turnStarted(try decoder.decode(_ServerNotificationPayload<TurnStartedNotification>.self, from: data).params)
+        case .warning:
+            self = .warning(try decoder.decode(_ServerNotificationPayload<WarningNotification>.self, from: data).params)
         case .windowsSandboxSetupCompleted:
             self = .windowsSandboxSetupCompleted(try decoder.decode(_ServerNotificationPayload<WindowsSandboxSetupCompletedNotification>.self, from: data).params)
         case .windowsWorldWritableWarning:
@@ -680,9 +735,11 @@ extension ServerNotificationEvent {
         case .configWarning(let payload): return payload as? Method.Params
         case .deprecationNotice(let payload): return payload as? Method.Params
         case .error(let payload): return payload as? Method.Params
+        case .externalAgentConfigImportCompleted(let payload): return payload as? Method.Params
         case .fsChanged(let payload): return payload as? Method.Params
         case .fuzzyFileSearchSessionCompleted(let payload): return payload as? Method.Params
         case .fuzzyFileSearchSessionUpdated(let payload): return payload as? Method.Params
+        case .guardianWarning(let payload): return payload as? Method.Params
         case .hookCompleted(let payload): return payload as? Method.Params
         case .hookStarted(let payload): return payload as? Method.Params
         case .itemAgentMessageDelta(let payload): return payload as? Method.Params
@@ -692,6 +749,7 @@ extension ServerNotificationEvent {
         case .itemCommandExecutionTerminalInteraction(let payload): return payload as? Method.Params
         case .itemCompleted(let payload): return payload as? Method.Params
         case .itemFileChangeOutputDelta(let payload): return payload as? Method.Params
+        case .itemFileChangePatchUpdated(let payload): return payload as? Method.Params
         case .itemMcpToolCallProgress(let payload): return payload as? Method.Params
         case .itemPlanDelta(let payload): return payload as? Method.Params
         case .itemReasoningSummaryPartAdded(let payload): return payload as? Method.Params
@@ -701,6 +759,7 @@ extension ServerNotificationEvent {
         case .mcpServerOauthLoginCompleted(let payload): return payload as? Method.Params
         case .mcpServerStartupStatusUpdated(let payload): return payload as? Method.Params
         case .modelRerouted(let payload): return payload as? Method.Params
+        case .modelVerification(let payload): return payload as? Method.Params
         case .serverRequestResolved(let payload): return payload as? Method.Params
         case .skillsChanged(let payload): return payload as? Method.Params
         case .threadArchived(let payload): return payload as? Method.Params
@@ -723,6 +782,7 @@ extension ServerNotificationEvent {
         case .turnDiffUpdated(let payload): return payload as? Method.Params
         case .turnPlanUpdated(let payload): return payload as? Method.Params
         case .turnStarted(let payload): return payload as? Method.Params
+        case .warning(let payload): return payload as? Method.Params
         case .windowsSandboxSetupCompleted(let payload): return payload as? Method.Params
         case .windowsWorldWritableWarning(let payload): return payload as? Method.Params
         }
@@ -740,9 +800,11 @@ extension ServerNotificationEvent {
         case .configWarning: return nil
         case .deprecationNotice: return nil
         case .error(let p): return p.threadId
+        case .externalAgentConfigImportCompleted: return nil
         case .fsChanged: return nil
         case .fuzzyFileSearchSessionCompleted: return nil
         case .fuzzyFileSearchSessionUpdated: return nil
+        case .guardianWarning(let p): return p.threadId
         case .hookCompleted(let p): return p.threadId
         case .hookStarted(let p): return p.threadId
         case .itemAgentMessageDelta(let p): return p.threadId
@@ -752,6 +814,7 @@ extension ServerNotificationEvent {
         case .itemCommandExecutionTerminalInteraction(let p): return p.threadId
         case .itemCompleted(let p): return p.threadId
         case .itemFileChangeOutputDelta(let p): return p.threadId
+        case .itemFileChangePatchUpdated(let p): return p.threadId
         case .itemMcpToolCallProgress(let p): return p.threadId
         case .itemPlanDelta(let p): return p.threadId
         case .itemReasoningSummaryPartAdded(let p): return p.threadId
@@ -761,6 +824,7 @@ extension ServerNotificationEvent {
         case .mcpServerOauthLoginCompleted: return nil
         case .mcpServerStartupStatusUpdated: return nil
         case .modelRerouted(let p): return p.threadId
+        case .modelVerification(let p): return p.threadId
         case .serverRequestResolved(let p): return p.threadId
         case .skillsChanged: return nil
         case .threadArchived(let p): return p.threadId
@@ -783,6 +847,7 @@ extension ServerNotificationEvent {
         case .turnDiffUpdated(let p): return p.threadId
         case .turnPlanUpdated(let p): return p.threadId
         case .turnStarted(let p): return p.threadId
+        case .warning(let p): return p.threadId
         case .windowsSandboxSetupCompleted: return nil
         case .windowsWorldWritableWarning: return nil
         }
@@ -799,9 +864,11 @@ extension ServerNotificationEvent {
         case .configWarning: return nil
         case .deprecationNotice: return nil
         case .error(let p): return p.turnId
+        case .externalAgentConfigImportCompleted: return nil
         case .fsChanged: return nil
         case .fuzzyFileSearchSessionCompleted: return nil
         case .fuzzyFileSearchSessionUpdated: return nil
+        case .guardianWarning: return nil
         case .hookCompleted(let p): return p.turnId
         case .hookStarted(let p): return p.turnId
         case .itemAgentMessageDelta(let p): return p.turnId
@@ -811,6 +878,7 @@ extension ServerNotificationEvent {
         case .itemCommandExecutionTerminalInteraction(let p): return p.turnId
         case .itemCompleted(let p): return p.turnId
         case .itemFileChangeOutputDelta(let p): return p.turnId
+        case .itemFileChangePatchUpdated(let p): return p.turnId
         case .itemMcpToolCallProgress(let p): return p.turnId
         case .itemPlanDelta(let p): return p.turnId
         case .itemReasoningSummaryPartAdded(let p): return p.turnId
@@ -820,6 +888,7 @@ extension ServerNotificationEvent {
         case .mcpServerOauthLoginCompleted: return nil
         case .mcpServerStartupStatusUpdated: return nil
         case .modelRerouted(let p): return p.turnId
+        case .modelVerification(let p): return p.turnId
         case .serverRequestResolved: return nil
         case .skillsChanged: return nil
         case .threadArchived: return nil
@@ -842,6 +911,7 @@ extension ServerNotificationEvent {
         case .turnDiffUpdated(let p): return p.turnId
         case .turnPlanUpdated(let p): return p.turnId
         case .turnStarted(let p): return p.turn.id
+        case .warning: return nil
         case .windowsSandboxSetupCompleted: return nil
         case .windowsWorldWritableWarning: return nil
         }

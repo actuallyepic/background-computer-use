@@ -24,6 +24,16 @@ func malformedIncomingFramesBecomeEvents() {
 }
 
 @Test
+func rolloutMissingErrorsAreTreatedAsThreadNotFound() {
+    let error = CodexClientError.rpcError(
+        code: -32600,
+        message: "no rollout found for thread id 019dd501-c9f5-7551-a5cb-284164b6d9f9"
+    )
+
+    #expect(error.isThreadNotFound)
+}
+
+@Test
 func connectsToLocalManagedAppServer() async throws {
     let client = try await CodexClient.connect(
         .localManaged(

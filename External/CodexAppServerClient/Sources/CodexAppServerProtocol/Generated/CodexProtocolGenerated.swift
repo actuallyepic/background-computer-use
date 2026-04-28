@@ -1,7 +1,7 @@
 // GENERATED CODE — DO NOT EDIT
 //
 // Source: codex app-server generate-json-schema --experimental
-// Codex version: 0.121.0 (codex-cli 0.121.0)
+// Codex version: 0.125.0 (codex-cli 0.125.0)
 //
 // To regenerate: ./Scripts/generate-protocol.sh
 //
@@ -83,6 +83,7 @@ public enum PlanType: String, Codable, Sendable {
 }
 
 public enum AccountType: String, Codable, Sendable {
+    case amazonBedrock = "amazonBedrock"
     case apiKey = "apiKey"
     case chatgpt = "chatgpt"
 }
@@ -201,6 +202,7 @@ public struct RateLimitSnapshot: Codable, Sendable {
     public var limitName: String?
     public var planType: PlanType?
     public var primary: RateLimitWindow?
+    public var rateLimitReachedType: RateLimitReachedType?
     public var secondary: RateLimitWindow?
 
     public enum CodingKeys: String, CodingKey {
@@ -209,15 +211,17 @@ public struct RateLimitSnapshot: Codable, Sendable {
         case limitName = "limitName"
         case planType = "planType"
         case primary = "primary"
+        case rateLimitReachedType = "rateLimitReachedType"
         case secondary = "secondary"
     }
 
-    public init(credits: CreditsSnapshot? = nil, limitId: String? = nil, limitName: String? = nil, planType: PlanType? = nil, primary: RateLimitWindow? = nil, secondary: RateLimitWindow? = nil) {
+    public init(credits: CreditsSnapshot? = nil, limitId: String? = nil, limitName: String? = nil, planType: PlanType? = nil, primary: RateLimitWindow? = nil, rateLimitReachedType: RateLimitReachedType? = nil, secondary: RateLimitWindow? = nil) {
         self.credits = credits
         self.limitId = limitId
         self.limitName = limitName
         self.planType = planType
         self.primary = primary
+        self.rateLimitReachedType = rateLimitReachedType
         self.secondary = secondary
     }
 }
@@ -246,6 +250,7 @@ public extension RateLimitSnapshot {
         limitName: String?? = nil,
         planType: PlanType?? = nil,
         primary: RateLimitWindow?? = nil,
+        rateLimitReachedType: RateLimitReachedType?? = nil,
         secondary: RateLimitWindow?? = nil
     ) -> RateLimitSnapshot {
         return RateLimitSnapshot(
@@ -254,6 +259,7 @@ public extension RateLimitSnapshot {
             limitName: limitName ?? self.limitName,
             planType: planType ?? self.planType,
             primary: primary ?? self.primary,
+            rateLimitReachedType: rateLimitReachedType ?? self.rateLimitReachedType,
             secondary: secondary ?? self.secondary
         )
     }
@@ -383,6 +389,14 @@ public extension RateLimitWindow {
     }
 }
 
+public enum RateLimitReachedType: String, Codable, Sendable {
+    case rateLimitReached = "rate_limit_reached"
+    case workspaceMemberCreditsDepleted = "workspace_member_credits_depleted"
+    case workspaceMemberUsageLimitReached = "workspace_member_usage_limit_reached"
+    case workspaceOwnerCreditsDepleted = "workspace_owner_credits_depleted"
+    case workspaceOwnerUsageLimitReached = "workspace_owner_usage_limit_reached"
+}
+
 // MARK: - AccountUpdatedNotification
 public struct AccountUpdatedNotification: Codable, Sendable {
     public var authMode: AuthMode?
@@ -445,24 +459,45 @@ public extension AccountUpdatedNotification {
 /// ChatGPT auth tokens are supplied by an external host app and are only stored in memory.
 /// Token refresh must be handled by the external host app.
 ///
+/// Programmatic Codex auth backed by a registered Agent Identity.
+///
 /// Authentication mode for OpenAI-backed providers.
 public enum AuthMode: String, Codable, Sendable {
+    case agentIdentity = "agentIdentity"
     case apikey = "apikey"
     case chatgpt = "chatgpt"
     case chatgptAuthTokens = "chatgptAuthTokens"
 }
 
+public enum AddCreditsNudgeCreditType: String, Codable, Sendable {
+    case credits = "credits"
+    case usageLimit = "usage_limit"
+}
+
+public enum AddCreditsNudgeEmailStatus: String, Codable, Sendable {
+    case cooldownActive = "cooldown_active"
+    case sent = "sent"
+}
+
 // MARK: - AdditionalFileSystemPermissions
 public struct AdditionalFileSystemPermissions: Codable, Sendable {
+    public var entries: [FileSystemSandboxEntry]?
+    public var globScanMaxDepth: Int?
+    /// This will be removed in favor of `entries`.
     public var read: [String]?
+    /// This will be removed in favor of `entries`.
     public var write: [String]?
 
     public enum CodingKeys: String, CodingKey {
+        case entries = "entries"
+        case globScanMaxDepth = "globScanMaxDepth"
         case read = "read"
         case write = "write"
     }
 
-    public init(read: [String]? = nil, write: [String]? = nil) {
+    public init(entries: [FileSystemSandboxEntry]? = nil, globScanMaxDepth: Int? = nil, read: [String]? = nil, write: [String]? = nil) {
+        self.entries = entries
+        self.globScanMaxDepth = globScanMaxDepth
         self.read = read
         self.write = write
     }
@@ -487,10 +522,14 @@ public extension AdditionalFileSystemPermissions {
     }
 
     func with(
+        entries: [FileSystemSandboxEntry]?? = nil,
+        globScanMaxDepth: Int?? = nil,
         read: [String]?? = nil,
         write: [String]?? = nil
     ) -> AdditionalFileSystemPermissions {
         return AdditionalFileSystemPermissions(
+            entries: entries ?? self.entries,
+            globScanMaxDepth: globScanMaxDepth ?? self.globScanMaxDepth,
             read: read ?? self.read,
             write: write ?? self.write
         )
@@ -503,6 +542,202 @@ public extension AdditionalFileSystemPermissions {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+// MARK: - FileSystemSandboxEntry
+public struct FileSystemSandboxEntry: Codable, Sendable {
+    public var access: FileSystemAccessMode
+    public var path: FileSystemPath
+
+    public enum CodingKeys: String, CodingKey {
+        case access = "access"
+        case path = "path"
+    }
+
+    public init(access: FileSystemAccessMode, path: FileSystemPath) {
+        self.access = access
+        self.path = path
+    }
+}
+
+// MARK: FileSystemSandboxEntry convenience initializers and mutators
+
+public extension FileSystemSandboxEntry {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileSystemSandboxEntry.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        access: FileSystemAccessMode? = nil,
+        path: FileSystemPath? = nil
+    ) -> FileSystemSandboxEntry {
+        return FileSystemSandboxEntry(
+            access: access ?? self.access,
+            path: path ?? self.path
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum FileSystemAccessMode: String, Codable, Sendable {
+    case none = "none"
+    case read = "read"
+    case write = "write"
+}
+
+// MARK: - FileSystemPath
+public struct FileSystemPath: Codable, Sendable {
+    public var path: String?
+    public var type: FileSystemPathType
+    public var pattern: String?
+    public var value: FileSystemSpecialPath?
+
+    public enum CodingKeys: String, CodingKey {
+        case path = "path"
+        case type = "type"
+        case pattern = "pattern"
+        case value = "value"
+    }
+
+    public init(path: String? = nil, type: FileSystemPathType, pattern: String? = nil, value: FileSystemSpecialPath? = nil) {
+        self.path = path
+        self.type = type
+        self.pattern = pattern
+        self.value = value
+    }
+}
+
+// MARK: FileSystemPath convenience initializers and mutators
+
+public extension FileSystemPath {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileSystemPath.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        path: String?? = nil,
+        type: FileSystemPathType? = nil,
+        pattern: String?? = nil,
+        value: FileSystemSpecialPath?? = nil
+    ) -> FileSystemPath {
+        return FileSystemPath(
+            path: path ?? self.path,
+            type: type ?? self.type,
+            pattern: pattern ?? self.pattern,
+            value: value ?? self.value
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum FileSystemPathType: String, Codable, Sendable {
+    case globPattern = "glob_pattern"
+    case path = "path"
+    case special = "special"
+}
+
+// MARK: - FileSystemSpecialPath
+public struct FileSystemSpecialPath: Codable, Sendable {
+    public var kind: Kind
+    public var subpath: String?
+    public var path: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case kind = "kind"
+        case subpath = "subpath"
+        case path = "path"
+    }
+
+    public init(kind: Kind, subpath: String? = nil, path: String? = nil) {
+        self.kind = kind
+        self.subpath = subpath
+        self.path = path
+    }
+}
+
+// MARK: FileSystemSpecialPath convenience initializers and mutators
+
+public extension FileSystemSpecialPath {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileSystemSpecialPath.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        kind: Kind? = nil,
+        subpath: String?? = nil,
+        path: String?? = nil
+    ) -> FileSystemSpecialPath {
+        return FileSystemSpecialPath(
+            kind: kind ?? self.kind,
+            subpath: subpath ?? self.subpath,
+            path: path ?? self.path
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum Kind: String, Codable, Sendable {
+    case currentWorkingDirectory = "current_working_directory"
+    case minimal = "minimal"
+    case projectRoots = "project_roots"
+    case root = "root"
+    case slashTmp = "slash_tmp"
+    case tmpdir = "tmpdir"
+    case unknown = "unknown"
 }
 
 // MARK: - AdditionalNetworkPermissions
@@ -555,15 +790,16 @@ public extension AdditionalNetworkPermissions {
 
 // MARK: - AdditionalPermissionProfile
 public struct AdditionalPermissionProfile: Codable, Sendable {
-    public var fileSystem: AdditionalFileSystemPermissions?
-    public var network: AdditionalNetworkPermissions?
+    public var fileSystem: FileSystemClass?
+    /// Partial overlay used for per-command permission requests.
+    public var network: NetworkClass?
 
     public enum CodingKeys: String, CodingKey {
         case fileSystem = "fileSystem"
         case network = "network"
     }
 
-    public init(fileSystem: AdditionalFileSystemPermissions? = nil, network: AdditionalNetworkPermissions? = nil) {
+    public init(fileSystem: FileSystemClass? = nil, network: NetworkClass? = nil) {
         self.fileSystem = fileSystem
         self.network = network
     }
@@ -588,12 +824,299 @@ public extension AdditionalPermissionProfile {
     }
 
     func with(
-        fileSystem: AdditionalFileSystemPermissions?? = nil,
-        network: AdditionalNetworkPermissions?? = nil
+        fileSystem: FileSystemClass?? = nil,
+        network: NetworkClass?? = nil
     ) -> AdditionalPermissionProfile {
         return AdditionalPermissionProfile(
             fileSystem: fileSystem ?? self.fileSystem,
             network: network ?? self.network
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - FileSystemClass
+public struct FileSystemClass: Codable, Sendable {
+    public var entries: [FileSystemEntry]?
+    public var globScanMaxDepth: Int?
+    /// This will be removed in favor of `entries`.
+    public var read: [String]?
+    /// This will be removed in favor of `entries`.
+    public var write: [String]?
+
+    public enum CodingKeys: String, CodingKey {
+        case entries = "entries"
+        case globScanMaxDepth = "globScanMaxDepth"
+        case read = "read"
+        case write = "write"
+    }
+
+    public init(entries: [FileSystemEntry]? = nil, globScanMaxDepth: Int? = nil, read: [String]? = nil, write: [String]? = nil) {
+        self.entries = entries
+        self.globScanMaxDepth = globScanMaxDepth
+        self.read = read
+        self.write = write
+    }
+}
+
+// MARK: FileSystemClass convenience initializers and mutators
+
+public extension FileSystemClass {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileSystemClass.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        entries: [FileSystemEntry]?? = nil,
+        globScanMaxDepth: Int?? = nil,
+        read: [String]?? = nil,
+        write: [String]?? = nil
+    ) -> FileSystemClass {
+        return FileSystemClass(
+            entries: entries ?? self.entries,
+            globScanMaxDepth: globScanMaxDepth ?? self.globScanMaxDepth,
+            read: read ?? self.read,
+            write: write ?? self.write
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - FileSystemEntry
+public struct FileSystemEntry: Codable, Sendable {
+    public var access: FileSystemAccessMode
+    public var path: PathClass
+
+    public enum CodingKeys: String, CodingKey {
+        case access = "access"
+        case path = "path"
+    }
+
+    public init(access: FileSystemAccessMode, path: PathClass) {
+        self.access = access
+        self.path = path
+    }
+}
+
+// MARK: FileSystemEntry convenience initializers and mutators
+
+public extension FileSystemEntry {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileSystemEntry.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        access: FileSystemAccessMode? = nil,
+        path: PathClass? = nil
+    ) -> FileSystemEntry {
+        return FileSystemEntry(
+            access: access ?? self.access,
+            path: path ?? self.path
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - PathClass
+public struct PathClass: Codable, Sendable {
+    public var path: String?
+    public var type: FileSystemPathType
+    public var pattern: String?
+    public var value: ValueClass?
+
+    public enum CodingKeys: String, CodingKey {
+        case path = "path"
+        case type = "type"
+        case pattern = "pattern"
+        case value = "value"
+    }
+
+    public init(path: String? = nil, type: FileSystemPathType, pattern: String? = nil, value: ValueClass? = nil) {
+        self.path = path
+        self.type = type
+        self.pattern = pattern
+        self.value = value
+    }
+}
+
+// MARK: PathClass convenience initializers and mutators
+
+public extension PathClass {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(PathClass.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        path: String?? = nil,
+        type: FileSystemPathType? = nil,
+        pattern: String?? = nil,
+        value: ValueClass?? = nil
+    ) -> PathClass {
+        return PathClass(
+            path: path ?? self.path,
+            type: type ?? self.type,
+            pattern: pattern ?? self.pattern,
+            value: value ?? self.value
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ValueClass
+public struct ValueClass: Codable, Sendable {
+    public var kind: Kind
+    public var subpath: String?
+    public var path: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case kind = "kind"
+        case subpath = "subpath"
+        case path = "path"
+    }
+
+    public init(kind: Kind, subpath: String? = nil, path: String? = nil) {
+        self.kind = kind
+        self.subpath = subpath
+        self.path = path
+    }
+}
+
+// MARK: ValueClass convenience initializers and mutators
+
+public extension ValueClass {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ValueClass.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        kind: Kind? = nil,
+        subpath: String?? = nil,
+        path: String?? = nil
+    ) -> ValueClass {
+        return ValueClass(
+            kind: kind ?? self.kind,
+            subpath: subpath ?? self.subpath,
+            path: path ?? self.path
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - NetworkClass
+public struct NetworkClass: Codable, Sendable {
+    public var enabled: Bool?
+
+    public enum CodingKeys: String, CodingKey {
+        case enabled = "enabled"
+    }
+
+    public init(enabled: Bool? = nil) {
+        self.enabled = enabled
+    }
+}
+
+// MARK: NetworkClass convenience initializers and mutators
+
+public extension NetworkClass {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(NetworkClass.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        enabled: Bool?? = nil
+    ) -> NetworkClass {
+        return NetworkClass(
+            enabled: enabled ?? self.enabled
         )
     }
 
@@ -1818,11 +2341,13 @@ public enum ReviewDecisionEnum: String, Codable, Sendable {
 
 /// Configures who approval requests are routed to for review. Examples include sandbox
 /// escapes, blocked network access, MCP approval prompts, and ARC escalations. Defaults to
-/// `user`. `guardian_subagent` uses a carefully prompted subagent to gather relevant context
-/// and apply a risk-based decision framework before approving or denying the request.
+/// `user`. `auto_review` uses a carefully prompted subagent to gather relevant context and
+/// apply a risk-based decision framework before approving or denying the request. The legacy
+/// value `guardian_subagent` is accepted for compatibility.
 ///
 /// Reviewer currently used for approval requests on this thread.
 public enum ApprovalsReviewer: String, Codable, Sendable {
+    case autoReview = "auto_review"
     case guardianSubagent = "guardian_subagent"
     case user = "user"
 }
@@ -2210,7 +2735,7 @@ public enum AskForApprovalEnum: String, Codable, Sendable {
     case untrusted = "untrusted"
 }
 
-/// [UNSTABLE] Source that produced a terminal guardian approval review decision.
+/// [UNSTABLE] Source that produced a terminal approval auto-review decision.
 public enum AutoReviewDecisionSource: String, Codable, Sendable {
     case agent = "agent"
 }
@@ -2725,6 +3250,7 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
     case accountLogout = "account/logout"
     case accountRateLimitsRead = "account/rateLimits/read"
     case accountRead = "account/read"
+    case accountSendAddCreditsNudgeEmail = "account/sendAddCreditsNudgeEmail"
     case appList = "app/list"
     case collaborationModeList = "collaborationMode/list"
     case commandExec = "command/exec"
@@ -2736,6 +3262,9 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
     case configRead = "config/read"
     case configRequirementsRead = "configRequirements/read"
     case configValueWrite = "config/value/write"
+    case deviceKeyCreate = "device/key/create"
+    case deviceKeyPublic = "device/key/public"
+    case deviceKeySign = "device/key/sign"
     case experimentalFeatureEnablementSet = "experimentalFeature/enablement/set"
     case experimentalFeatureList = "experimentalFeature/list"
     case externalAgentConfigDetect = "externalAgentConfig/detect"
@@ -2756,6 +3285,8 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
     case fuzzyFileSearchSessionUpdate = "fuzzyFileSearch/sessionUpdate"
     case initialize = "initialize"
     case marketplaceAdd = "marketplace/add"
+    case marketplaceRemove = "marketplace/remove"
+    case marketplaceUpgrade = "marketplace/upgrade"
     case mcpServerOauthLogin = "mcpServer/oauth/login"
     case mcpServerResourceRead = "mcpServer/resource/read"
     case mcpServerStatusList = "mcpServerStatus/list"
@@ -2770,6 +3301,7 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
     case reviewStart = "review/start"
     case skillsConfigWrite = "skills/config/write"
     case skillsList = "skills/list"
+    case threadApproveGuardianDeniedAction = "thread/approveGuardianDeniedAction"
     case threadArchive = "thread/archive"
     case threadBackgroundTerminalsClean = "thread/backgroundTerminals/clean"
     case threadCompactStart = "thread/compact/start"
@@ -2792,6 +3324,7 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
     case threadRollback = "thread/rollback"
     case threadShellCommand = "thread/shellCommand"
     case threadStart = "thread/start"
+    case threadTurnsList = "thread/turns/list"
     case threadUnarchive = "thread/unarchive"
     case threadUnsubscribe = "thread/unsubscribe"
     case turnInterrupt = "turn/interrupt"
@@ -2822,6 +3355,12 @@ public enum ClientRequestMethod: String, Codable, Sendable, CaseIterable {
 /// Parameters for `thread/decrement_elicitation`.
 ///
 /// EXPERIMENTAL - list available apps/connectors.
+///
+/// Create a controller-local device key with a random key id.
+///
+/// Fetch a controller-local device key public key by id.
+///
+/// Sign an accepted structured payload with a controller-local device key.
 ///
 /// Read a file from the host filesystem.
 ///
@@ -2881,8 +3420,8 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     public var approvalsReviewer: ApprovalsReviewer?
     public var baseInstructions: String?
     public var config: [String: JSONAny]?
-    /// Optional cwd filter; when set, only threads whose session cwd exactly matches this path
-    /// are returned.
+    /// Optional cwd filter or filters; when set, only threads whose session cwd exactly matches
+    /// one of these paths are returned.
     ///
     /// Override the working directory for this turn and subsequent turns.
     ///
@@ -2891,9 +3430,21 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// Optional working directory to resolve project config layers. If specified, return the
     /// effective config as seen from that directory (i.e., including any project layers between
     /// `cwd` and the project/repo root).
-    public var cwd: String?
+    public var cwd: CwdUnion?
     public var developerInstructions: String?
     public var dynamicTools: [DynamicToolElement]?
+    /// Optional sticky environments for this thread.
+    ///
+    /// Omitted selects the default environment when environment access is enabled. Empty
+    /// disables environment access for turns that do not provide a turn override. Non-empty
+    /// selects the first environment as the current turn environment.
+    ///
+    /// Optional turn-scoped environments.
+    ///
+    /// Omitted uses the thread sticky environments. Empty disables environment access for this
+    /// turn. Non-empty selects the first environment as the current turn environment for this
+    /// turn.
+    public var environments: [EnvironmentElement]?
     public var ephemeral: Bool?
     /// If true, opt into emitting raw Responses API items on the event stream. This is for
     /// internal use only (e.g. Codex Cloud).
@@ -2908,6 +3459,20 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// Override the model for this turn and subsequent turns.
     public var model: String?
     public var modelProvider: String?
+    /// Full permissions override for this thread. Cannot be combined with `sandbox`.
+    ///
+    /// Full permissions override for the resumed thread. Cannot be combined with `sandbox`.
+    ///
+    /// Full permissions override for the forked thread. Cannot be combined with `sandbox`.
+    ///
+    /// Override the full permissions profile for this turn and subsequent turns. Cannot be
+    /// combined with `sandboxPolicy`.
+    ///
+    /// Optional full permissions profile for this command.
+    ///
+    /// Defaults to the user's configured permissions when omitted. Cannot be combined with
+    /// `sandboxPolicy`.
+    public var permissionProfile: LoginAccountParamsManagedPermissionProfile?
     /// If true, persist additional rollout EventMsg variants required to reconstruct a richer
     /// thread history on resume/fork/read.
     ///
@@ -2921,6 +3486,14 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// Override the service tier for this turn and subsequent turns.
     public var serviceTier: ServiceTier?
     public var sessionStartSource: ThreadStartSource?
+    /// When true, return only thread metadata and live-resume state without populating
+    /// `thread.turns`. This is useful when the client plans to call `thread/turns/list`
+    /// immediately after resuming.
+    ///
+    /// When true, return only thread metadata and live fork state without populating
+    /// `thread.turns`. This is useful when the client plans to call `thread/turns/list`
+    /// immediately after forking.
+    public var excludeTurns: Bool?
     /// [UNSTABLE] FOR CODEX CLOUD - DO NOT USE. If specified, the thread will be resumed with
     /// the provided history instead of loaded from disk.
     public var history: [HistoryElement]?
@@ -2963,7 +3536,9 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// runs unsandboxed with full access rather than inheriting the thread sandbox policy.
     ///
     /// Command argv vector. Empty arrays are rejected.
-    public var command: Command?
+    public var command: ThreadListCwdFilter?
+    /// Serialized `codex_protocol::protocol::GuardianAssessmentEvent`.
+    public var event: JSONAny?
     /// The number of turns to drop from the end of the thread. Must be >= 1.
     ///
     /// This only modifies the thread's history and does not revert local file changes that have
@@ -2973,10 +3548,14 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// or null, only non-archived threads are returned.
     public var archived: Bool?
     /// Opaque pagination cursor returned by a previous call.
+    ///
+    /// Opaque cursor to pass to the next call to continue after the last turn.
     public var cursor: String?
     /// Optional page size; defaults to a reasonable server-side value.
     ///
     /// Optional page size; defaults to no limit.
+    ///
+    /// Optional turn page size.
     ///
     /// Optional page size; defaults to a server-defined value.
     public var limit: Int?
@@ -2985,11 +3564,18 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     public var modelProviders: [String]?
     /// Optional substring filter for the extracted thread title.
     public var searchTerm: String?
+    /// Optional sort direction; defaults to descending (newest first).
+    ///
+    /// Optional turn pagination direction; defaults to descending.
+    public var sortDirection: SortDirection?
     /// Optional sort key; defaults to created_at.
     public var sortKey: ThreadSortKey?
     /// Optional source filter; when set, only sessions from these source kinds are returned.
     /// When omitted or empty, defaults to interactive sources.
     public var sourceKinds: [ThreadSourceKind]?
+    /// If true, return from the state DB without scanning JSONL rollouts to repair thread
+    /// metadata. Omitted or false preserves scan-and-repair behavior.
+    public var useStateDbOnly: Bool?
     /// When true, include turns and their items from rollout history.
     public var includeTurns: Bool?
     /// Raw Responses API items to append to the thread's model-visible history.
@@ -3008,17 +3594,18 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     public var refName: String?
     public var source: String?
     public var sparsePaths: [String]?
-    /// When true, reconcile the official curated marketplace against the remote plugin state
-    /// before listing marketplaces.
-    ///
-    /// When true, apply the remote plugin change before the local install flow.
-    ///
-    /// When true, apply the remote plugin change before the local uninstall flow.
-    public var forceRemoteSync: Bool?
+    public var marketplaceName: String?
     public var marketplacePath: String?
     public var pluginName: String?
+    public var remoteMarketplaceName: String?
     /// When true, bypass app caches and fetch the latest data from sources.
     public var forceRefetch: Bool?
+    public var accountUserId: String?
+    public var clientId: String?
+    /// Defaults to `hardware_only` when omitted.
+    public var protectionPolicy: DeviceKeyProtectionPolicy?
+    public var keyId: String?
+    public var payload: RemoteControlClientDeviceKeySignPayload?
     /// File contents encoded as base64.
     public var dataBase64: String?
     /// Whether parent directories should also be created. Defaults to `true`.
@@ -3057,7 +3644,7 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// Optional sandbox policy for this command.
     ///
     /// Uses the same shape as thread/turn execution sandbox configuration and defaults to the
-    /// user's configured policy when omitted.
+    /// user's configured policy when omitted. Cannot be combined with `permissionProfile`.
     public var sandboxPolicy: LoginAccountParamsDangerFullAccessSandboxPolicy?
     /// Override the reasoning summary for this turn and subsequent turns.
     public var summary: ReasoningSummary?
@@ -3110,6 +3697,7 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
     /// unavailable, the plan defaults to `unknown`.
     public var chatgptPlanType: String?
     public var loginId: String?
+    public var creditType: AddCreditsNudgeCreditType?
     public var classification: String?
     public var extraLogFiles: [String]?
     public var includeLogs: Bool?
@@ -3197,17 +3785,20 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         case cwd = "cwd"
         case developerInstructions = "developerInstructions"
         case dynamicTools = "dynamicTools"
+        case environments = "environments"
         case ephemeral = "ephemeral"
         case experimentalRawEvents = "experimentalRawEvents"
         case mockExperimentalField = "mockExperimentalField"
         case model = "model"
         case modelProvider = "modelProvider"
+        case permissionProfile = "permissionProfile"
         case persistExtendedHistory = "persistExtendedHistory"
         case personality = "personality"
         case sandbox = "sandbox"
         case serviceName = "serviceName"
         case serviceTier = "serviceTier"
         case sessionStartSource = "sessionStartSource"
+        case excludeTurns = "excludeTurns"
         case history = "history"
         case path = "path"
         case threadId = "threadId"
@@ -3215,14 +3806,17 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         case gitInfo = "gitInfo"
         case mode = "mode"
         case command = "command"
+        case event = "event"
         case numTurns = "numTurns"
         case archived = "archived"
         case cursor = "cursor"
         case limit = "limit"
         case modelProviders = "modelProviders"
         case searchTerm = "searchTerm"
+        case sortDirection = "sortDirection"
         case sortKey = "sortKey"
         case sourceKinds = "sourceKinds"
+        case useStateDbOnly = "useStateDbOnly"
         case includeTurns = "includeTurns"
         case items = "items"
         case cwds = "cwds"
@@ -3231,10 +3825,16 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         case refName = "refName"
         case source = "source"
         case sparsePaths = "sparsePaths"
-        case forceRemoteSync = "forceRemoteSync"
+        case marketplaceName = "marketplaceName"
         case marketplacePath = "marketplacePath"
         case pluginName = "pluginName"
+        case remoteMarketplaceName = "remoteMarketplaceName"
         case forceRefetch = "forceRefetch"
+        case accountUserId = "accountUserId"
+        case clientId = "clientId"
+        case protectionPolicy = "protectionPolicy"
+        case keyId = "keyId"
+        case payload = "payload"
         case dataBase64 = "dataBase64"
         case recursive = "recursive"
         case force = "force"
@@ -3278,6 +3878,7 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         case chatgptAccountId = "chatgptAccountId"
         case chatgptPlanType = "chatgptPlanType"
         case loginId = "loginId"
+        case creditType = "creditType"
         case classification = "classification"
         case extraLogFiles = "extraLogFiles"
         case includeLogs = "includeLogs"
@@ -3310,7 +3911,7 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         case roots = "roots"
     }
 
-    public init(capabilities: InitializeCapabilities? = nil, clientInfo: ClientInfo? = nil, approvalPolicy: ApprovalPolicy? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, dynamicTools: [DynamicToolElement]? = nil, ephemeral: Bool? = nil, experimentalRawEvents: Bool? = nil, mockExperimentalField: String? = nil, model: String? = nil, modelProvider: String? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceName: String? = nil, serviceTier: ServiceTier? = nil, sessionStartSource: ThreadStartSource? = nil, history: [HistoryElement]? = nil, path: String? = nil, threadId: String? = nil, name: String? = nil, gitInfo: LoginAccountParamsGitInfo? = nil, mode: LoginAccountParamsMode? = nil, command: Command? = nil, numTurns: Int? = nil, archived: Bool? = nil, cursor: String? = nil, limit: Int? = nil, modelProviders: [String]? = nil, searchTerm: String? = nil, sortKey: ThreadSortKey? = nil, sourceKinds: [ThreadSourceKind]? = nil, includeTurns: Bool? = nil, items: [JSONAny]? = nil, cwds: [String]? = nil, forceReload: Bool? = nil, perCwdExtraUserRoots: [PerCwdExtraUserRootElement]? = nil, refName: String? = nil, source: String? = nil, sparsePaths: [String]? = nil, forceRemoteSync: Bool? = nil, marketplacePath: String? = nil, pluginName: String? = nil, forceRefetch: Bool? = nil, dataBase64: String? = nil, recursive: Bool? = nil, force: Bool? = nil, destinationPath: String? = nil, sourcePath: String? = nil, watchId: String? = nil, enabled: Bool? = nil, pluginId: String? = nil, collaborationMode: CollaborationModeClass? = nil, effort: ReasoningEffort? = nil, input: [InputElement]? = nil, outputSchema: JSONAny? = nil, responsesapiClientMetadata: [String: String]? = nil, sandboxPolicy: LoginAccountParamsDangerFullAccessSandboxPolicy? = nil, summary: ReasoningSummary? = nil, expectedTurnId: String? = nil, turnId: String? = nil, outputModality: RealtimeOutputModality? = nil, prompt: String? = nil, sessionId: String? = nil, transport: LoginAccountParamsWebsocketThreadRealtimeStartTransport? = nil, voice: RealtimeVoice? = nil, audio: Audio? = nil, text: String? = nil, delivery: ReviewDelivery? = nil, target: TargetClass? = nil, includeHidden: Bool? = nil, enablement: [String: Bool]? = nil, value: JSONAny? = nil, scopes: [String]? = nil, timeoutSecs: Int? = nil, detail: MCPServerStatusDetail? = nil, server: String? = nil, uri: String? = nil, meta: JSONAny? = nil, arguments: JSONAny? = nil, tool: String? = nil, apiKey: String? = nil, type: LoginAccountParamsType? = nil, accessToken: String? = nil, chatgptAccountId: String? = nil, chatgptPlanType: String? = nil, loginId: String? = nil, classification: String? = nil, extraLogFiles: [String]? = nil, includeLogs: Bool? = nil, reason: String? = nil, tags: [String: String]? = nil, disableOutputCap: Bool? = nil, disableTimeout: Bool? = nil, env: [String: String?]? = nil, outputBytesCap: Int? = nil, processId: String? = nil, size: SizeClass? = nil, streamStdin: Bool? = nil, streamStdoutStderr: Bool? = nil, timeoutMs: Int? = nil, tty: Bool? = nil, closeStdin: Bool? = nil, deltaBase64: String? = nil, includeLayers: Bool? = nil, includeHome: Bool? = nil, migrationItems: [MigrationItemElement]? = nil, expectedVersion: String? = nil, filePath: String? = nil, keyPath: String? = nil, mergeStrategy: MergeStrategy? = nil, edits: [EditElement]? = nil, reloadUserConfig: Bool? = nil, refreshToken: Bool? = nil, cancellationToken: String? = nil, query: String? = nil, roots: [String]? = nil) {
+    public init(capabilities: InitializeCapabilities? = nil, clientInfo: ClientInfo? = nil, approvalPolicy: ApprovalPolicy? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: CwdUnion? = nil, developerInstructions: String? = nil, dynamicTools: [DynamicToolElement]? = nil, environments: [EnvironmentElement]? = nil, ephemeral: Bool? = nil, experimentalRawEvents: Bool? = nil, mockExperimentalField: String? = nil, model: String? = nil, modelProvider: String? = nil, permissionProfile: LoginAccountParamsManagedPermissionProfile? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceName: String? = nil, serviceTier: ServiceTier? = nil, sessionStartSource: ThreadStartSource? = nil, excludeTurns: Bool? = nil, history: [HistoryElement]? = nil, path: String? = nil, threadId: String? = nil, name: String? = nil, gitInfo: LoginAccountParamsGitInfo? = nil, mode: LoginAccountParamsMode? = nil, command: ThreadListCwdFilter? = nil, event: JSONAny? = nil, numTurns: Int? = nil, archived: Bool? = nil, cursor: String? = nil, limit: Int? = nil, modelProviders: [String]? = nil, searchTerm: String? = nil, sortDirection: SortDirection? = nil, sortKey: ThreadSortKey? = nil, sourceKinds: [ThreadSourceKind]? = nil, useStateDbOnly: Bool? = nil, includeTurns: Bool? = nil, items: [JSONAny]? = nil, cwds: [String]? = nil, forceReload: Bool? = nil, perCwdExtraUserRoots: [PerCwdExtraUserRootElement]? = nil, refName: String? = nil, source: String? = nil, sparsePaths: [String]? = nil, marketplaceName: String? = nil, marketplacePath: String? = nil, pluginName: String? = nil, remoteMarketplaceName: String? = nil, forceRefetch: Bool? = nil, accountUserId: String? = nil, clientId: String? = nil, protectionPolicy: DeviceKeyProtectionPolicy? = nil, keyId: String? = nil, payload: RemoteControlClientDeviceKeySignPayload? = nil, dataBase64: String? = nil, recursive: Bool? = nil, force: Bool? = nil, destinationPath: String? = nil, sourcePath: String? = nil, watchId: String? = nil, enabled: Bool? = nil, pluginId: String? = nil, collaborationMode: CollaborationModeClass? = nil, effort: ReasoningEffort? = nil, input: [InputElement]? = nil, outputSchema: JSONAny? = nil, responsesapiClientMetadata: [String: String]? = nil, sandboxPolicy: LoginAccountParamsDangerFullAccessSandboxPolicy? = nil, summary: ReasoningSummary? = nil, expectedTurnId: String? = nil, turnId: String? = nil, outputModality: RealtimeOutputModality? = nil, prompt: String? = nil, sessionId: String? = nil, transport: LoginAccountParamsWebsocketThreadRealtimeStartTransport? = nil, voice: RealtimeVoice? = nil, audio: Audio? = nil, text: String? = nil, delivery: ReviewDelivery? = nil, target: TargetClass? = nil, includeHidden: Bool? = nil, enablement: [String: Bool]? = nil, value: JSONAny? = nil, scopes: [String]? = nil, timeoutSecs: Int? = nil, detail: MCPServerStatusDetail? = nil, server: String? = nil, uri: String? = nil, meta: JSONAny? = nil, arguments: JSONAny? = nil, tool: String? = nil, apiKey: String? = nil, type: LoginAccountParamsType? = nil, accessToken: String? = nil, chatgptAccountId: String? = nil, chatgptPlanType: String? = nil, loginId: String? = nil, creditType: AddCreditsNudgeCreditType? = nil, classification: String? = nil, extraLogFiles: [String]? = nil, includeLogs: Bool? = nil, reason: String? = nil, tags: [String: String]? = nil, disableOutputCap: Bool? = nil, disableTimeout: Bool? = nil, env: [String: String?]? = nil, outputBytesCap: Int? = nil, processId: String? = nil, size: SizeClass? = nil, streamStdin: Bool? = nil, streamStdoutStderr: Bool? = nil, timeoutMs: Int? = nil, tty: Bool? = nil, closeStdin: Bool? = nil, deltaBase64: String? = nil, includeLayers: Bool? = nil, includeHome: Bool? = nil, migrationItems: [MigrationItemElement]? = nil, expectedVersion: String? = nil, filePath: String? = nil, keyPath: String? = nil, mergeStrategy: MergeStrategy? = nil, edits: [EditElement]? = nil, reloadUserConfig: Bool? = nil, refreshToken: Bool? = nil, cancellationToken: String? = nil, query: String? = nil, roots: [String]? = nil) {
         self.capabilities = capabilities
         self.clientInfo = clientInfo
         self.approvalPolicy = approvalPolicy
@@ -3320,17 +3921,20 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         self.cwd = cwd
         self.developerInstructions = developerInstructions
         self.dynamicTools = dynamicTools
+        self.environments = environments
         self.ephemeral = ephemeral
         self.experimentalRawEvents = experimentalRawEvents
         self.mockExperimentalField = mockExperimentalField
         self.model = model
         self.modelProvider = modelProvider
+        self.permissionProfile = permissionProfile
         self.persistExtendedHistory = persistExtendedHistory
         self.personality = personality
         self.sandbox = sandbox
         self.serviceName = serviceName
         self.serviceTier = serviceTier
         self.sessionStartSource = sessionStartSource
+        self.excludeTurns = excludeTurns
         self.history = history
         self.path = path
         self.threadId = threadId
@@ -3338,14 +3942,17 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         self.gitInfo = gitInfo
         self.mode = mode
         self.command = command
+        self.event = event
         self.numTurns = numTurns
         self.archived = archived
         self.cursor = cursor
         self.limit = limit
         self.modelProviders = modelProviders
         self.searchTerm = searchTerm
+        self.sortDirection = sortDirection
         self.sortKey = sortKey
         self.sourceKinds = sourceKinds
+        self.useStateDbOnly = useStateDbOnly
         self.includeTurns = includeTurns
         self.items = items
         self.cwds = cwds
@@ -3354,10 +3961,16 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         self.refName = refName
         self.source = source
         self.sparsePaths = sparsePaths
-        self.forceRemoteSync = forceRemoteSync
+        self.marketplaceName = marketplaceName
         self.marketplacePath = marketplacePath
         self.pluginName = pluginName
+        self.remoteMarketplaceName = remoteMarketplaceName
         self.forceRefetch = forceRefetch
+        self.accountUserId = accountUserId
+        self.clientId = clientId
+        self.protectionPolicy = protectionPolicy
+        self.keyId = keyId
+        self.payload = payload
         self.dataBase64 = dataBase64
         self.recursive = recursive
         self.force = force
@@ -3401,6 +4014,7 @@ public struct ClientRequestLoginAccountParams: Codable, Sendable {
         self.chatgptAccountId = chatgptAccountId
         self.chatgptPlanType = chatgptPlanType
         self.loginId = loginId
+        self.creditType = creditType
         self.classification = classification
         self.extraLogFiles = extraLogFiles
         self.includeLogs = includeLogs
@@ -3459,35 +4073,41 @@ public extension ClientRequestLoginAccountParams {
         approvalsReviewer: ApprovalsReviewer?? = nil,
         baseInstructions: String?? = nil,
         config: [String: JSONAny]?? = nil,
-        cwd: String?? = nil,
+        cwd: CwdUnion?? = nil,
         developerInstructions: String?? = nil,
         dynamicTools: [DynamicToolElement]?? = nil,
+        environments: [EnvironmentElement]?? = nil,
         ephemeral: Bool?? = nil,
         experimentalRawEvents: Bool?? = nil,
         mockExperimentalField: String?? = nil,
         model: String?? = nil,
         modelProvider: String?? = nil,
+        permissionProfile: LoginAccountParamsManagedPermissionProfile?? = nil,
         persistExtendedHistory: Bool?? = nil,
         personality: Personality?? = nil,
         sandbox: SandboxMode?? = nil,
         serviceName: String?? = nil,
         serviceTier: ServiceTier?? = nil,
         sessionStartSource: ThreadStartSource?? = nil,
+        excludeTurns: Bool?? = nil,
         history: [HistoryElement]?? = nil,
         path: String?? = nil,
         threadId: String?? = nil,
         name: String?? = nil,
         gitInfo: LoginAccountParamsGitInfo?? = nil,
         mode: LoginAccountParamsMode?? = nil,
-        command: Command?? = nil,
+        command: ThreadListCwdFilter?? = nil,
+        event: JSONAny?? = nil,
         numTurns: Int?? = nil,
         archived: Bool?? = nil,
         cursor: String?? = nil,
         limit: Int?? = nil,
         modelProviders: [String]?? = nil,
         searchTerm: String?? = nil,
+        sortDirection: SortDirection?? = nil,
         sortKey: ThreadSortKey?? = nil,
         sourceKinds: [ThreadSourceKind]?? = nil,
+        useStateDbOnly: Bool?? = nil,
         includeTurns: Bool?? = nil,
         items: [JSONAny]?? = nil,
         cwds: [String]?? = nil,
@@ -3496,10 +4116,16 @@ public extension ClientRequestLoginAccountParams {
         refName: String?? = nil,
         source: String?? = nil,
         sparsePaths: [String]?? = nil,
-        forceRemoteSync: Bool?? = nil,
+        marketplaceName: String?? = nil,
         marketplacePath: String?? = nil,
         pluginName: String?? = nil,
+        remoteMarketplaceName: String?? = nil,
         forceRefetch: Bool?? = nil,
+        accountUserId: String?? = nil,
+        clientId: String?? = nil,
+        protectionPolicy: DeviceKeyProtectionPolicy?? = nil,
+        keyId: String?? = nil,
+        payload: RemoteControlClientDeviceKeySignPayload?? = nil,
         dataBase64: String?? = nil,
         recursive: Bool?? = nil,
         force: Bool?? = nil,
@@ -3543,6 +4169,7 @@ public extension ClientRequestLoginAccountParams {
         chatgptAccountId: String?? = nil,
         chatgptPlanType: String?? = nil,
         loginId: String?? = nil,
+        creditType: AddCreditsNudgeCreditType?? = nil,
         classification: String?? = nil,
         extraLogFiles: [String]?? = nil,
         includeLogs: Bool?? = nil,
@@ -3584,17 +4211,20 @@ public extension ClientRequestLoginAccountParams {
             cwd: cwd ?? self.cwd,
             developerInstructions: developerInstructions ?? self.developerInstructions,
             dynamicTools: dynamicTools ?? self.dynamicTools,
+            environments: environments ?? self.environments,
             ephemeral: ephemeral ?? self.ephemeral,
             experimentalRawEvents: experimentalRawEvents ?? self.experimentalRawEvents,
             mockExperimentalField: mockExperimentalField ?? self.mockExperimentalField,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             persistExtendedHistory: persistExtendedHistory ?? self.persistExtendedHistory,
             personality: personality ?? self.personality,
             sandbox: sandbox ?? self.sandbox,
             serviceName: serviceName ?? self.serviceName,
             serviceTier: serviceTier ?? self.serviceTier,
             sessionStartSource: sessionStartSource ?? self.sessionStartSource,
+            excludeTurns: excludeTurns ?? self.excludeTurns,
             history: history ?? self.history,
             path: path ?? self.path,
             threadId: threadId ?? self.threadId,
@@ -3602,14 +4232,17 @@ public extension ClientRequestLoginAccountParams {
             gitInfo: gitInfo ?? self.gitInfo,
             mode: mode ?? self.mode,
             command: command ?? self.command,
+            event: event ?? self.event,
             numTurns: numTurns ?? self.numTurns,
             archived: archived ?? self.archived,
             cursor: cursor ?? self.cursor,
             limit: limit ?? self.limit,
             modelProviders: modelProviders ?? self.modelProviders,
             searchTerm: searchTerm ?? self.searchTerm,
+            sortDirection: sortDirection ?? self.sortDirection,
             sortKey: sortKey ?? self.sortKey,
             sourceKinds: sourceKinds ?? self.sourceKinds,
+            useStateDbOnly: useStateDbOnly ?? self.useStateDbOnly,
             includeTurns: includeTurns ?? self.includeTurns,
             items: items ?? self.items,
             cwds: cwds ?? self.cwds,
@@ -3618,10 +4251,16 @@ public extension ClientRequestLoginAccountParams {
             refName: refName ?? self.refName,
             source: source ?? self.source,
             sparsePaths: sparsePaths ?? self.sparsePaths,
-            forceRemoteSync: forceRemoteSync ?? self.forceRemoteSync,
+            marketplaceName: marketplaceName ?? self.marketplaceName,
             marketplacePath: marketplacePath ?? self.marketplacePath,
             pluginName: pluginName ?? self.pluginName,
+            remoteMarketplaceName: remoteMarketplaceName ?? self.remoteMarketplaceName,
             forceRefetch: forceRefetch ?? self.forceRefetch,
+            accountUserId: accountUserId ?? self.accountUserId,
+            clientId: clientId ?? self.clientId,
+            protectionPolicy: protectionPolicy ?? self.protectionPolicy,
+            keyId: keyId ?? self.keyId,
+            payload: payload ?? self.payload,
             dataBase64: dataBase64 ?? self.dataBase64,
             recursive: recursive ?? self.recursive,
             force: force ?? self.force,
@@ -3665,6 +4304,7 @@ public extension ClientRequestLoginAccountParams {
             chatgptAccountId: chatgptAccountId ?? self.chatgptAccountId,
             chatgptPlanType: chatgptPlanType ?? self.chatgptPlanType,
             loginId: loginId ?? self.loginId,
+            creditType: creditType ?? self.creditType,
             classification: classification ?? self.classification,
             extraLogFiles: extraLogFiles ?? self.extraLogFiles,
             includeLogs: includeLogs ?? self.includeLogs,
@@ -4116,7 +4756,7 @@ public enum ReasoningEffort: String, Codable, Sendable {
     case xhigh = "xhigh"
 }
 
-public enum Command: Codable, Sendable {
+public enum ThreadListCwdFilter: Codable, Sendable {
     case string(String)
     case stringArray([String])
 
@@ -4130,7 +4770,7 @@ public enum Command: Codable, Sendable {
             self = .string(x)
             return
         }
-        throw DecodingError.typeMismatch(Command.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for Command"))
+        throw DecodingError.typeMismatch(ThreadListCwdFilter.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for ThreadListCwdFilter"))
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -4140,6 +4780,43 @@ public enum Command: Codable, Sendable {
             try container.encode(x)
         case .stringArray(let x):
             try container.encode(x)
+        }
+    }
+}
+
+/// Optional cwd filter or filters; when set, only threads whose session cwd exactly matches
+/// one of these paths are returned.
+public enum CwdUnion: Codable, Sendable {
+    case string(String)
+    case stringArray([String])
+    case null
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let x = try? container.decode([String].self) {
+            self = .stringArray(x)
+            return
+        }
+        if let x = try? container.decode(String.self) {
+            self = .string(x)
+            return
+        }
+        if container.decodeNil() {
+            self = .null
+            return
+        }
+        throw DecodingError.typeMismatch(CwdUnion.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for CwdUnion"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let x):
+            try container.encode(x)
+        case .stringArray(let x):
+            try container.encode(x)
+        case .null:
+            try container.encodeNil()
         }
     }
 }
@@ -4160,19 +4837,22 @@ public struct DynamicToolElement: Codable, Sendable {
     public var description: String
     public var inputSchema: JSONAny
     public var name: String
+    public var namespace: String?
 
     public enum CodingKeys: String, CodingKey {
         case deferLoading = "deferLoading"
         case description = "description"
         case inputSchema = "inputSchema"
         case name = "name"
+        case namespace = "namespace"
     }
 
-    public init(deferLoading: Bool? = nil, description: String, inputSchema: JSONAny, name: String) {
+    public init(deferLoading: Bool? = nil, description: String, inputSchema: JSONAny, name: String, namespace: String? = nil) {
         self.deferLoading = deferLoading
         self.description = description
         self.inputSchema = inputSchema
         self.name = name
+        self.namespace = namespace
     }
 }
 
@@ -4198,13 +4878,15 @@ public extension DynamicToolElement {
         deferLoading: Bool?? = nil,
         description: String? = nil,
         inputSchema: JSONAny? = nil,
-        name: String? = nil
+        name: String? = nil,
+        namespace: String?? = nil
     ) -> DynamicToolElement {
         return DynamicToolElement(
             deferLoading: deferLoading ?? self.deferLoading,
             description: description ?? self.description,
             inputSchema: inputSchema ?? self.inputSchema,
-            name: name ?? self.name
+            name: name ?? self.name,
+            namespace: namespace ?? self.namespace
         )
     }
 
@@ -4278,6 +4960,59 @@ public extension EditElement {
 public enum MergeStrategy: String, Codable, Sendable {
     case replace = "replace"
     case upsert = "upsert"
+}
+
+// MARK: - EnvironmentElement
+public struct EnvironmentElement: Codable, Sendable {
+    public var cwd: String
+    public var environmentId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case cwd = "cwd"
+        case environmentId = "environmentId"
+    }
+
+    public init(cwd: String, environmentId: String) {
+        self.cwd = cwd
+        self.environmentId = environmentId
+    }
+}
+
+// MARK: EnvironmentElement convenience initializers and mutators
+
+public extension EnvironmentElement {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EnvironmentElement.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        cwd: String? = nil,
+        environmentId: String? = nil
+    ) -> EnvironmentElement {
+        return EnvironmentElement(
+            cwd: cwd ?? self.cwd,
+            environmentId: environmentId ?? self.environmentId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
 }
 
 // MARK: - LoginAccountParamsGitInfo
@@ -4599,17 +5334,20 @@ public enum SearchResponsesApiWebSearchActionType: String, Codable, Sendable {
 public struct InputTextContentItem: Codable, Sendable {
     public var text: String?
     public var type: ContentType
+    public var detail: ImageDetail?
     public var imageUrl: String?
 
     public enum CodingKeys: String, CodingKey {
         case text = "text"
         case type = "type"
+        case detail = "detail"
         case imageUrl = "image_url"
     }
 
-    public init(text: String? = nil, type: ContentType, imageUrl: String? = nil) {
+    public init(text: String? = nil, type: ContentType, detail: ImageDetail? = nil, imageUrl: String? = nil) {
         self.text = text
         self.type = type
+        self.detail = detail
         self.imageUrl = imageUrl
     }
 }
@@ -4635,11 +5373,13 @@ public extension InputTextContentItem {
     func with(
         text: String?? = nil,
         type: ContentType? = nil,
+        detail: ImageDetail?? = nil,
         imageUrl: String?? = nil
     ) -> InputTextContentItem {
         return InputTextContentItem(
             text: text ?? self.text,
             type: type ?? self.type,
+            detail: detail ?? self.detail,
             imageUrl: imageUrl ?? self.imageUrl
         )
     }
@@ -4651,6 +5391,13 @@ public extension InputTextContentItem {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+public enum ImageDetail: String, Codable, Sendable {
+    case auto = "auto"
+    case high = "high"
+    case low = "low"
+    case original = "original"
 }
 
 public enum ContentType: String, Codable, Sendable {
@@ -4817,13 +5564,6 @@ public extension InputFunctionCallOutputContentItem {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
-}
-
-public enum ImageDetail: String, Codable, Sendable {
-    case auto = "auto"
-    case high = "high"
-    case low = "low"
-    case original = "original"
 }
 
 public enum InputFunctionCallOutputContentItemType: String, Codable, Sendable {
@@ -5298,6 +6038,148 @@ public enum RealtimeOutputModality: String, Codable, Sendable {
     case text = "text"
 }
 
+/// Structured payloads accepted by `device/key/sign`.
+///
+/// Payload bound to one remote-control controller websocket `/client` connection challenge.
+///
+/// Payload bound to a remote-control client `/client/enroll` ownership challenge.
+// MARK: - RemoteControlClientDeviceKeySignPayload
+public struct RemoteControlClientDeviceKeySignPayload: Codable, Sendable {
+    public var accountUserId: String
+    public var audience: RemoteControlClientAudience
+    public var clientId: String
+    public var nonce: String
+    /// Must contain exactly `remote_control_controller_websocket`.
+    public var scopes: [String]?
+    /// Backend-issued websocket session id that this proof authorizes.
+    public var sessionId: String?
+    /// Origin of the backend endpoint that issued the challenge and will verify this proof.
+    public var targetOrigin: String
+    /// Websocket route path that this proof authorizes.
+    ///
+    /// HTTP route path that this proof authorizes.
+    public var targetPath: String
+    /// Remote-control token expiration as Unix seconds.
+    public var tokenExpiresAt: Int?
+    /// SHA-256 of the controller-scoped remote-control token, encoded as unpadded base64url.
+    public var tokenSha256Base64Url: String?
+    public var type: RemoteControlClientDeviceKeySignPayloadType
+    /// Enrollment challenge expiration as Unix seconds.
+    public var challengeExpiresAt: Int?
+    /// Backend-issued enrollment challenge id that this proof authorizes.
+    public var challengeId: String?
+    /// SHA-256 of the requested device identity operation, encoded as unpadded base64url.
+    public var deviceIdentitySha256Base64Url: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case accountUserId = "accountUserId"
+        case audience = "audience"
+        case clientId = "clientId"
+        case nonce = "nonce"
+        case scopes = "scopes"
+        case sessionId = "sessionId"
+        case targetOrigin = "targetOrigin"
+        case targetPath = "targetPath"
+        case tokenExpiresAt = "tokenExpiresAt"
+        case tokenSha256Base64Url = "tokenSha256Base64url"
+        case type = "type"
+        case challengeExpiresAt = "challengeExpiresAt"
+        case challengeId = "challengeId"
+        case deviceIdentitySha256Base64Url = "deviceIdentitySha256Base64url"
+    }
+
+    public init(accountUserId: String, audience: RemoteControlClientAudience, clientId: String, nonce: String, scopes: [String]? = nil, sessionId: String? = nil, targetOrigin: String, targetPath: String, tokenExpiresAt: Int? = nil, tokenSha256Base64Url: String? = nil, type: RemoteControlClientDeviceKeySignPayloadType, challengeExpiresAt: Int? = nil, challengeId: String? = nil, deviceIdentitySha256Base64Url: String? = nil) {
+        self.accountUserId = accountUserId
+        self.audience = audience
+        self.clientId = clientId
+        self.nonce = nonce
+        self.scopes = scopes
+        self.sessionId = sessionId
+        self.targetOrigin = targetOrigin
+        self.targetPath = targetPath
+        self.tokenExpiresAt = tokenExpiresAt
+        self.tokenSha256Base64Url = tokenSha256Base64Url
+        self.type = type
+        self.challengeExpiresAt = challengeExpiresAt
+        self.challengeId = challengeId
+        self.deviceIdentitySha256Base64Url = deviceIdentitySha256Base64Url
+    }
+}
+
+// MARK: RemoteControlClientDeviceKeySignPayload convenience initializers and mutators
+
+public extension RemoteControlClientDeviceKeySignPayload {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(RemoteControlClientDeviceKeySignPayload.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        accountUserId: String? = nil,
+        audience: RemoteControlClientAudience? = nil,
+        clientId: String? = nil,
+        nonce: String? = nil,
+        scopes: [String]?? = nil,
+        sessionId: String?? = nil,
+        targetOrigin: String? = nil,
+        targetPath: String? = nil,
+        tokenExpiresAt: Int?? = nil,
+        tokenSha256Base64Url: String?? = nil,
+        type: RemoteControlClientDeviceKeySignPayloadType? = nil,
+        challengeExpiresAt: Int?? = nil,
+        challengeId: String?? = nil,
+        deviceIdentitySha256Base64Url: String?? = nil
+    ) -> RemoteControlClientDeviceKeySignPayload {
+        return RemoteControlClientDeviceKeySignPayload(
+            accountUserId: accountUserId ?? self.accountUserId,
+            audience: audience ?? self.audience,
+            clientId: clientId ?? self.clientId,
+            nonce: nonce ?? self.nonce,
+            scopes: scopes ?? self.scopes,
+            sessionId: sessionId ?? self.sessionId,
+            targetOrigin: targetOrigin ?? self.targetOrigin,
+            targetPath: targetPath ?? self.targetPath,
+            tokenExpiresAt: tokenExpiresAt ?? self.tokenExpiresAt,
+            tokenSha256Base64Url: tokenSha256Base64Url ?? self.tokenSha256Base64Url,
+            type: type ?? self.type,
+            challengeExpiresAt: challengeExpiresAt ?? self.challengeExpiresAt,
+            challengeId: challengeId ?? self.challengeId,
+            deviceIdentitySha256Base64Url: deviceIdentitySha256Base64Url ?? self.deviceIdentitySha256Base64Url
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Audience for a remote-control client connection device-key proof.
+///
+/// Audience for a remote-control client enrollment device-key proof.
+public enum RemoteControlClientAudience: String, Codable, Sendable {
+    case remoteControlClientEnrollment = "remote_control_client_enrollment"
+    case remoteControlClientWebsocket = "remote_control_client_websocket"
+}
+
+public enum RemoteControlClientDeviceKeySignPayloadType: String, Codable, Sendable {
+    case remoteControlClientConnection = "remoteControlClientConnection"
+    case remoteControlClientEnrollment = "remoteControlClientEnrollment"
+}
+
 // MARK: - PerCwdExtraUserRootElement
 public struct PerCwdExtraUserRootElement: Codable, Sendable {
     public var cwd: String
@@ -5351,10 +6233,196 @@ public extension PerCwdExtraUserRootElement {
     }
 }
 
+/// Codex owns sandbox construction for this profile.
+///
+/// Do not apply an outer sandbox.
+///
+/// Filesystem isolation is enforced by an external caller.
+// MARK: - LoginAccountParamsManagedPermissionProfile
+public struct LoginAccountParamsManagedPermissionProfile: Codable, Sendable {
+    public var fileSystem: RestrictedPermissionProfileFileSystemPermissions?
+    public var network: Network?
+    public var type: PermissionProfileType
+
+    public enum CodingKeys: String, CodingKey {
+        case fileSystem = "fileSystem"
+        case network = "network"
+        case type = "type"
+    }
+
+    public init(fileSystem: RestrictedPermissionProfileFileSystemPermissions? = nil, network: Network? = nil, type: PermissionProfileType) {
+        self.fileSystem = fileSystem
+        self.network = network
+        self.type = type
+    }
+}
+
+// MARK: LoginAccountParamsManagedPermissionProfile convenience initializers and mutators
+
+public extension LoginAccountParamsManagedPermissionProfile {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(LoginAccountParamsManagedPermissionProfile.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        fileSystem: RestrictedPermissionProfileFileSystemPermissions?? = nil,
+        network: Network?? = nil,
+        type: PermissionProfileType? = nil
+    ) -> LoginAccountParamsManagedPermissionProfile {
+        return LoginAccountParamsManagedPermissionProfile(
+            fileSystem: fileSystem ?? self.fileSystem,
+            network: network ?? self.network,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - RestrictedPermissionProfileFileSystemPermissions
+public struct RestrictedPermissionProfileFileSystemPermissions: Codable, Sendable {
+    public var entries: [FileSystemEntry]?
+    public var globScanMaxDepth: Int?
+    public var type: RestrictedPermissionProfileFileSystemPermissionsType
+
+    public enum CodingKeys: String, CodingKey {
+        case entries = "entries"
+        case globScanMaxDepth = "globScanMaxDepth"
+        case type = "type"
+    }
+
+    public init(entries: [FileSystemEntry]? = nil, globScanMaxDepth: Int? = nil, type: RestrictedPermissionProfileFileSystemPermissionsType) {
+        self.entries = entries
+        self.globScanMaxDepth = globScanMaxDepth
+        self.type = type
+    }
+}
+
+// MARK: RestrictedPermissionProfileFileSystemPermissions convenience initializers and mutators
+
+public extension RestrictedPermissionProfileFileSystemPermissions {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(RestrictedPermissionProfileFileSystemPermissions.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        entries: [FileSystemEntry]?? = nil,
+        globScanMaxDepth: Int?? = nil,
+        type: RestrictedPermissionProfileFileSystemPermissionsType? = nil
+    ) -> RestrictedPermissionProfileFileSystemPermissions {
+        return RestrictedPermissionProfileFileSystemPermissions(
+            entries: entries ?? self.entries,
+            globScanMaxDepth: globScanMaxDepth ?? self.globScanMaxDepth,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum RestrictedPermissionProfileFileSystemPermissionsType: String, Codable, Sendable {
+    case restricted = "restricted"
+    case unrestricted = "unrestricted"
+}
+
+// MARK: - Network
+public struct Network: Codable, Sendable {
+    public var enabled: Bool
+
+    public enum CodingKeys: String, CodingKey {
+        case enabled = "enabled"
+    }
+
+    public init(enabled: Bool) {
+        self.enabled = enabled
+    }
+}
+
+// MARK: Network convenience initializers and mutators
+
+public extension Network {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(Network.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        enabled: Bool? = nil
+    ) -> Network {
+        return Network(
+            enabled: enabled ?? self.enabled
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum PermissionProfileType: String, Codable, Sendable {
+    case disabled = "disabled"
+    case external = "external"
+    case managed = "managed"
+}
+
 public enum Personality: String, Codable, Sendable {
     case friendly = "friendly"
     case none = "none"
     case pragmatic = "pragmatic"
+}
+
+/// Protection policy for creating or loading a controller-local device key.
+public enum DeviceKeyProtectionPolicy: String, Codable, Sendable {
+    case allowOsProtectedNonextractable = "allow_os_protected_nonextractable"
+    case hardwareOnly = "hardware_only"
 }
 
 public enum SandboxMode: String, Codable, Sendable {
@@ -5610,6 +6678,11 @@ public extension SizeClass {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+public enum SortDirection: String, Codable, Sendable {
+    case asc = "asc"
+    case desc = "desc"
 }
 
 public enum ThreadSortKey: String, Codable, Sendable {
@@ -6170,6 +7243,7 @@ public extension PurpleResponseTooManyFailedAttempts {
 public enum CodexErrorInfoEnum: String, Codable, Sendable {
     case badRequest = "badRequest"
     case contextWindowExceeded = "contextWindowExceeded"
+    case cyberPolicy = "cyberPolicy"
     case internalServerError = "internalServerError"
     case other = "other"
     case sandboxError = "sandboxError"
@@ -6680,6 +7754,11 @@ public struct CommandExecParams: Codable, Sendable {
     ///
     /// When omitted, the server default applies. Cannot be combined with `disableOutputCap`.
     public var outputBytesCap: Int?
+    /// Optional full permissions profile for this command.
+    ///
+    /// Defaults to the user's configured permissions when omitted. Cannot be combined with
+    /// `sandboxPolicy`.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     /// Optional client-supplied, connection-scoped process id.
     ///
     /// Required for `tty`, `streamStdin`, `streamStdoutStderr`, and follow-up
@@ -6689,7 +7768,7 @@ public struct CommandExecParams: Codable, Sendable {
     /// Optional sandbox policy for this command.
     ///
     /// Uses the same shape as thread/turn execution sandbox configuration and defaults to the
-    /// user's configured policy when omitted.
+    /// user's configured policy when omitted. Cannot be combined with `permissionProfile`.
     public var sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy?
     /// Optional initial PTY size in character cells. Only valid when `tty` is true.
     public var size: CommandExecTerminalSize?
@@ -6718,6 +7797,7 @@ public struct CommandExecParams: Codable, Sendable {
         case disableTimeout = "disableTimeout"
         case env = "env"
         case outputBytesCap = "outputBytesCap"
+        case permissionProfile = "permissionProfile"
         case processId = "processId"
         case sandboxPolicy = "sandboxPolicy"
         case size = "size"
@@ -6727,13 +7807,14 @@ public struct CommandExecParams: Codable, Sendable {
         case tty = "tty"
     }
 
-    public init(command: [String], cwd: String? = nil, disableOutputCap: Bool? = nil, disableTimeout: Bool? = nil, env: [String: String?]? = nil, outputBytesCap: Int? = nil, processId: String? = nil, sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy? = nil, size: CommandExecTerminalSize? = nil, streamStdin: Bool? = nil, streamStdoutStderr: Bool? = nil, timeoutMs: Int? = nil, tty: Bool? = nil) {
+    public init(command: [String], cwd: String? = nil, disableOutputCap: Bool? = nil, disableTimeout: Bool? = nil, env: [String: String?]? = nil, outputBytesCap: Int? = nil, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, processId: String? = nil, sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy? = nil, size: CommandExecTerminalSize? = nil, streamStdin: Bool? = nil, streamStdoutStderr: Bool? = nil, timeoutMs: Int? = nil, tty: Bool? = nil) {
         self.command = command
         self.cwd = cwd
         self.disableOutputCap = disableOutputCap
         self.disableTimeout = disableTimeout
         self.env = env
         self.outputBytesCap = outputBytesCap
+        self.permissionProfile = permissionProfile
         self.processId = processId
         self.sandboxPolicy = sandboxPolicy
         self.size = size
@@ -6769,6 +7850,7 @@ public extension CommandExecParams {
         disableTimeout: Bool?? = nil,
         env: [String: String?]?? = nil,
         outputBytesCap: Int?? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         processId: String?? = nil,
         sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy?? = nil,
         size: CommandExecTerminalSize?? = nil,
@@ -6784,6 +7866,7 @@ public extension CommandExecParams {
             disableTimeout: disableTimeout ?? self.disableTimeout,
             env: env ?? self.env,
             outputBytesCap: outputBytesCap ?? self.outputBytesCap,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             processId: processId ?? self.processId,
             sandboxPolicy: sandboxPolicy ?? self.sandboxPolicy,
             size: size ?? self.size,
@@ -6791,6 +7874,175 @@ public extension CommandExecParams {
             streamStdoutStderr: streamStdoutStderr ?? self.streamStdoutStderr,
             timeoutMs: timeoutMs ?? self.timeoutMs,
             tty: tty ?? self.tty
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Codex owns sandbox construction for this profile.
+///
+/// Do not apply an outer sandbox.
+///
+/// Filesystem isolation is enforced by an external caller.
+// MARK: - CommandExecParamsManagedPermissionProfile
+public struct CommandExecParamsManagedPermissionProfile: Codable, Sendable {
+    public var fileSystem: PermissionProfileFileSystemPermissions?
+    public var network: PermissionProfileNetworkPermissions?
+    public var type: PermissionProfileType
+
+    public enum CodingKeys: String, CodingKey {
+        case fileSystem = "fileSystem"
+        case network = "network"
+        case type = "type"
+    }
+
+    public init(fileSystem: PermissionProfileFileSystemPermissions? = nil, network: PermissionProfileNetworkPermissions? = nil, type: PermissionProfileType) {
+        self.fileSystem = fileSystem
+        self.network = network
+        self.type = type
+    }
+}
+
+// MARK: CommandExecParamsManagedPermissionProfile convenience initializers and mutators
+
+public extension CommandExecParamsManagedPermissionProfile {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(CommandExecParamsManagedPermissionProfile.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        fileSystem: PermissionProfileFileSystemPermissions?? = nil,
+        network: PermissionProfileNetworkPermissions?? = nil,
+        type: PermissionProfileType? = nil
+    ) -> CommandExecParamsManagedPermissionProfile {
+        return CommandExecParamsManagedPermissionProfile(
+            fileSystem: fileSystem ?? self.fileSystem,
+            network: network ?? self.network,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - PermissionProfileFileSystemPermissions
+public struct PermissionProfileFileSystemPermissions: Codable, Sendable {
+    public var entries: [FileSystemSandboxEntry]?
+    public var globScanMaxDepth: Int?
+    public var type: RestrictedPermissionProfileFileSystemPermissionsType
+
+    public enum CodingKeys: String, CodingKey {
+        case entries = "entries"
+        case globScanMaxDepth = "globScanMaxDepth"
+        case type = "type"
+    }
+
+    public init(entries: [FileSystemSandboxEntry]? = nil, globScanMaxDepth: Int? = nil, type: RestrictedPermissionProfileFileSystemPermissionsType) {
+        self.entries = entries
+        self.globScanMaxDepth = globScanMaxDepth
+        self.type = type
+    }
+}
+
+// MARK: PermissionProfileFileSystemPermissions convenience initializers and mutators
+
+public extension PermissionProfileFileSystemPermissions {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(PermissionProfileFileSystemPermissions.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        entries: [FileSystemSandboxEntry]?? = nil,
+        globScanMaxDepth: Int?? = nil,
+        type: RestrictedPermissionProfileFileSystemPermissionsType? = nil
+    ) -> PermissionProfileFileSystemPermissions {
+        return PermissionProfileFileSystemPermissions(
+            entries: entries ?? self.entries,
+            globScanMaxDepth: globScanMaxDepth ?? self.globScanMaxDepth,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - PermissionProfileNetworkPermissions
+public struct PermissionProfileNetworkPermissions: Codable, Sendable {
+    public var enabled: Bool
+
+    public enum CodingKeys: String, CodingKey {
+        case enabled = "enabled"
+    }
+
+    public init(enabled: Bool) {
+        self.enabled = enabled
+    }
+}
+
+// MARK: PermissionProfileNetworkPermissions convenience initializers and mutators
+
+public extension PermissionProfileNetworkPermissions {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(PermissionProfileNetworkPermissions.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        enabled: Bool? = nil
+    ) -> PermissionProfileNetworkPermissions {
+        return PermissionProfileNetworkPermissions(
+            enabled: enabled ?? self.enabled
         )
     }
 
@@ -8836,6 +10088,7 @@ public struct ConfigRequirements: Codable, Sendable {
     public var allowedWebSearchModes: [WebSearchMode]?
     public var enforceResidency: ResidencyRequirement?
     public var featureRequirements: [String: Bool]?
+    public var hooks: ManagedHooksRequirements?
     public var network: NetworkRequirements?
 
     public enum CodingKeys: String, CodingKey {
@@ -8845,16 +10098,18 @@ public struct ConfigRequirements: Codable, Sendable {
         case allowedWebSearchModes = "allowedWebSearchModes"
         case enforceResidency = "enforceResidency"
         case featureRequirements = "featureRequirements"
+        case hooks = "hooks"
         case network = "network"
     }
 
-    public init(allowedApprovalPolicies: [AskForApproval]? = nil, allowedApprovalsReviewers: [ApprovalsReviewer]? = nil, allowedSandboxModes: [SandboxMode]? = nil, allowedWebSearchModes: [WebSearchMode]? = nil, enforceResidency: ResidencyRequirement? = nil, featureRequirements: [String: Bool]? = nil, network: NetworkRequirements? = nil) {
+    public init(allowedApprovalPolicies: [AskForApproval]? = nil, allowedApprovalsReviewers: [ApprovalsReviewer]? = nil, allowedSandboxModes: [SandboxMode]? = nil, allowedWebSearchModes: [WebSearchMode]? = nil, enforceResidency: ResidencyRequirement? = nil, featureRequirements: [String: Bool]? = nil, hooks: ManagedHooksRequirements? = nil, network: NetworkRequirements? = nil) {
         self.allowedApprovalPolicies = allowedApprovalPolicies
         self.allowedApprovalsReviewers = allowedApprovalsReviewers
         self.allowedSandboxModes = allowedSandboxModes
         self.allowedWebSearchModes = allowedWebSearchModes
         self.enforceResidency = enforceResidency
         self.featureRequirements = featureRequirements
+        self.hooks = hooks
         self.network = network
     }
 }
@@ -8884,6 +10139,7 @@ public extension ConfigRequirements {
         allowedWebSearchModes: [WebSearchMode]?? = nil,
         enforceResidency: ResidencyRequirement?? = nil,
         featureRequirements: [String: Bool]?? = nil,
+        hooks: ManagedHooksRequirements?? = nil,
         network: NetworkRequirements?? = nil
     ) -> ConfigRequirements {
         return ConfigRequirements(
@@ -8893,6 +10149,7 @@ public extension ConfigRequirements {
             allowedWebSearchModes: allowedWebSearchModes ?? self.allowedWebSearchModes,
             enforceResidency: enforceResidency ?? self.enforceResidency,
             featureRequirements: featureRequirements ?? self.featureRequirements,
+            hooks: hooks ?? self.hooks,
             network: network ?? self.network
         )
     }
@@ -8908,6 +10165,216 @@ public extension ConfigRequirements {
 
 public enum ResidencyRequirement: String, Codable, Sendable {
     case us = "us"
+}
+
+// MARK: - ManagedHooksRequirements
+public struct ManagedHooksRequirements: Codable, Sendable {
+    public var managedDir: String?
+    public var permissionRequest: [ConfiguredHookMatcherGroup]
+    public var postToolUse: [ConfiguredHookMatcherGroup]
+    public var preToolUse: [ConfiguredHookMatcherGroup]
+    public var sessionStart: [ConfiguredHookMatcherGroup]
+    public var stop: [ConfiguredHookMatcherGroup]
+    public var userPromptSubmit: [ConfiguredHookMatcherGroup]
+    public var windowsManagedDir: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case managedDir = "managedDir"
+        case permissionRequest = "PermissionRequest"
+        case postToolUse = "PostToolUse"
+        case preToolUse = "PreToolUse"
+        case sessionStart = "SessionStart"
+        case stop = "Stop"
+        case userPromptSubmit = "UserPromptSubmit"
+        case windowsManagedDir = "windowsManagedDir"
+    }
+
+    public init(managedDir: String? = nil, permissionRequest: [ConfiguredHookMatcherGroup], postToolUse: [ConfiguredHookMatcherGroup], preToolUse: [ConfiguredHookMatcherGroup], sessionStart: [ConfiguredHookMatcherGroup], stop: [ConfiguredHookMatcherGroup], userPromptSubmit: [ConfiguredHookMatcherGroup], windowsManagedDir: String? = nil) {
+        self.managedDir = managedDir
+        self.permissionRequest = permissionRequest
+        self.postToolUse = postToolUse
+        self.preToolUse = preToolUse
+        self.sessionStart = sessionStart
+        self.stop = stop
+        self.userPromptSubmit = userPromptSubmit
+        self.windowsManagedDir = windowsManagedDir
+    }
+}
+
+// MARK: ManagedHooksRequirements convenience initializers and mutators
+
+public extension ManagedHooksRequirements {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ManagedHooksRequirements.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        managedDir: String?? = nil,
+        permissionRequest: [ConfiguredHookMatcherGroup]? = nil,
+        postToolUse: [ConfiguredHookMatcherGroup]? = nil,
+        preToolUse: [ConfiguredHookMatcherGroup]? = nil,
+        sessionStart: [ConfiguredHookMatcherGroup]? = nil,
+        stop: [ConfiguredHookMatcherGroup]? = nil,
+        userPromptSubmit: [ConfiguredHookMatcherGroup]? = nil,
+        windowsManagedDir: String?? = nil
+    ) -> ManagedHooksRequirements {
+        return ManagedHooksRequirements(
+            managedDir: managedDir ?? self.managedDir,
+            permissionRequest: permissionRequest ?? self.permissionRequest,
+            postToolUse: postToolUse ?? self.postToolUse,
+            preToolUse: preToolUse ?? self.preToolUse,
+            sessionStart: sessionStart ?? self.sessionStart,
+            stop: stop ?? self.stop,
+            userPromptSubmit: userPromptSubmit ?? self.userPromptSubmit,
+            windowsManagedDir: windowsManagedDir ?? self.windowsManagedDir
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ConfiguredHookMatcherGroup
+public struct ConfiguredHookMatcherGroup: Codable, Sendable {
+    public var hooks: [ConfiguredHookHandler]
+    public var matcher: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case hooks = "hooks"
+        case matcher = "matcher"
+    }
+
+    public init(hooks: [ConfiguredHookHandler], matcher: String? = nil) {
+        self.hooks = hooks
+        self.matcher = matcher
+    }
+}
+
+// MARK: ConfiguredHookMatcherGroup convenience initializers and mutators
+
+public extension ConfiguredHookMatcherGroup {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ConfiguredHookMatcherGroup.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        hooks: [ConfiguredHookHandler]? = nil,
+        matcher: String?? = nil
+    ) -> ConfiguredHookMatcherGroup {
+        return ConfiguredHookMatcherGroup(
+            hooks: hooks ?? self.hooks,
+            matcher: matcher ?? self.matcher
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ConfiguredHookHandler
+public struct ConfiguredHookHandler: Codable, Sendable {
+    public var async: Bool?
+    public var command: String?
+    public var statusMessage: String?
+    public var timeoutSec: Int?
+    public var type: HookHandlerType
+
+    public enum CodingKeys: String, CodingKey {
+        case async = "async"
+        case command = "command"
+        case statusMessage = "statusMessage"
+        case timeoutSec = "timeoutSec"
+        case type = "type"
+    }
+
+    public init(async: Bool? = nil, command: String? = nil, statusMessage: String? = nil, timeoutSec: Int? = nil, type: HookHandlerType) {
+        self.async = async
+        self.command = command
+        self.statusMessage = statusMessage
+        self.timeoutSec = timeoutSec
+        self.type = type
+    }
+}
+
+// MARK: ConfiguredHookHandler convenience initializers and mutators
+
+public extension ConfiguredHookHandler {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ConfiguredHookHandler.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        async: Bool?? = nil,
+        command: String?? = nil,
+        statusMessage: String?? = nil,
+        timeoutSec: Int?? = nil,
+        type: HookHandlerType? = nil
+    ) -> ConfiguredHookHandler {
+        return ConfiguredHookHandler(
+            async: async ?? self.async,
+            command: command ?? self.command,
+            statusMessage: statusMessage ?? self.statusMessage,
+            timeoutSec: timeoutSec ?? self.timeoutSec,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum HookHandlerType: String, Codable, Sendable {
+    case agent = "agent"
+    case command = "command"
+    case prompt = "prompt"
 }
 
 // MARK: - NetworkRequirements
@@ -9454,17 +10921,20 @@ public enum WriteStatus: String, Codable, Sendable {
 public struct ContentItem: Codable, Sendable {
     public var text: String?
     public var type: ContentItemType
+    public var detail: ImageDetail?
     public var imageUrl: String?
 
     public enum CodingKeys: String, CodingKey {
         case text = "text"
         case type = "type"
+        case detail = "detail"
         case imageUrl = "image_url"
     }
 
-    public init(text: String? = nil, type: ContentItemType, imageUrl: String? = nil) {
+    public init(text: String? = nil, type: ContentItemType, detail: ImageDetail? = nil, imageUrl: String? = nil) {
         self.text = text
         self.type = type
+        self.detail = detail
         self.imageUrl = imageUrl
     }
 }
@@ -9490,11 +10960,13 @@ public extension ContentItem {
     func with(
         text: String?? = nil,
         type: ContentItemType? = nil,
+        detail: ImageDetail?? = nil,
         imageUrl: String?? = nil
     ) -> ContentItem {
         return ContentItem(
             text: text ?? self.text,
             type: type ?? self.type,
+            detail: detail ?? self.detail,
             imageUrl: imageUrl ?? self.imageUrl
         )
     }
@@ -9624,6 +11096,523 @@ public extension DeprecationNoticeNotification {
     }
 }
 
+/// Device-key algorithm reported at enrollment and signing boundaries.
+public enum DeviceKeyAlgorithm: String, Codable, Sendable {
+    case ecdsaP256Sha256 = "ecdsa_p256_sha256"
+}
+
+/// Create a controller-local device key with a random key id.
+// MARK: - DeviceKeyCreateParams
+/// Create a controller-local device key with a random key id.
+public struct DeviceKeyCreateParams: Codable, Sendable {
+    public var accountUserId: String
+    public var clientId: String
+    /// Defaults to `hardware_only` when omitted.
+    public var protectionPolicy: DeviceKeyProtectionPolicy?
+
+    public enum CodingKeys: String, CodingKey {
+        case accountUserId = "accountUserId"
+        case clientId = "clientId"
+        case protectionPolicy = "protectionPolicy"
+    }
+
+    public init(accountUserId: String, clientId: String, protectionPolicy: DeviceKeyProtectionPolicy? = nil) {
+        self.accountUserId = accountUserId
+        self.clientId = clientId
+        self.protectionPolicy = protectionPolicy
+    }
+}
+
+// MARK: DeviceKeyCreateParams convenience initializers and mutators
+
+public extension DeviceKeyCreateParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeyCreateParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        accountUserId: String? = nil,
+        clientId: String? = nil,
+        protectionPolicy: DeviceKeyProtectionPolicy?? = nil
+    ) -> DeviceKeyCreateParams {
+        return DeviceKeyCreateParams(
+            accountUserId: accountUserId ?? self.accountUserId,
+            clientId: clientId ?? self.clientId,
+            protectionPolicy: protectionPolicy ?? self.protectionPolicy
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Device-key metadata and public key returned by create/public APIs.
+// MARK: - DeviceKeyCreateResponse
+/// Device-key metadata and public key returned by create/public APIs.
+public struct DeviceKeyCreateResponse: Codable, Sendable {
+    public var algorithm: DeviceKeyAlgorithm
+    public var keyId: String
+    public var protectionClass: DeviceKeyProtectionClass
+    /// SubjectPublicKeyInfo DER encoded as base64.
+    public var publicKeySpkiDerBase64: String
+
+    public enum CodingKeys: String, CodingKey {
+        case algorithm = "algorithm"
+        case keyId = "keyId"
+        case protectionClass = "protectionClass"
+        case publicKeySpkiDerBase64 = "publicKeySpkiDerBase64"
+    }
+
+    public init(algorithm: DeviceKeyAlgorithm, keyId: String, protectionClass: DeviceKeyProtectionClass, publicKeySpkiDerBase64: String) {
+        self.algorithm = algorithm
+        self.keyId = keyId
+        self.protectionClass = protectionClass
+        self.publicKeySpkiDerBase64 = publicKeySpkiDerBase64
+    }
+}
+
+// MARK: DeviceKeyCreateResponse convenience initializers and mutators
+
+public extension DeviceKeyCreateResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeyCreateResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        algorithm: DeviceKeyAlgorithm? = nil,
+        keyId: String? = nil,
+        protectionClass: DeviceKeyProtectionClass? = nil,
+        publicKeySpkiDerBase64: String? = nil
+    ) -> DeviceKeyCreateResponse {
+        return DeviceKeyCreateResponse(
+            algorithm: algorithm ?? self.algorithm,
+            keyId: keyId ?? self.keyId,
+            protectionClass: protectionClass ?? self.protectionClass,
+            publicKeySpkiDerBase64: publicKeySpkiDerBase64 ?? self.publicKeySpkiDerBase64
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Platform protection class for a controller-local device key.
+public enum DeviceKeyProtectionClass: String, Codable, Sendable {
+    case hardwareSecureEnclave = "hardware_secure_enclave"
+    case hardwareTpm = "hardware_tpm"
+    case osProtectedNonextractable = "os_protected_nonextractable"
+}
+
+/// Fetch a controller-local device key public key by id.
+// MARK: - DeviceKeyPublicParams
+/// Fetch a controller-local device key public key by id.
+public struct DeviceKeyPublicParams: Codable, Sendable {
+    public var keyId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case keyId = "keyId"
+    }
+
+    public init(keyId: String) {
+        self.keyId = keyId
+    }
+}
+
+// MARK: DeviceKeyPublicParams convenience initializers and mutators
+
+public extension DeviceKeyPublicParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeyPublicParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        keyId: String? = nil
+    ) -> DeviceKeyPublicParams {
+        return DeviceKeyPublicParams(
+            keyId: keyId ?? self.keyId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Device-key public metadata returned by `device/key/public`.
+// MARK: - DeviceKeyPublicResponse
+/// Device-key public metadata returned by `device/key/public`.
+public struct DeviceKeyPublicResponse: Codable, Sendable {
+    public var algorithm: DeviceKeyAlgorithm
+    public var keyId: String
+    public var protectionClass: DeviceKeyProtectionClass
+    /// SubjectPublicKeyInfo DER encoded as base64.
+    public var publicKeySpkiDerBase64: String
+
+    public enum CodingKeys: String, CodingKey {
+        case algorithm = "algorithm"
+        case keyId = "keyId"
+        case protectionClass = "protectionClass"
+        case publicKeySpkiDerBase64 = "publicKeySpkiDerBase64"
+    }
+
+    public init(algorithm: DeviceKeyAlgorithm, keyId: String, protectionClass: DeviceKeyProtectionClass, publicKeySpkiDerBase64: String) {
+        self.algorithm = algorithm
+        self.keyId = keyId
+        self.protectionClass = protectionClass
+        self.publicKeySpkiDerBase64 = publicKeySpkiDerBase64
+    }
+}
+
+// MARK: DeviceKeyPublicResponse convenience initializers and mutators
+
+public extension DeviceKeyPublicResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeyPublicResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        algorithm: DeviceKeyAlgorithm? = nil,
+        keyId: String? = nil,
+        protectionClass: DeviceKeyProtectionClass? = nil,
+        publicKeySpkiDerBase64: String? = nil
+    ) -> DeviceKeyPublicResponse {
+        return DeviceKeyPublicResponse(
+            algorithm: algorithm ?? self.algorithm,
+            keyId: keyId ?? self.keyId,
+            protectionClass: protectionClass ?? self.protectionClass,
+            publicKeySpkiDerBase64: publicKeySpkiDerBase64 ?? self.publicKeySpkiDerBase64
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Sign an accepted structured payload with a controller-local device key.
+// MARK: - DeviceKeySignParams
+/// Sign an accepted structured payload with a controller-local device key.
+public struct DeviceKeySignParams: Codable, Sendable {
+    public var keyId: String
+    public var payload: DeviceKeySignPayload
+
+    public enum CodingKeys: String, CodingKey {
+        case keyId = "keyId"
+        case payload = "payload"
+    }
+
+    public init(keyId: String, payload: DeviceKeySignPayload) {
+        self.keyId = keyId
+        self.payload = payload
+    }
+}
+
+// MARK: DeviceKeySignParams convenience initializers and mutators
+
+public extension DeviceKeySignParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeySignParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        keyId: String? = nil,
+        payload: DeviceKeySignPayload? = nil
+    ) -> DeviceKeySignParams {
+        return DeviceKeySignParams(
+            keyId: keyId ?? self.keyId,
+            payload: payload ?? self.payload
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// Structured payloads accepted by `device/key/sign`.
+///
+/// Payload bound to one remote-control controller websocket `/client` connection challenge.
+///
+/// Payload bound to a remote-control client `/client/enroll` ownership challenge.
+// MARK: - DeviceKeySignPayload
+/// Structured payloads accepted by `device/key/sign`.
+public struct DeviceKeySignPayload: Codable, Sendable {
+    public var accountUserId: String
+    public var audience: RemoteControlClientAudience
+    public var clientId: String
+    public var nonce: String
+    /// Must contain exactly `remote_control_controller_websocket`.
+    public var scopes: [String]?
+    /// Backend-issued websocket session id that this proof authorizes.
+    public var sessionId: String?
+    /// Origin of the backend endpoint that issued the challenge and will verify this proof.
+    public var targetOrigin: String
+    /// Websocket route path that this proof authorizes.
+    ///
+    /// HTTP route path that this proof authorizes.
+    public var targetPath: String
+    /// Remote-control token expiration as Unix seconds.
+    public var tokenExpiresAt: Int?
+    /// SHA-256 of the controller-scoped remote-control token, encoded as unpadded base64url.
+    public var tokenSha256Base64Url: String?
+    public var type: RemoteControlClientDeviceKeySignPayloadType
+    /// Enrollment challenge expiration as Unix seconds.
+    public var challengeExpiresAt: Int?
+    /// Backend-issued enrollment challenge id that this proof authorizes.
+    public var challengeId: String?
+    /// SHA-256 of the requested device identity operation, encoded as unpadded base64url.
+    public var deviceIdentitySha256Base64Url: String?
+
+    public enum CodingKeys: String, CodingKey {
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case accountUserId = "accountUserId"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case audience = "audience"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case clientId = "clientId"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case nonce = "nonce"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case scopes = "scopes"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case sessionId = "sessionId"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case targetOrigin = "targetOrigin"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case targetPath = "targetPath"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case tokenExpiresAt = "tokenExpiresAt"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case tokenSha256Base64Url = "tokenSha256Base64url"
+        /// Payload bound to one remote-control controller websocket `/client` connection challenge.
+        case type = "type"
+        /// Payload bound to a remote-control client `/client/enroll` ownership challenge.
+        case challengeExpiresAt = "challengeExpiresAt"
+        /// Payload bound to a remote-control client `/client/enroll` ownership challenge.
+        case challengeId = "challengeId"
+        /// Payload bound to a remote-control client `/client/enroll` ownership challenge.
+        case deviceIdentitySha256Base64Url = "deviceIdentitySha256Base64url"
+    }
+
+    public init(accountUserId: String, audience: RemoteControlClientAudience, clientId: String, nonce: String, scopes: [String]? = nil, sessionId: String? = nil, targetOrigin: String, targetPath: String, tokenExpiresAt: Int? = nil, tokenSha256Base64Url: String? = nil, type: RemoteControlClientDeviceKeySignPayloadType, challengeExpiresAt: Int? = nil, challengeId: String? = nil, deviceIdentitySha256Base64Url: String? = nil) {
+        self.accountUserId = accountUserId
+        self.audience = audience
+        self.clientId = clientId
+        self.nonce = nonce
+        self.scopes = scopes
+        self.sessionId = sessionId
+        self.targetOrigin = targetOrigin
+        self.targetPath = targetPath
+        self.tokenExpiresAt = tokenExpiresAt
+        self.tokenSha256Base64Url = tokenSha256Base64Url
+        self.type = type
+        self.challengeExpiresAt = challengeExpiresAt
+        self.challengeId = challengeId
+        self.deviceIdentitySha256Base64Url = deviceIdentitySha256Base64Url
+    }
+}
+
+// MARK: DeviceKeySignPayload convenience initializers and mutators
+
+public extension DeviceKeySignPayload {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeySignPayload.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        accountUserId: String? = nil,
+        audience: RemoteControlClientAudience? = nil,
+        clientId: String? = nil,
+        nonce: String? = nil,
+        scopes: [String]?? = nil,
+        sessionId: String?? = nil,
+        targetOrigin: String? = nil,
+        targetPath: String? = nil,
+        tokenExpiresAt: Int?? = nil,
+        tokenSha256Base64Url: String?? = nil,
+        type: RemoteControlClientDeviceKeySignPayloadType? = nil,
+        challengeExpiresAt: Int?? = nil,
+        challengeId: String?? = nil,
+        deviceIdentitySha256Base64Url: String?? = nil
+    ) -> DeviceKeySignPayload {
+        return DeviceKeySignPayload(
+            accountUserId: accountUserId ?? self.accountUserId,
+            audience: audience ?? self.audience,
+            clientId: clientId ?? self.clientId,
+            nonce: nonce ?? self.nonce,
+            scopes: scopes ?? self.scopes,
+            sessionId: sessionId ?? self.sessionId,
+            targetOrigin: targetOrigin ?? self.targetOrigin,
+            targetPath: targetPath ?? self.targetPath,
+            tokenExpiresAt: tokenExpiresAt ?? self.tokenExpiresAt,
+            tokenSha256Base64Url: tokenSha256Base64Url ?? self.tokenSha256Base64Url,
+            type: type ?? self.type,
+            challengeExpiresAt: challengeExpiresAt ?? self.challengeExpiresAt,
+            challengeId: challengeId ?? self.challengeId,
+            deviceIdentitySha256Base64Url: deviceIdentitySha256Base64Url ?? self.deviceIdentitySha256Base64Url
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+/// ASN.1 DER signature returned by `device/key/sign`.
+// MARK: - DeviceKeySignResponse
+/// ASN.1 DER signature returned by `device/key/sign`.
+public struct DeviceKeySignResponse: Codable, Sendable {
+    public var algorithm: DeviceKeyAlgorithm
+    /// ECDSA signature DER encoded as base64.
+    public var signatureDerBase64: String
+    /// Exact bytes signed by the device key, encoded as base64. Verifiers must verify this byte
+    /// string directly and must not reserialize `payload`.
+    public var signedPayloadBase64: String
+
+    public enum CodingKeys: String, CodingKey {
+        case algorithm = "algorithm"
+        case signatureDerBase64 = "signatureDerBase64"
+        case signedPayloadBase64 = "signedPayloadBase64"
+    }
+
+    public init(algorithm: DeviceKeyAlgorithm, signatureDerBase64: String, signedPayloadBase64: String) {
+        self.algorithm = algorithm
+        self.signatureDerBase64 = signatureDerBase64
+        self.signedPayloadBase64 = signedPayloadBase64
+    }
+}
+
+// MARK: DeviceKeySignResponse convenience initializers and mutators
+
+public extension DeviceKeySignResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(DeviceKeySignResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        algorithm: DeviceKeyAlgorithm? = nil,
+        signatureDerBase64: String? = nil,
+        signedPayloadBase64: String? = nil
+    ) -> DeviceKeySignResponse {
+        return DeviceKeySignResponse(
+            algorithm: algorithm ?? self.algorithm,
+            signatureDerBase64: signatureDerBase64 ?? self.signatureDerBase64,
+            signedPayloadBase64: signedPayloadBase64 ?? self.signedPayloadBase64
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 // MARK: - DynamicToolCallOutputContentItem
 public struct DynamicToolCallOutputContentItem: Codable, Sendable {
     public var text: String?
@@ -9691,6 +11680,7 @@ public enum InputDynamicToolCallOutputContentItemType: String, Codable, Sendable
 public struct DynamicToolCallParams: Codable, Sendable {
     public var arguments: JSONAny
     public var callId: String
+    public var namespace: String?
     public var threadId: String
     public var tool: String
     public var turnId: String
@@ -9698,14 +11688,16 @@ public struct DynamicToolCallParams: Codable, Sendable {
     public enum CodingKeys: String, CodingKey {
         case arguments = "arguments"
         case callId = "callId"
+        case namespace = "namespace"
         case threadId = "threadId"
         case tool = "tool"
         case turnId = "turnId"
     }
 
-    public init(arguments: JSONAny, callId: String, threadId: String, tool: String, turnId: String) {
+    public init(arguments: JSONAny, callId: String, namespace: String? = nil, threadId: String, tool: String, turnId: String) {
         self.arguments = arguments
         self.callId = callId
+        self.namespace = namespace
         self.threadId = threadId
         self.tool = tool
         self.turnId = turnId
@@ -9733,6 +11725,7 @@ public extension DynamicToolCallParams {
     func with(
         arguments: JSONAny? = nil,
         callId: String? = nil,
+        namespace: String?? = nil,
         threadId: String? = nil,
         tool: String? = nil,
         turnId: String? = nil
@@ -9740,6 +11733,7 @@ public extension DynamicToolCallParams {
         return DynamicToolCallParams(
             arguments: arguments ?? self.arguments,
             callId: callId ?? self.callId,
+            namespace: namespace ?? self.namespace,
             threadId: threadId ?? self.threadId,
             tool: tool ?? self.tool,
             turnId: turnId ?? self.turnId
@@ -9872,19 +11866,22 @@ public struct DynamicToolSpec: Codable, Sendable {
     public var description: String
     public var inputSchema: JSONAny
     public var name: String
+    public var namespace: String?
 
     public enum CodingKeys: String, CodingKey {
         case deferLoading = "deferLoading"
         case description = "description"
         case inputSchema = "inputSchema"
         case name = "name"
+        case namespace = "namespace"
     }
 
-    public init(deferLoading: Bool? = nil, description: String, inputSchema: JSONAny, name: String) {
+    public init(deferLoading: Bool? = nil, description: String, inputSchema: JSONAny, name: String, namespace: String? = nil) {
         self.deferLoading = deferLoading
         self.description = description
         self.inputSchema = inputSchema
         self.name = name
+        self.namespace = namespace
     }
 }
 
@@ -9910,13 +11907,15 @@ public extension DynamicToolSpec {
         deferLoading: Bool?? = nil,
         description: String? = nil,
         inputSchema: JSONAny? = nil,
-        name: String? = nil
+        name: String? = nil,
+        namespace: String?? = nil
     ) -> DynamicToolSpec {
         return DynamicToolSpec(
             deferLoading: deferLoading ?? self.deferLoading,
             description: description ?? self.description,
             inputSchema: inputSchema ?? self.inputSchema,
-            name: name ?? self.name
+            name: name ?? self.name,
+            namespace: namespace ?? self.namespace
         )
     }
 
@@ -11185,39 +13184,33 @@ public extension FileChangeOutputDeltaNotification {
     }
 }
 
-// MARK: - FileChangeRequestApprovalParams
-public struct FileChangeRequestApprovalParams: Codable, Sendable {
-    /// [UNSTABLE] When set, the agent is asking the user to allow writes under this root for the
-    /// remainder of the session (unclear if this is honored today).
-    public var grantRoot: String?
+// MARK: - FileChangePatchUpdatedNotification
+public struct FileChangePatchUpdatedNotification: Codable, Sendable {
+    public var changes: [FileUpdateChange]
     public var itemId: String
-    /// Optional explanatory reason (e.g. request for extra write access).
-    public var reason: String?
     public var threadId: String
     public var turnId: String
 
     public enum CodingKeys: String, CodingKey {
-        case grantRoot = "grantRoot"
+        case changes = "changes"
         case itemId = "itemId"
-        case reason = "reason"
         case threadId = "threadId"
         case turnId = "turnId"
     }
 
-    public init(grantRoot: String? = nil, itemId: String, reason: String? = nil, threadId: String, turnId: String) {
-        self.grantRoot = grantRoot
+    public init(changes: [FileUpdateChange], itemId: String, threadId: String, turnId: String) {
+        self.changes = changes
         self.itemId = itemId
-        self.reason = reason
         self.threadId = threadId
         self.turnId = turnId
     }
 }
 
-// MARK: FileChangeRequestApprovalParams convenience initializers and mutators
+// MARK: FileChangePatchUpdatedNotification convenience initializers and mutators
 
-public extension FileChangeRequestApprovalParams {
+public extension FileChangePatchUpdatedNotification {
     init(data: Data) throws {
-        self = try newJSONDecoder().decode(FileChangeRequestApprovalParams.self, from: data)
+        self = try newJSONDecoder().decode(FileChangePatchUpdatedNotification.self, from: data)
     }
 
     init(_ json: String, using encoding: String.Encoding = .utf8) throws {
@@ -11232,66 +13225,16 @@ public extension FileChangeRequestApprovalParams {
     }
 
     func with(
-        grantRoot: String?? = nil,
+        changes: [FileUpdateChange]? = nil,
         itemId: String? = nil,
-        reason: String?? = nil,
         threadId: String? = nil,
         turnId: String? = nil
-    ) -> FileChangeRequestApprovalParams {
-        return FileChangeRequestApprovalParams(
-            grantRoot: grantRoot ?? self.grantRoot,
+    ) -> FileChangePatchUpdatedNotification {
+        return FileChangePatchUpdatedNotification(
+            changes: changes ?? self.changes,
             itemId: itemId ?? self.itemId,
-            reason: reason ?? self.reason,
             threadId: threadId ?? self.threadId,
             turnId: turnId ?? self.turnId
-        )
-    }
-
-    func jsonData() throws -> Data {
-        return try newJSONEncoder().encode(self)
-    }
-
-    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
-        return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-// MARK: - FileChangeRequestApprovalResponse
-public struct FileChangeRequestApprovalResponse: Codable, Sendable {
-    public var decision: FileChangeApprovalDecision
-
-    public enum CodingKeys: String, CodingKey {
-        case decision = "decision"
-    }
-
-    public init(decision: FileChangeApprovalDecision) {
-        self.decision = decision
-    }
-}
-
-// MARK: FileChangeRequestApprovalResponse convenience initializers and mutators
-
-public extension FileChangeRequestApprovalResponse {
-    init(data: Data) throws {
-        self = try newJSONDecoder().decode(FileChangeRequestApprovalResponse.self, from: data)
-    }
-
-    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
-        guard let data = json.data(using: encoding) else {
-            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
-        }
-        try self.init(data: data)
-    }
-
-    init(fromURL url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
-    }
-
-    func with(
-        decision: FileChangeApprovalDecision? = nil
-    ) -> FileChangeRequestApprovalResponse {
-        return FileChangeRequestApprovalResponse(
-            decision: decision ?? self.decision
         )
     }
 
@@ -11403,6 +13346,125 @@ public extension PatchChangeKind {
         return PatchChangeKind(
             type: type ?? self.type,
             movePath: movePath ?? self.movePath
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - FileChangeRequestApprovalParams
+public struct FileChangeRequestApprovalParams: Codable, Sendable {
+    /// [UNSTABLE] When set, the agent is asking the user to allow writes under this root for the
+    /// remainder of the session (unclear if this is honored today).
+    public var grantRoot: String?
+    public var itemId: String
+    /// Optional explanatory reason (e.g. request for extra write access).
+    public var reason: String?
+    public var threadId: String
+    public var turnId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case grantRoot = "grantRoot"
+        case itemId = "itemId"
+        case reason = "reason"
+        case threadId = "threadId"
+        case turnId = "turnId"
+    }
+
+    public init(grantRoot: String? = nil, itemId: String, reason: String? = nil, threadId: String, turnId: String) {
+        self.grantRoot = grantRoot
+        self.itemId = itemId
+        self.reason = reason
+        self.threadId = threadId
+        self.turnId = turnId
+    }
+}
+
+// MARK: FileChangeRequestApprovalParams convenience initializers and mutators
+
+public extension FileChangeRequestApprovalParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileChangeRequestApprovalParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        grantRoot: String?? = nil,
+        itemId: String? = nil,
+        reason: String?? = nil,
+        threadId: String? = nil,
+        turnId: String? = nil
+    ) -> FileChangeRequestApprovalParams {
+        return FileChangeRequestApprovalParams(
+            grantRoot: grantRoot ?? self.grantRoot,
+            itemId: itemId ?? self.itemId,
+            reason: reason ?? self.reason,
+            threadId: threadId ?? self.threadId,
+            turnId: turnId ?? self.turnId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - FileChangeRequestApprovalResponse
+public struct FileChangeRequestApprovalResponse: Codable, Sendable {
+    public var decision: FileChangeApprovalDecision
+
+    public enum CodingKeys: String, CodingKey {
+        case decision = "decision"
+    }
+
+    public init(decision: FileChangeApprovalDecision) {
+        self.decision = decision
+    }
+}
+
+// MARK: FileChangeRequestApprovalResponse convenience initializers and mutators
+
+public extension FileChangeRequestApprovalResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(FileChangeRequestApprovalResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        decision: FileChangeApprovalDecision? = nil
+    ) -> FileChangeRequestApprovalResponse {
+        return FileChangeRequestApprovalResponse(
+            decision: decision ?? self.decision
         )
     }
 
@@ -13132,15 +15194,15 @@ public extension GitInfo {
 
 // MARK: - GrantedPermissionProfile
 public struct GrantedPermissionProfile: Codable, Sendable {
-    public var fileSystem: AdditionalFileSystemPermissions?
-    public var network: AdditionalNetworkPermissions?
+    public var fileSystem: FileSystemClass?
+    public var network: NetworkClass?
 
     public enum CodingKeys: String, CodingKey {
         case fileSystem = "fileSystem"
         case network = "network"
     }
 
-    public init(fileSystem: AdditionalFileSystemPermissions? = nil, network: AdditionalNetworkPermissions? = nil) {
+    public init(fileSystem: FileSystemClass? = nil, network: NetworkClass? = nil) {
         self.fileSystem = fileSystem
         self.network = network
     }
@@ -13165,8 +15227,8 @@ public extension GrantedPermissionProfile {
     }
 
     func with(
-        fileSystem: AdditionalFileSystemPermissions?? = nil,
-        network: AdditionalNetworkPermissions?? = nil
+        fileSystem: FileSystemClass?? = nil,
+        network: NetworkClass?? = nil
     ) -> GrantedPermissionProfile {
         return GrantedPermissionProfile(
             fileSystem: fileSystem ?? self.fileSystem,
@@ -13183,10 +15245,10 @@ public extension GrantedPermissionProfile {
     }
 }
 
-/// [UNSTABLE] Temporary guardian approval review payload used by `item/autoApprovalReview/*`
+/// [UNSTABLE] Temporary approval auto-review payload used by `item/autoApprovalReview/*`
 /// notifications. This shape is expected to change soon.
 // MARK: - GuardianApprovalReview
-/// [UNSTABLE] Temporary guardian approval review payload used by `item/autoApprovalReview/*` notifications. This shape is expected to change soon.
+/// [UNSTABLE] Temporary approval auto-review payload used by `item/autoApprovalReview/*` notifications. This shape is expected to change soon.
 public struct GuardianApprovalReview: Codable, Sendable {
     public var rationale: String?
     public var riskLevel: GuardianRiskLevel?
@@ -13249,7 +15311,7 @@ public extension GuardianApprovalReview {
     }
 }
 
-/// [UNSTABLE] Risk level assigned by guardian approval review.
+/// [UNSTABLE] Risk level assigned by approval auto-review.
 public enum GuardianRiskLevel: String, Codable, Sendable {
     case critical = "critical"
     case high = "high"
@@ -13257,7 +15319,7 @@ public enum GuardianRiskLevel: String, Codable, Sendable {
     case medium = "medium"
 }
 
-/// [UNSTABLE] Lifecycle state for a guardian approval review.
+/// [UNSTABLE] Lifecycle state for an approval auto-review.
 public enum GuardianApprovalReviewStatus: String, Codable, Sendable {
     case aborted = "aborted"
     case approved = "approved"
@@ -13266,7 +15328,7 @@ public enum GuardianApprovalReviewStatus: String, Codable, Sendable {
     case timedOut = "timedOut"
 }
 
-/// [UNSTABLE] Authorization level assigned by guardian approval review.
+/// [UNSTABLE] Authorization level assigned by approval auto-review.
 public enum GuardianUserAuthorization: String, Codable, Sendable {
     case high = "high"
     case low = "low"
@@ -13292,6 +15354,8 @@ public struct GuardianApprovalReviewAction: Codable, Sendable {
     public var server: String?
     public var toolName: String?
     public var toolTitle: String?
+    public var permissions: RequestPermissionProfile?
+    public var reason: String?
 
     public enum CodingKeys: String, CodingKey {
         case command = "command"
@@ -13310,9 +15374,11 @@ public struct GuardianApprovalReviewAction: Codable, Sendable {
         case server = "server"
         case toolName = "toolName"
         case toolTitle = "toolTitle"
+        case permissions = "permissions"
+        case reason = "reason"
     }
 
-    public init(command: String? = nil, cwd: String? = nil, source: GuardianCommandSource? = nil, type: GuardianApprovalReviewActionType, argv: [String]? = nil, program: String? = nil, files: [String]? = nil, host: String? = nil, port: Int? = nil, guardianApprovalReviewActionProtocol: NetworkApprovalProtocol? = nil, target: String? = nil, connectorId: String? = nil, connectorName: String? = nil, server: String? = nil, toolName: String? = nil, toolTitle: String? = nil) {
+    public init(command: String? = nil, cwd: String? = nil, source: GuardianCommandSource? = nil, type: GuardianApprovalReviewActionType, argv: [String]? = nil, program: String? = nil, files: [String]? = nil, host: String? = nil, port: Int? = nil, guardianApprovalReviewActionProtocol: NetworkApprovalProtocol? = nil, target: String? = nil, connectorId: String? = nil, connectorName: String? = nil, server: String? = nil, toolName: String? = nil, toolTitle: String? = nil, permissions: RequestPermissionProfile? = nil, reason: String? = nil) {
         self.command = command
         self.cwd = cwd
         self.source = source
@@ -13329,6 +15395,8 @@ public struct GuardianApprovalReviewAction: Codable, Sendable {
         self.server = server
         self.toolName = toolName
         self.toolTitle = toolTitle
+        self.permissions = permissions
+        self.reason = reason
     }
 }
 
@@ -13366,7 +15434,9 @@ public extension GuardianApprovalReviewAction {
         connectorName: String?? = nil,
         server: String?? = nil,
         toolName: String?? = nil,
-        toolTitle: String?? = nil
+        toolTitle: String?? = nil,
+        permissions: RequestPermissionProfile?? = nil,
+        reason: String?? = nil
     ) -> GuardianApprovalReviewAction {
         return GuardianApprovalReviewAction(
             command: command ?? self.command,
@@ -13384,7 +15454,62 @@ public extension GuardianApprovalReviewAction {
             connectorName: connectorName ?? self.connectorName,
             server: server ?? self.server,
             toolName: toolName ?? self.toolName,
-            toolTitle: toolTitle ?? self.toolTitle
+            toolTitle: toolTitle ?? self.toolTitle,
+            permissions: permissions ?? self.permissions,
+            reason: reason ?? self.reason
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - RequestPermissionProfile
+public struct RequestPermissionProfile: Codable, Sendable {
+    public var fileSystem: AdditionalFileSystemPermissions?
+    public var network: AdditionalNetworkPermissions?
+
+    public enum CodingKeys: String, CodingKey {
+        case fileSystem = "fileSystem"
+        case network = "network"
+    }
+
+    public init(fileSystem: AdditionalFileSystemPermissions? = nil, network: AdditionalNetworkPermissions? = nil) {
+        self.fileSystem = fileSystem
+        self.network = network
+    }
+}
+
+// MARK: RequestPermissionProfile convenience initializers and mutators
+
+public extension RequestPermissionProfile {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(RequestPermissionProfile.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        fileSystem: AdditionalFileSystemPermissions?? = nil,
+        network: AdditionalNetworkPermissions?? = nil
+    ) -> RequestPermissionProfile {
+        return RequestPermissionProfile(
+            fileSystem: fileSystem ?? self.fileSystem,
+            network: network ?? self.network
         )
     }
 
@@ -13408,6 +15533,62 @@ public enum GuardianApprovalReviewActionType: String, Codable, Sendable {
     case execve = "execve"
     case mcpToolCall = "mcpToolCall"
     case networkAccess = "networkAccess"
+    case requestPermissions = "requestPermissions"
+}
+
+// MARK: - GuardianWarningNotification
+public struct GuardianWarningNotification: Codable, Sendable {
+    /// Concise guardian warning message for the user.
+    public var message: String
+    /// Thread target for the guardian warning.
+    public var threadId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case message = "message"
+        case threadId = "threadId"
+    }
+
+    public init(message: String, threadId: String) {
+        self.message = message
+        self.threadId = threadId
+    }
+}
+
+// MARK: GuardianWarningNotification convenience initializers and mutators
+
+public extension GuardianWarningNotification {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(GuardianWarningNotification.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        message: String? = nil,
+        threadId: String? = nil
+    ) -> GuardianWarningNotification {
+        return GuardianWarningNotification(
+            message: message ?? self.message,
+            threadId: threadId ?? self.threadId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
 }
 
 // MARK: - HookCompletedNotification
@@ -13479,6 +15660,7 @@ public struct HookRunSummary: Codable, Sendable {
     public var handlerType: HookHandlerType
     public var id: String
     public var scope: HookScope
+    public var source: HookSource?
     public var sourcePath: String
     public var startedAt: Int
     public var status: HookRunStatus
@@ -13494,13 +15676,14 @@ public struct HookRunSummary: Codable, Sendable {
         case handlerType = "handlerType"
         case id = "id"
         case scope = "scope"
+        case source = "source"
         case sourcePath = "sourcePath"
         case startedAt = "startedAt"
         case status = "status"
         case statusMessage = "statusMessage"
     }
 
-    public init(completedAt: Int? = nil, displayOrder: Int, durationMs: Int? = nil, entries: [HookOutputEntry], eventName: HookEventName, executionMode: HookExecutionMode, handlerType: HookHandlerType, id: String, scope: HookScope, sourcePath: String, startedAt: Int, status: HookRunStatus, statusMessage: String? = nil) {
+    public init(completedAt: Int? = nil, displayOrder: Int, durationMs: Int? = nil, entries: [HookOutputEntry], eventName: HookEventName, executionMode: HookExecutionMode, handlerType: HookHandlerType, id: String, scope: HookScope, source: HookSource? = nil, sourcePath: String, startedAt: Int, status: HookRunStatus, statusMessage: String? = nil) {
         self.completedAt = completedAt
         self.displayOrder = displayOrder
         self.durationMs = durationMs
@@ -13510,6 +15693,7 @@ public struct HookRunSummary: Codable, Sendable {
         self.handlerType = handlerType
         self.id = id
         self.scope = scope
+        self.source = source
         self.sourcePath = sourcePath
         self.startedAt = startedAt
         self.status = status
@@ -13545,6 +15729,7 @@ public extension HookRunSummary {
         handlerType: HookHandlerType? = nil,
         id: String? = nil,
         scope: HookScope? = nil,
+        source: HookSource?? = nil,
         sourcePath: String? = nil,
         startedAt: Int? = nil,
         status: HookRunStatus? = nil,
@@ -13560,6 +15745,7 @@ public extension HookRunSummary {
             handlerType: handlerType ?? self.handlerType,
             id: id ?? self.id,
             scope: scope ?? self.scope,
+            source: source ?? self.source,
             sourcePath: sourcePath ?? self.sourcePath,
             startedAt: startedAt ?? self.startedAt,
             status: status ?? self.status,
@@ -13638,6 +15824,7 @@ public enum HookOutputEntryKind: String, Codable, Sendable {
 }
 
 public enum HookEventName: String, Codable, Sendable {
+    case permissionRequest = "permissionRequest"
     case postToolUse = "postToolUse"
     case preToolUse = "preToolUse"
     case sessionStart = "sessionStart"
@@ -13650,15 +15837,20 @@ public enum HookExecutionMode: String, Codable, Sendable {
     case sync = "sync"
 }
 
-public enum HookHandlerType: String, Codable, Sendable {
-    case agent = "agent"
-    case command = "command"
-    case prompt = "prompt"
-}
-
 public enum HookScope: String, Codable, Sendable {
     case thread = "thread"
     case turn = "turn"
+}
+
+public enum HookSource: String, Codable, Sendable {
+    case legacyManagedConfigFile = "legacyManagedConfigFile"
+    case legacyManagedConfigMdm = "legacyManagedConfigMdm"
+    case mdm = "mdm"
+    case project = "project"
+    case sessionFlags = "sessionFlags"
+    case system = "system"
+    case unknown = "unknown"
+    case user = "user"
 }
 
 public enum HookRunStatus: String, Codable, Sendable {
@@ -14007,11 +16199,13 @@ public struct ThreadItem: Codable, Sendable {
     public var changes: [FileUpdateChange]?
     public var arguments: JSONAny?
     public var error: MCPToolCallError?
+    public var mcpAppResourceUri: String?
     public var result: ThreadItemResult?
     public var server: String?
     /// Name of the collab tool that was invoked.
     public var tool: String?
     public var contentItems: [DynamicToolCallOutputContentItem]?
+    public var namespace: String?
     public var success: Bool?
     /// Last known status of the target agents, when available.
     public var agentsStates: [String: CollabAgentState]?
@@ -14057,10 +16251,12 @@ public struct ThreadItem: Codable, Sendable {
         case changes = "changes"
         case arguments = "arguments"
         case error = "error"
+        case mcpAppResourceUri = "mcpAppResourceUri"
         case result = "result"
         case server = "server"
         case tool = "tool"
         case contentItems = "contentItems"
+        case namespace = "namespace"
         case success = "success"
         case agentsStates = "agentsStates"
         case model = "model"
@@ -14076,7 +16272,7 @@ public struct ThreadItem: Codable, Sendable {
         case review = "review"
     }
 
-    public init(content: [ThreadItemContent]? = nil, id: String, type: ThreadItemType, fragments: [HookPromptFragment]? = nil, memoryCitation: MemoryCitation? = nil, phase: MessagePhase? = nil, text: String? = nil, summary: [String]? = nil, aggregatedOutput: String? = nil, command: String? = nil, commandActions: [CommandAction]? = nil, cwd: String? = nil, durationMs: Int? = nil, exitCode: Int? = nil, processId: String? = nil, source: CommandExecutionSource? = nil, status: String? = nil, changes: [FileUpdateChange]? = nil, arguments: JSONAny? = nil, error: MCPToolCallError? = nil, result: ThreadItemResult? = nil, server: String? = nil, tool: String? = nil, contentItems: [DynamicToolCallOutputContentItem]? = nil, success: Bool? = nil, agentsStates: [String: CollabAgentState]? = nil, model: String? = nil, prompt: String? = nil, reasoningEffort: ReasoningEffort? = nil, receiverThreadIds: [String]? = nil, senderThreadId: String? = nil, action: ThreadItemSearchWebSearchAction? = nil, query: String? = nil, path: String? = nil, revisedPrompt: String? = nil, savedPath: String? = nil, review: String? = nil) {
+    public init(content: [ThreadItemContent]? = nil, id: String, type: ThreadItemType, fragments: [HookPromptFragment]? = nil, memoryCitation: MemoryCitation? = nil, phase: MessagePhase? = nil, text: String? = nil, summary: [String]? = nil, aggregatedOutput: String? = nil, command: String? = nil, commandActions: [CommandAction]? = nil, cwd: String? = nil, durationMs: Int? = nil, exitCode: Int? = nil, processId: String? = nil, source: CommandExecutionSource? = nil, status: String? = nil, changes: [FileUpdateChange]? = nil, arguments: JSONAny? = nil, error: MCPToolCallError? = nil, mcpAppResourceUri: String? = nil, result: ThreadItemResult? = nil, server: String? = nil, tool: String? = nil, contentItems: [DynamicToolCallOutputContentItem]? = nil, namespace: String? = nil, success: Bool? = nil, agentsStates: [String: CollabAgentState]? = nil, model: String? = nil, prompt: String? = nil, reasoningEffort: ReasoningEffort? = nil, receiverThreadIds: [String]? = nil, senderThreadId: String? = nil, action: ThreadItemSearchWebSearchAction? = nil, query: String? = nil, path: String? = nil, revisedPrompt: String? = nil, savedPath: String? = nil, review: String? = nil) {
         self.content = content
         self.id = id
         self.type = type
@@ -14097,10 +16293,12 @@ public struct ThreadItem: Codable, Sendable {
         self.changes = changes
         self.arguments = arguments
         self.error = error
+        self.mcpAppResourceUri = mcpAppResourceUri
         self.result = result
         self.server = server
         self.tool = tool
         self.contentItems = contentItems
+        self.namespace = namespace
         self.success = success
         self.agentsStates = agentsStates
         self.model = model
@@ -14156,10 +16354,12 @@ public extension ThreadItem {
         changes: [FileUpdateChange]?? = nil,
         arguments: JSONAny?? = nil,
         error: MCPToolCallError?? = nil,
+        mcpAppResourceUri: String?? = nil,
         result: ThreadItemResult?? = nil,
         server: String?? = nil,
         tool: String?? = nil,
         contentItems: [DynamicToolCallOutputContentItem]?? = nil,
+        namespace: String?? = nil,
         success: Bool?? = nil,
         agentsStates: [String: CollabAgentState]?? = nil,
         model: String?? = nil,
@@ -14195,10 +16395,12 @@ public extension ThreadItem {
             changes: changes ?? self.changes,
             arguments: arguments ?? self.arguments,
             error: error ?? self.error,
+            mcpAppResourceUri: mcpAppResourceUri ?? self.mcpAppResourceUri,
             result: result ?? self.result,
             server: server ?? self.server,
             tool: tool ?? self.tool,
             contentItems: contentItems ?? self.contentItems,
+            namespace: namespace ?? self.namespace,
             success: success ?? self.success,
             agentsStates: agentsStates ?? self.agentsStates,
             model: model ?? self.model,
@@ -14732,10 +16934,10 @@ public enum ThreadItemType: String, Codable, Sendable {
     case webSearch = "webSearch"
 }
 
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This
-/// shape is expected to change soon.
+/// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is
+/// expected to change soon.
 // MARK: - ItemGuardianApprovalReviewCompletedNotification
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This shape is expected to change soon.
+/// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is expected to change soon.
 public struct ItemGuardianApprovalReviewCompletedNotification: Codable, Sendable {
     public var action: GuardianApprovalReviewAction
     public var decisionSource: AutoReviewDecisionSource
@@ -14825,10 +17027,10 @@ public extension ItemGuardianApprovalReviewCompletedNotification {
     }
 }
 
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This
-/// shape is expected to change soon.
+/// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is
+/// expected to change soon.
 // MARK: - ItemGuardianApprovalReviewStartedNotification
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This shape is expected to change soon.
+/// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is expected to change soon.
 public struct ItemGuardianApprovalReviewStartedNotification: Codable, Sendable {
     public var action: GuardianApprovalReviewAction
     public var review: GuardianApprovalReview
@@ -16292,6 +18494,266 @@ public extension MarketplaceLoadErrorInfo {
     }
 }
 
+// MARK: - MarketplaceRemoveParams
+public struct MarketplaceRemoveParams: Codable, Sendable {
+    public var marketplaceName: String
+
+    public enum CodingKeys: String, CodingKey {
+        case marketplaceName = "marketplaceName"
+    }
+
+    public init(marketplaceName: String) {
+        self.marketplaceName = marketplaceName
+    }
+}
+
+// MARK: MarketplaceRemoveParams convenience initializers and mutators
+
+public extension MarketplaceRemoveParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(MarketplaceRemoveParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        marketplaceName: String? = nil
+    ) -> MarketplaceRemoveParams {
+        return MarketplaceRemoveParams(
+            marketplaceName: marketplaceName ?? self.marketplaceName
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - MarketplaceRemoveResponse
+public struct MarketplaceRemoveResponse: Codable, Sendable {
+    public var installedRoot: String?
+    public var marketplaceName: String
+
+    public enum CodingKeys: String, CodingKey {
+        case installedRoot = "installedRoot"
+        case marketplaceName = "marketplaceName"
+    }
+
+    public init(installedRoot: String? = nil, marketplaceName: String) {
+        self.installedRoot = installedRoot
+        self.marketplaceName = marketplaceName
+    }
+}
+
+// MARK: MarketplaceRemoveResponse convenience initializers and mutators
+
+public extension MarketplaceRemoveResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(MarketplaceRemoveResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        installedRoot: String?? = nil,
+        marketplaceName: String? = nil
+    ) -> MarketplaceRemoveResponse {
+        return MarketplaceRemoveResponse(
+            installedRoot: installedRoot ?? self.installedRoot,
+            marketplaceName: marketplaceName ?? self.marketplaceName
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - MarketplaceUpgradeErrorInfo
+public struct MarketplaceUpgradeErrorInfo: Codable, Sendable {
+    public var marketplaceName: String
+    public var message: String
+
+    public enum CodingKeys: String, CodingKey {
+        case marketplaceName = "marketplaceName"
+        case message = "message"
+    }
+
+    public init(marketplaceName: String, message: String) {
+        self.marketplaceName = marketplaceName
+        self.message = message
+    }
+}
+
+// MARK: MarketplaceUpgradeErrorInfo convenience initializers and mutators
+
+public extension MarketplaceUpgradeErrorInfo {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(MarketplaceUpgradeErrorInfo.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        marketplaceName: String? = nil,
+        message: String? = nil
+    ) -> MarketplaceUpgradeErrorInfo {
+        return MarketplaceUpgradeErrorInfo(
+            marketplaceName: marketplaceName ?? self.marketplaceName,
+            message: message ?? self.message
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - MarketplaceUpgradeParams
+public struct MarketplaceUpgradeParams: Codable, Sendable {
+    public var marketplaceName: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case marketplaceName = "marketplaceName"
+    }
+
+    public init(marketplaceName: String? = nil) {
+        self.marketplaceName = marketplaceName
+    }
+}
+
+// MARK: MarketplaceUpgradeParams convenience initializers and mutators
+
+public extension MarketplaceUpgradeParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(MarketplaceUpgradeParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        marketplaceName: String?? = nil
+    ) -> MarketplaceUpgradeParams {
+        return MarketplaceUpgradeParams(
+            marketplaceName: marketplaceName ?? self.marketplaceName
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - MarketplaceUpgradeResponse
+public struct MarketplaceUpgradeResponse: Codable, Sendable {
+    public var errors: [MarketplaceUpgradeErrorInfo]
+    public var selectedMarketplaces: [String]
+    public var upgradedRoots: [String]
+
+    public enum CodingKeys: String, CodingKey {
+        case errors = "errors"
+        case selectedMarketplaces = "selectedMarketplaces"
+        case upgradedRoots = "upgradedRoots"
+    }
+
+    public init(errors: [MarketplaceUpgradeErrorInfo], selectedMarketplaces: [String], upgradedRoots: [String]) {
+        self.errors = errors
+        self.selectedMarketplaces = selectedMarketplaces
+        self.upgradedRoots = upgradedRoots
+    }
+}
+
+// MARK: MarketplaceUpgradeResponse convenience initializers and mutators
+
+public extension MarketplaceUpgradeResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(MarketplaceUpgradeResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        errors: [MarketplaceUpgradeErrorInfo]? = nil,
+        selectedMarketplaces: [String]? = nil,
+        upgradedRoots: [String]? = nil
+    ) -> MarketplaceUpgradeResponse {
+        return MarketplaceUpgradeResponse(
+            errors: errors ?? self.errors,
+            selectedMarketplaces: selectedMarketplaces ?? self.selectedMarketplaces,
+            upgradedRoots: upgradedRoots ?? self.upgradedRoots
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 public enum MCPElicitationArrayType: String, Codable, Sendable {
     case array = "array"
 }
@@ -16418,7 +18880,7 @@ public extension MCPElicitationConstOption {
 
 // MARK: - MCPElicitationEnumSchema
 public struct MCPElicitationEnumSchema: Codable, Sendable {
-    public var mcpElicitationEnumSchemaDefault: CommandUnion?
+    public var mcpElicitationEnumSchemaDefault: CwdUnion?
     public var description: String?
     public var mcpElicitationEnumSchemaEnum: [String]?
     public var title: String?
@@ -16442,7 +18904,7 @@ public struct MCPElicitationEnumSchema: Codable, Sendable {
         case enumNames = "enumNames"
     }
 
-    public init(mcpElicitationEnumSchemaDefault: CommandUnion? = nil, description: String? = nil, mcpElicitationEnumSchemaEnum: [String]? = nil, title: String? = nil, type: MCPElicitationEnumSchemaType, oneOf: [MCPElicitationConstOption]? = nil, items: MCPElicitationTitledEnumItems? = nil, maxItems: Int? = nil, minItems: Int? = nil, enumNames: [String]? = nil) {
+    public init(mcpElicitationEnumSchemaDefault: CwdUnion? = nil, description: String? = nil, mcpElicitationEnumSchemaEnum: [String]? = nil, title: String? = nil, type: MCPElicitationEnumSchemaType, oneOf: [MCPElicitationConstOption]? = nil, items: MCPElicitationTitledEnumItems? = nil, maxItems: Int? = nil, minItems: Int? = nil, enumNames: [String]? = nil) {
         self.mcpElicitationEnumSchemaDefault = mcpElicitationEnumSchemaDefault
         self.description = description
         self.mcpElicitationEnumSchemaEnum = mcpElicitationEnumSchemaEnum
@@ -16475,7 +18937,7 @@ public extension MCPElicitationEnumSchema {
     }
 
     func with(
-        mcpElicitationEnumSchemaDefault: CommandUnion?? = nil,
+        mcpElicitationEnumSchemaDefault: CwdUnion?? = nil,
         description: String?? = nil,
         mcpElicitationEnumSchemaEnum: [String]?? = nil,
         title: String?? = nil,
@@ -16569,41 +19031,6 @@ public extension MCPElicitationTitledEnumItems {
 
 public enum MCPElicitationStringType: String, Codable, Sendable {
     case string = "string"
-}
-
-public enum CommandUnion: Codable, Sendable {
-    case string(String)
-    case stringArray([String])
-    case null
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let x = try? container.decode([String].self) {
-            self = .stringArray(x)
-            return
-        }
-        if let x = try? container.decode(String.self) {
-            self = .string(x)
-            return
-        }
-        if container.decodeNil() {
-            self = .null
-            return
-        }
-        throw DecodingError.typeMismatch(CommandUnion.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for CommandUnion"))
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .string(let x):
-            try container.encode(x)
-        case .stringArray(let x):
-            try container.encode(x)
-        case .null:
-            try container.encodeNil()
-        }
-    }
 }
 
 public enum MCPElicitationEnumSchemaType: String, Codable, Sendable {
@@ -16846,7 +19273,7 @@ public enum MCPElicitationObjectType: String, Codable, Sendable {
 
 // MARK: - MCPElicitationPrimitiveSchema
 public struct MCPElicitationPrimitiveSchema: Codable, Sendable {
-    public var mcpElicitationPrimitiveSchemaDefault: MCPElicitationPrimitiveSchemaDefault?
+    public var mcpElicitationPrimitiveSchemaDefault: DefaultUnion?
     public var description: String?
     public var mcpElicitationPrimitiveSchemaEnum: [String]?
     public var title: String?
@@ -16880,7 +19307,7 @@ public struct MCPElicitationPrimitiveSchema: Codable, Sendable {
         case minimum = "minimum"
     }
 
-    public init(mcpElicitationPrimitiveSchemaDefault: MCPElicitationPrimitiveSchemaDefault? = nil, description: String? = nil, mcpElicitationPrimitiveSchemaEnum: [String]? = nil, title: String? = nil, type: MCPElicitationPrimitiveSchemaType, oneOf: [MCPElicitationConstOption]? = nil, items: MCPElicitationTitledEnumItems? = nil, maxItems: Int? = nil, minItems: Int? = nil, enumNames: [String]? = nil, format: MCPElicitationStringFormat? = nil, maxLength: Int? = nil, minLength: Int? = nil, maximum: Double? = nil, minimum: Double? = nil) {
+    public init(mcpElicitationPrimitiveSchemaDefault: DefaultUnion? = nil, description: String? = nil, mcpElicitationPrimitiveSchemaEnum: [String]? = nil, title: String? = nil, type: MCPElicitationPrimitiveSchemaType, oneOf: [MCPElicitationConstOption]? = nil, items: MCPElicitationTitledEnumItems? = nil, maxItems: Int? = nil, minItems: Int? = nil, enumNames: [String]? = nil, format: MCPElicitationStringFormat? = nil, maxLength: Int? = nil, minLength: Int? = nil, maximum: Double? = nil, minimum: Double? = nil) {
         self.mcpElicitationPrimitiveSchemaDefault = mcpElicitationPrimitiveSchemaDefault
         self.description = description
         self.mcpElicitationPrimitiveSchemaEnum = mcpElicitationPrimitiveSchemaEnum
@@ -16918,7 +19345,7 @@ public extension MCPElicitationPrimitiveSchema {
     }
 
     func with(
-        mcpElicitationPrimitiveSchemaDefault: MCPElicitationPrimitiveSchemaDefault?? = nil,
+        mcpElicitationPrimitiveSchemaDefault: DefaultUnion?? = nil,
         description: String?? = nil,
         mcpElicitationPrimitiveSchemaEnum: [String]?? = nil,
         title: String?? = nil,
@@ -16969,7 +19396,7 @@ public enum MCPElicitationStringFormat: String, Codable, Sendable {
     case uri = "uri"
 }
 
-public enum MCPElicitationPrimitiveSchemaDefault: Codable, Sendable {
+public enum DefaultUnion: Codable, Sendable {
     case bool(Bool)
     case double(Double)
     case string(String)
@@ -16998,7 +19425,7 @@ public enum MCPElicitationPrimitiveSchemaDefault: Codable, Sendable {
             self = .null
             return
         }
-        throw DecodingError.typeMismatch(MCPElicitationPrimitiveSchemaDefault.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for MCPElicitationPrimitiveSchemaDefault"))
+        throw DecodingError.typeMismatch(DefaultUnion.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for DefaultUnion"))
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -17640,7 +20067,7 @@ public extension MCPElicitationUntitledSingleSelectEnumSchema {
 // MARK: - MCPResourceReadParams
 public struct MCPResourceReadParams: Codable, Sendable {
     public var server: String
-    public var threadId: String
+    public var threadId: String?
     public var uri: String
 
     public enum CodingKeys: String, CodingKey {
@@ -17649,7 +20076,7 @@ public struct MCPResourceReadParams: Codable, Sendable {
         case uri = "uri"
     }
 
-    public init(server: String, threadId: String, uri: String) {
+    public init(server: String, threadId: String? = nil, uri: String) {
         self.server = server
         self.threadId = threadId
         self.uri = uri
@@ -17676,7 +20103,7 @@ public extension MCPResourceReadParams {
 
     func with(
         server: String? = nil,
-        threadId: String? = nil,
+        threadId: String?? = nil,
         uri: String? = nil
     ) -> MCPResourceReadParams {
         return MCPResourceReadParams(
@@ -18968,20 +21395,150 @@ public extension ModelReroutedNotification {
     }
 }
 
+public enum ModelVerification: String, Codable, Sendable {
+    case trustedAccessForCyber = "trustedAccessForCyber"
+}
+
+// MARK: - ModelVerificationNotification
+public struct ModelVerificationNotification: Codable, Sendable {
+    public var threadId: String
+    public var turnId: String
+    public var verifications: [ModelVerification]
+
+    public enum CodingKeys: String, CodingKey {
+        case threadId = "threadId"
+        case turnId = "turnId"
+        case verifications = "verifications"
+    }
+
+    public init(threadId: String, turnId: String, verifications: [ModelVerification]) {
+        self.threadId = threadId
+        self.turnId = turnId
+        self.verifications = verifications
+    }
+}
+
+// MARK: ModelVerificationNotification convenience initializers and mutators
+
+public extension ModelVerificationNotification {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ModelVerificationNotification.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        threadId: String? = nil,
+        turnId: String? = nil,
+        verifications: [ModelVerification]? = nil
+    ) -> ModelVerificationNotification {
+        return ModelVerificationNotification(
+            threadId: threadId ?? self.threadId,
+            turnId: turnId ?? self.turnId,
+            verifications: verifications ?? self.verifications
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 public enum PermissionGrantScope: String, Codable, Sendable {
     case session = "session"
     case turn = "turn"
 }
 
+/// Codex owns sandbox construction for this profile.
+///
+/// Do not apply an outer sandbox.
+///
+/// Filesystem isolation is enforced by an external caller.
+// MARK: - PermissionProfile
+public struct PermissionProfile: Codable, Sendable {
+    public var fileSystem: PermissionProfileFileSystemPermissions?
+    public var network: PermissionProfileNetworkPermissions?
+    public var type: PermissionProfileType
+
+    public enum CodingKeys: String, CodingKey {
+        /// Codex owns sandbox construction for this profile.
+        case fileSystem = "fileSystem"
+        /// Codex owns sandbox construction for this profile.
+        case network = "network"
+        /// Codex owns sandbox construction for this profile.
+        case type = "type"
+    }
+
+    public init(fileSystem: PermissionProfileFileSystemPermissions? = nil, network: PermissionProfileNetworkPermissions? = nil, type: PermissionProfileType) {
+        self.fileSystem = fileSystem
+        self.network = network
+        self.type = type
+    }
+}
+
+// MARK: PermissionProfile convenience initializers and mutators
+
+public extension PermissionProfile {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(PermissionProfile.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        fileSystem: PermissionProfileFileSystemPermissions?? = nil,
+        network: PermissionProfileNetworkPermissions?? = nil,
+        type: PermissionProfileType? = nil
+    ) -> PermissionProfile {
+        return PermissionProfile(
+            fileSystem: fileSystem ?? self.fileSystem,
+            network: network ?? self.network,
+            type: type ?? self.type
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 // MARK: - PermissionsRequestApprovalParams
 public struct PermissionsRequestApprovalParams: Codable, Sendable {
+    public var cwd: String
     public var itemId: String
-    public var permissions: RequestPermissionProfile
+    public var permissions: Permissions
     public var reason: String?
     public var threadId: String
     public var turnId: String
 
     public enum CodingKeys: String, CodingKey {
+        case cwd = "cwd"
         case itemId = "itemId"
         case permissions = "permissions"
         case reason = "reason"
@@ -18989,7 +21546,8 @@ public struct PermissionsRequestApprovalParams: Codable, Sendable {
         case turnId = "turnId"
     }
 
-    public init(itemId: String, permissions: RequestPermissionProfile, reason: String? = nil, threadId: String, turnId: String) {
+    public init(cwd: String, itemId: String, permissions: Permissions, reason: String? = nil, threadId: String, turnId: String) {
+        self.cwd = cwd
         self.itemId = itemId
         self.permissions = permissions
         self.reason = reason
@@ -19017,13 +21575,15 @@ public extension PermissionsRequestApprovalParams {
     }
 
     func with(
+        cwd: String? = nil,
         itemId: String? = nil,
-        permissions: RequestPermissionProfile? = nil,
+        permissions: Permissions? = nil,
         reason: String?? = nil,
         threadId: String? = nil,
         turnId: String? = nil
     ) -> PermissionsRequestApprovalParams {
         return PermissionsRequestApprovalParams(
+            cwd: cwd ?? self.cwd,
             itemId: itemId ?? self.itemId,
             permissions: permissions ?? self.permissions,
             reason: reason ?? self.reason,
@@ -19041,27 +21601,27 @@ public extension PermissionsRequestApprovalParams {
     }
 }
 
-// MARK: - RequestPermissionProfile
-public struct RequestPermissionProfile: Codable, Sendable {
-    public var fileSystem: AdditionalFileSystemPermissions?
-    public var network: AdditionalNetworkPermissions?
+// MARK: - Permissions
+public struct Permissions: Codable, Sendable {
+    public var fileSystem: FileSystemClass?
+    public var network: NetworkClass?
 
     public enum CodingKeys: String, CodingKey {
         case fileSystem = "fileSystem"
         case network = "network"
     }
 
-    public init(fileSystem: AdditionalFileSystemPermissions? = nil, network: AdditionalNetworkPermissions? = nil) {
+    public init(fileSystem: FileSystemClass? = nil, network: NetworkClass? = nil) {
         self.fileSystem = fileSystem
         self.network = network
     }
 }
 
-// MARK: RequestPermissionProfile convenience initializers and mutators
+// MARK: Permissions convenience initializers and mutators
 
-public extension RequestPermissionProfile {
+public extension Permissions {
     init(data: Data) throws {
-        self = try newJSONDecoder().decode(RequestPermissionProfile.self, from: data)
+        self = try newJSONDecoder().decode(Permissions.self, from: data)
     }
 
     init(_ json: String, using encoding: String.Encoding = .utf8) throws {
@@ -19076,10 +21636,10 @@ public extension RequestPermissionProfile {
     }
 
     func with(
-        fileSystem: AdditionalFileSystemPermissions?? = nil,
-        network: AdditionalNetworkPermissions?? = nil
-    ) -> RequestPermissionProfile {
-        return RequestPermissionProfile(
+        fileSystem: FileSystemClass?? = nil,
+        network: NetworkClass?? = nil
+    ) -> Permissions {
+        return Permissions(
             fileSystem: fileSystem ?? self.fileSystem,
             network: network ?? self.network
         )
@@ -19098,15 +21658,19 @@ public extension RequestPermissionProfile {
 public struct PermissionsRequestApprovalResponse: Codable, Sendable {
     public var permissions: GrantedPermissionProfile
     public var scope: PermissionGrantScope?
+    /// Review every subsequent command in this turn before normal sandboxed execution.
+    public var strictAutoReview: Bool?
 
     public enum CodingKeys: String, CodingKey {
         case permissions = "permissions"
         case scope = "scope"
+        case strictAutoReview = "strictAutoReview"
     }
 
-    public init(permissions: GrantedPermissionProfile, scope: PermissionGrantScope? = nil) {
+    public init(permissions: GrantedPermissionProfile, scope: PermissionGrantScope? = nil, strictAutoReview: Bool? = nil) {
         self.permissions = permissions
         self.scope = scope
+        self.strictAutoReview = strictAutoReview
     }
 }
 
@@ -19130,11 +21694,13 @@ public extension PermissionsRequestApprovalResponse {
 
     func with(
         permissions: GrantedPermissionProfile? = nil,
-        scope: PermissionGrantScope?? = nil
+        scope: PermissionGrantScope?? = nil,
+        strictAutoReview: Bool?? = nil
     ) -> PermissionsRequestApprovalResponse {
         return PermissionsRequestApprovalResponse(
             permissions: permissions ?? self.permissions,
-            scope: scope ?? self.scope
+            scope: scope ?? self.scope,
+            strictAutoReview: strictAutoReview ?? self.strictAutoReview
         )
     }
 
@@ -19223,7 +21789,7 @@ public struct PluginDetail: Codable, Sendable {
     public var apps: [AppSummary]
     public var description: String?
     public var marketplaceName: String
-    public var marketplacePath: String
+    public var marketplacePath: String?
     public var mcpServers: [String]
     public var skills: [SkillSummary]
     public var summary: PluginSummary
@@ -19238,7 +21804,7 @@ public struct PluginDetail: Codable, Sendable {
         case summary = "summary"
     }
 
-    public init(apps: [AppSummary], description: String? = nil, marketplaceName: String, marketplacePath: String, mcpServers: [String], skills: [SkillSummary], summary: PluginSummary) {
+    public init(apps: [AppSummary], description: String? = nil, marketplaceName: String, marketplacePath: String? = nil, mcpServers: [String], skills: [SkillSummary], summary: PluginSummary) {
         self.apps = apps
         self.description = description
         self.marketplaceName = marketplaceName
@@ -19271,7 +21837,7 @@ public extension PluginDetail {
         apps: [AppSummary]? = nil,
         description: String?? = nil,
         marketplaceName: String? = nil,
-        marketplacePath: String? = nil,
+        marketplacePath: String?? = nil,
         mcpServers: [String]? = nil,
         skills: [SkillSummary]? = nil,
         summary: PluginSummary? = nil
@@ -19302,7 +21868,7 @@ public struct SkillSummary: Codable, Sendable {
     public var enabled: Bool
     public var interface: SkillInterface?
     public var name: String
-    public var path: String
+    public var path: String?
     public var shortDescription: String?
 
     public enum CodingKeys: String, CodingKey {
@@ -19314,7 +21880,7 @@ public struct SkillSummary: Codable, Sendable {
         case shortDescription = "shortDescription"
     }
 
-    public init(description: String, enabled: Bool, interface: SkillInterface? = nil, name: String, path: String, shortDescription: String? = nil) {
+    public init(description: String, enabled: Bool, interface: SkillInterface? = nil, name: String, path: String? = nil, shortDescription: String? = nil) {
         self.description = description
         self.enabled = enabled
         self.interface = interface
@@ -19347,7 +21913,7 @@ public extension SkillSummary {
         enabled: Bool? = nil,
         interface: SkillInterface?? = nil,
         name: String? = nil,
-        path: String? = nil,
+        path: String?? = nil,
         shortDescription: String?? = nil
     ) -> SkillSummary {
         return SkillSummary(
@@ -19536,16 +22102,25 @@ public struct PluginInterface: Codable, Sendable {
     public var brandColor: String?
     public var capabilities: [String]
     public var category: String?
+    /// Local composer icon path, resolved from the installed plugin package.
     public var composerIcon: String?
+    /// Remote composer icon URL from the plugin catalog.
+    public var composerIconUrl: String?
     /// Starter prompts for the plugin. Capped at 3 entries with a maximum of 128 characters per
     /// entry.
     public var defaultPrompt: [String]?
     public var developerName: String?
     public var displayName: String?
+    /// Local logo path, resolved from the installed plugin package.
     public var logo: String?
+    /// Remote logo URL from the plugin catalog.
+    public var logoUrl: String?
     public var longDescription: String?
     public var privacyPolicyUrl: String?
+    /// Local screenshot paths, resolved from the installed plugin package.
     public var screenshots: [String]
+    /// Remote screenshot URLs from the plugin catalog.
+    public var screenshotUrls: [String]
     public var shortDescription: String?
     public var termsOfServiceUrl: String?
     public var websiteUrl: String?
@@ -19555,30 +22130,36 @@ public struct PluginInterface: Codable, Sendable {
         case capabilities = "capabilities"
         case category = "category"
         case composerIcon = "composerIcon"
+        case composerIconUrl = "composerIconUrl"
         case defaultPrompt = "defaultPrompt"
         case developerName = "developerName"
         case displayName = "displayName"
         case logo = "logo"
+        case logoUrl = "logoUrl"
         case longDescription = "longDescription"
         case privacyPolicyUrl = "privacyPolicyUrl"
         case screenshots = "screenshots"
+        case screenshotUrls = "screenshotUrls"
         case shortDescription = "shortDescription"
         case termsOfServiceUrl = "termsOfServiceUrl"
         case websiteUrl = "websiteUrl"
     }
 
-    public init(brandColor: String? = nil, capabilities: [String], category: String? = nil, composerIcon: String? = nil, defaultPrompt: [String]? = nil, developerName: String? = nil, displayName: String? = nil, logo: String? = nil, longDescription: String? = nil, privacyPolicyUrl: String? = nil, screenshots: [String], shortDescription: String? = nil, termsOfServiceUrl: String? = nil, websiteUrl: String? = nil) {
+    public init(brandColor: String? = nil, capabilities: [String], category: String? = nil, composerIcon: String? = nil, composerIconUrl: String? = nil, defaultPrompt: [String]? = nil, developerName: String? = nil, displayName: String? = nil, logo: String? = nil, logoUrl: String? = nil, longDescription: String? = nil, privacyPolicyUrl: String? = nil, screenshots: [String], screenshotUrls: [String], shortDescription: String? = nil, termsOfServiceUrl: String? = nil, websiteUrl: String? = nil) {
         self.brandColor = brandColor
         self.capabilities = capabilities
         self.category = category
         self.composerIcon = composerIcon
+        self.composerIconUrl = composerIconUrl
         self.defaultPrompt = defaultPrompt
         self.developerName = developerName
         self.displayName = displayName
         self.logo = logo
+        self.logoUrl = logoUrl
         self.longDescription = longDescription
         self.privacyPolicyUrl = privacyPolicyUrl
         self.screenshots = screenshots
+        self.screenshotUrls = screenshotUrls
         self.shortDescription = shortDescription
         self.termsOfServiceUrl = termsOfServiceUrl
         self.websiteUrl = websiteUrl
@@ -19608,13 +22189,16 @@ public extension PluginInterface {
         capabilities: [String]? = nil,
         category: String?? = nil,
         composerIcon: String?? = nil,
+        composerIconUrl: String?? = nil,
         defaultPrompt: [String]?? = nil,
         developerName: String?? = nil,
         displayName: String?? = nil,
         logo: String?? = nil,
+        logoUrl: String?? = nil,
         longDescription: String?? = nil,
         privacyPolicyUrl: String?? = nil,
         screenshots: [String]? = nil,
+        screenshotUrls: [String]? = nil,
         shortDescription: String?? = nil,
         termsOfServiceUrl: String?? = nil,
         websiteUrl: String?? = nil
@@ -19624,13 +22208,16 @@ public extension PluginInterface {
             capabilities: capabilities ?? self.capabilities,
             category: category ?? self.category,
             composerIcon: composerIcon ?? self.composerIcon,
+            composerIconUrl: composerIconUrl ?? self.composerIconUrl,
             defaultPrompt: defaultPrompt ?? self.defaultPrompt,
             developerName: developerName ?? self.developerName,
             displayName: displayName ?? self.displayName,
             logo: logo ?? self.logo,
+            logoUrl: logoUrl ?? self.logoUrl,
             longDescription: longDescription ?? self.longDescription,
             privacyPolicyUrl: privacyPolicyUrl ?? self.privacyPolicyUrl,
             screenshots: screenshots ?? self.screenshots,
+            screenshotUrls: screenshotUrls ?? self.screenshotUrls,
             shortDescription: shortDescription ?? self.shortDescription,
             termsOfServiceUrl: termsOfServiceUrl ?? self.termsOfServiceUrl,
             websiteUrl: websiteUrl ?? self.websiteUrl
@@ -19646,19 +22233,31 @@ public extension PluginInterface {
     }
 }
 
+/// The plugin is available in the remote catalog. Download metadata is kept server-side and
+/// is not exposed through the app-server API.
 // MARK: - PluginSource
 public struct PluginSource: Codable, Sendable {
-    public var path: String
-    public var type: LocalPluginSourceType
+    public var path: String?
+    public var type: PluginSourceType
+    public var refName: String?
+    public var sha: String?
+    public var url: String?
 
     public enum CodingKeys: String, CodingKey {
         case path = "path"
+        /// The plugin is available in the remote catalog. Download metadata is kept server-side and is not exposed through the app-server API.
         case type = "type"
+        case refName = "refName"
+        case sha = "sha"
+        case url = "url"
     }
 
-    public init(path: String, type: LocalPluginSourceType) {
+    public init(path: String? = nil, type: PluginSourceType, refName: String? = nil, sha: String? = nil, url: String? = nil) {
         self.path = path
         self.type = type
+        self.refName = refName
+        self.sha = sha
+        self.url = url
     }
 }
 
@@ -19681,12 +22280,18 @@ public extension PluginSource {
     }
 
     func with(
-        path: String? = nil,
-        type: LocalPluginSourceType? = nil
+        path: String?? = nil,
+        type: PluginSourceType? = nil,
+        refName: String?? = nil,
+        sha: String?? = nil,
+        url: String?? = nil
     ) -> PluginSource {
         return PluginSource(
             path: path ?? self.path,
-            type: type ?? self.type
+            type: type ?? self.type,
+            refName: refName ?? self.refName,
+            sha: sha ?? self.sha,
+            url: url ?? self.url
         )
     }
 
@@ -19699,27 +22304,28 @@ public extension PluginSource {
     }
 }
 
-public enum LocalPluginSourceType: String, Codable, Sendable {
+public enum PluginSourceType: String, Codable, Sendable {
+    case git = "git"
     case local = "local"
+    case remote = "remote"
 }
 
 // MARK: - PluginInstallParams
 public struct PluginInstallParams: Codable, Sendable {
-    /// When true, apply the remote plugin change before the local install flow.
-    public var forceRemoteSync: Bool?
-    public var marketplacePath: String
+    public var marketplacePath: String?
     public var pluginName: String
+    public var remoteMarketplaceName: String?
 
     public enum CodingKeys: String, CodingKey {
-        case forceRemoteSync = "forceRemoteSync"
         case marketplacePath = "marketplacePath"
         case pluginName = "pluginName"
+        case remoteMarketplaceName = "remoteMarketplaceName"
     }
 
-    public init(forceRemoteSync: Bool? = nil, marketplacePath: String, pluginName: String) {
-        self.forceRemoteSync = forceRemoteSync
+    public init(marketplacePath: String? = nil, pluginName: String, remoteMarketplaceName: String? = nil) {
         self.marketplacePath = marketplacePath
         self.pluginName = pluginName
+        self.remoteMarketplaceName = remoteMarketplaceName
     }
 }
 
@@ -19742,14 +22348,14 @@ public extension PluginInstallParams {
     }
 
     func with(
-        forceRemoteSync: Bool?? = nil,
-        marketplacePath: String? = nil,
-        pluginName: String? = nil
+        marketplacePath: String?? = nil,
+        pluginName: String? = nil,
+        remoteMarketplaceName: String?? = nil
     ) -> PluginInstallParams {
         return PluginInstallParams(
-            forceRemoteSync: forceRemoteSync ?? self.forceRemoteSync,
             marketplacePath: marketplacePath ?? self.marketplacePath,
-            pluginName: pluginName ?? self.pluginName
+            pluginName: pluginName ?? self.pluginName,
+            remoteMarketplaceName: remoteMarketplaceName ?? self.remoteMarketplaceName
         )
     }
 
@@ -19820,18 +22426,13 @@ public struct PluginListParams: Codable, Sendable {
     /// Optional working directories used to discover repo marketplaces. When omitted, only
     /// home-scoped marketplaces and the official curated marketplace are considered.
     public var cwds: [String]?
-    /// When true, reconcile the official curated marketplace against the remote plugin state
-    /// before listing marketplaces.
-    public var forceRemoteSync: Bool?
 
     public enum CodingKeys: String, CodingKey {
         case cwds = "cwds"
-        case forceRemoteSync = "forceRemoteSync"
     }
 
-    public init(cwds: [String]? = nil, forceRemoteSync: Bool? = nil) {
+    public init(cwds: [String]? = nil) {
         self.cwds = cwds
-        self.forceRemoteSync = forceRemoteSync
     }
 }
 
@@ -19854,12 +22455,10 @@ public extension PluginListParams {
     }
 
     func with(
-        cwds: [String]?? = nil,
-        forceRemoteSync: Bool?? = nil
+        cwds: [String]?? = nil
     ) -> PluginListParams {
         return PluginListParams(
-            cwds: cwds ?? self.cwds,
-            forceRemoteSync: forceRemoteSync ?? self.forceRemoteSync
+            cwds: cwds ?? self.cwds
         )
     }
 
@@ -19877,20 +22476,17 @@ public struct PluginListResponse: Codable, Sendable {
     public var featuredPluginIds: [String]?
     public var marketplaceLoadErrors: [MarketplaceLoadErrorInfo]?
     public var marketplaces: [PluginMarketplaceEntry]
-    public var remoteSyncError: String?
 
     public enum CodingKeys: String, CodingKey {
         case featuredPluginIds = "featuredPluginIds"
         case marketplaceLoadErrors = "marketplaceLoadErrors"
         case marketplaces = "marketplaces"
-        case remoteSyncError = "remoteSyncError"
     }
 
-    public init(featuredPluginIds: [String]? = nil, marketplaceLoadErrors: [MarketplaceLoadErrorInfo]? = nil, marketplaces: [PluginMarketplaceEntry], remoteSyncError: String? = nil) {
+    public init(featuredPluginIds: [String]? = nil, marketplaceLoadErrors: [MarketplaceLoadErrorInfo]? = nil, marketplaces: [PluginMarketplaceEntry]) {
         self.featuredPluginIds = featuredPluginIds
         self.marketplaceLoadErrors = marketplaceLoadErrors
         self.marketplaces = marketplaces
-        self.remoteSyncError = remoteSyncError
     }
 }
 
@@ -19915,14 +22511,12 @@ public extension PluginListResponse {
     func with(
         featuredPluginIds: [String]?? = nil,
         marketplaceLoadErrors: [MarketplaceLoadErrorInfo]?? = nil,
-        marketplaces: [PluginMarketplaceEntry]? = nil,
-        remoteSyncError: String?? = nil
+        marketplaces: [PluginMarketplaceEntry]? = nil
     ) -> PluginListResponse {
         return PluginListResponse(
             featuredPluginIds: featuredPluginIds ?? self.featuredPluginIds,
             marketplaceLoadErrors: marketplaceLoadErrors ?? self.marketplaceLoadErrors,
-            marketplaces: marketplaces ?? self.marketplaces,
-            remoteSyncError: remoteSyncError ?? self.remoteSyncError
+            marketplaces: marketplaces ?? self.marketplaces
         )
     }
 
@@ -19939,7 +22533,9 @@ public extension PluginListResponse {
 public struct PluginMarketplaceEntry: Codable, Sendable {
     public var interface: MarketplaceInterface?
     public var name: String
-    public var path: String
+    /// Local marketplace file path when the marketplace is backed by a local file. Remote-only
+    /// catalog marketplaces do not have a local path.
+    public var path: String?
     public var plugins: [PluginSummary]
 
     public enum CodingKeys: String, CodingKey {
@@ -19949,7 +22545,7 @@ public struct PluginMarketplaceEntry: Codable, Sendable {
         case plugins = "plugins"
     }
 
-    public init(interface: MarketplaceInterface? = nil, name: String, path: String, plugins: [PluginSummary]) {
+    public init(interface: MarketplaceInterface? = nil, name: String, path: String? = nil, plugins: [PluginSummary]) {
         self.interface = interface
         self.name = name
         self.path = path
@@ -19978,7 +22574,7 @@ public extension PluginMarketplaceEntry {
     func with(
         interface: MarketplaceInterface?? = nil,
         name: String? = nil,
-        path: String? = nil,
+        path: String?? = nil,
         plugins: [PluginSummary]? = nil
     ) -> PluginMarketplaceEntry {
         return PluginMarketplaceEntry(
@@ -20000,17 +22596,20 @@ public extension PluginMarketplaceEntry {
 
 // MARK: - PluginReadParams
 public struct PluginReadParams: Codable, Sendable {
-    public var marketplacePath: String
+    public var marketplacePath: String?
     public var pluginName: String
+    public var remoteMarketplaceName: String?
 
     public enum CodingKeys: String, CodingKey {
         case marketplacePath = "marketplacePath"
         case pluginName = "pluginName"
+        case remoteMarketplaceName = "remoteMarketplaceName"
     }
 
-    public init(marketplacePath: String, pluginName: String) {
+    public init(marketplacePath: String? = nil, pluginName: String, remoteMarketplaceName: String? = nil) {
         self.marketplacePath = marketplacePath
         self.pluginName = pluginName
+        self.remoteMarketplaceName = remoteMarketplaceName
     }
 }
 
@@ -20033,12 +22632,14 @@ public extension PluginReadParams {
     }
 
     func with(
-        marketplacePath: String? = nil,
-        pluginName: String? = nil
+        marketplacePath: String?? = nil,
+        pluginName: String? = nil,
+        remoteMarketplaceName: String?? = nil
     ) -> PluginReadParams {
         return PluginReadParams(
             marketplacePath: marketplacePath ?? self.marketplacePath,
-            pluginName: pluginName ?? self.pluginName
+            pluginName: pluginName ?? self.pluginName,
+            remoteMarketplaceName: remoteMarketplaceName ?? self.remoteMarketplaceName
         )
     }
 
@@ -20101,17 +22702,13 @@ public extension PluginReadResponse {
 
 // MARK: - PluginUninstallParams
 public struct PluginUninstallParams: Codable, Sendable {
-    /// When true, apply the remote plugin change before the local uninstall flow.
-    public var forceRemoteSync: Bool?
     public var pluginId: String
 
     public enum CodingKeys: String, CodingKey {
-        case forceRemoteSync = "forceRemoteSync"
         case pluginId = "pluginId"
     }
 
-    public init(forceRemoteSync: Bool? = nil, pluginId: String) {
-        self.forceRemoteSync = forceRemoteSync
+    public init(pluginId: String) {
         self.pluginId = pluginId
     }
 }
@@ -20135,11 +22732,9 @@ public extension PluginUninstallParams {
     }
 
     func with(
-        forceRemoteSync: Bool?? = nil,
         pluginId: String? = nil
     ) -> PluginUninstallParams {
         return PluginUninstallParams(
-            forceRemoteSync: forceRemoteSync ?? self.forceRemoteSync,
             pluginId: pluginId ?? self.pluginId
         )
     }
@@ -20458,17 +23053,20 @@ public extension ResponseItemSearchResponsesApiWebSearchAction {
 public struct ContentElement: Codable, Sendable {
     public var text: String?
     public var type: ContentType
+    public var detail: ImageDetail?
     public var imageUrl: String?
 
     public enum CodingKeys: String, CodingKey {
         case text = "text"
         case type = "type"
+        case detail = "detail"
         case imageUrl = "image_url"
     }
 
-    public init(text: String? = nil, type: ContentType, imageUrl: String? = nil) {
+    public init(text: String? = nil, type: ContentType, detail: ImageDetail? = nil, imageUrl: String? = nil) {
         self.text = text
         self.type = type
+        self.detail = detail
         self.imageUrl = imageUrl
     }
 }
@@ -20494,11 +23092,13 @@ public extension ContentElement {
     func with(
         text: String?? = nil,
         type: ContentType? = nil,
+        detail: ImageDetail?? = nil,
         imageUrl: String?? = nil
     ) -> ContentElement {
         return ContentElement(
             text: text ?? self.text,
             type: type ?? self.type,
+            detail: detail ?? self.detail,
             imageUrl: imageUrl ?? self.imageUrl
         )
     }
@@ -20890,6 +23490,16 @@ public extension ReasoningTextDeltaNotification {
     }
 }
 
+/// Audience for a remote-control client connection device-key proof.
+public enum RemoteControlClientConnectionAudience: String, Codable, Sendable {
+    case remoteControlClientWebsocket = "remote_control_client_websocket"
+}
+
+/// Audience for a remote-control client enrollment device-key proof.
+public enum RemoteControlClientEnrollmentAudience: String, Codable, Sendable {
+    case remoteControlClientEnrollment = "remote_control_client_enrollment"
+}
+
 // MARK: - ResponsesApiWebSearchAction
 public struct ResponsesApiWebSearchAction: Codable, Sendable {
     public var queries: [String]?
@@ -21254,6 +23864,8 @@ public enum TurnStatus: String, Codable, Sendable {
     case interrupted = "interrupted"
 }
 
+/// Legacy sandbox policy retained for compatibility. New clients should use
+/// `permissionProfile` when present as the canonical active permissions view.
 // MARK: - SandboxPolicy
 public struct SandboxPolicy: Codable, Sendable {
     public var type: SandboxPolicyType
@@ -21320,6 +23932,102 @@ public extension SandboxPolicy {
             excludeTmpdirEnvVar: excludeTmpdirEnvVar ?? self.excludeTmpdirEnvVar,
             readOnlyAccess: readOnlyAccess ?? self.readOnlyAccess,
             writableRoots: writableRoots ?? self.writableRoots
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - SendAddCreditsNudgeEmailParams
+public struct SendAddCreditsNudgeEmailParams: Codable, Sendable {
+    public var creditType: AddCreditsNudgeCreditType
+
+    public enum CodingKeys: String, CodingKey {
+        case creditType = "creditType"
+    }
+
+    public init(creditType: AddCreditsNudgeCreditType) {
+        self.creditType = creditType
+    }
+}
+
+// MARK: SendAddCreditsNudgeEmailParams convenience initializers and mutators
+
+public extension SendAddCreditsNudgeEmailParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(SendAddCreditsNudgeEmailParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        creditType: AddCreditsNudgeCreditType? = nil
+    ) -> SendAddCreditsNudgeEmailParams {
+        return SendAddCreditsNudgeEmailParams(
+            creditType: creditType ?? self.creditType
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - SendAddCreditsNudgeEmailResponse
+public struct SendAddCreditsNudgeEmailResponse: Codable, Sendable {
+    public var status: AddCreditsNudgeEmailStatus
+
+    public enum CodingKeys: String, CodingKey {
+        case status = "status"
+    }
+
+    public init(status: AddCreditsNudgeEmailStatus) {
+        self.status = status
+    }
+}
+
+// MARK: SendAddCreditsNudgeEmailResponse convenience initializers and mutators
+
+public extension SendAddCreditsNudgeEmailResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(SendAddCreditsNudgeEmailResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        status: AddCreditsNudgeEmailStatus? = nil
+    ) -> SendAddCreditsNudgeEmailResponse {
+        return SendAddCreditsNudgeEmailResponse(
+            status: status ?? self.status
         )
     }
 
@@ -21409,9 +24117,11 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
     case configWarning = "configWarning"
     case deprecationNotice = "deprecationNotice"
     case error = "error"
+    case externalAgentConfigImportCompleted = "externalAgentConfig/import/completed"
     case fsChanged = "fs/changed"
     case fuzzyFileSearchSessionCompleted = "fuzzyFileSearch/sessionCompleted"
     case fuzzyFileSearchSessionUpdated = "fuzzyFileSearch/sessionUpdated"
+    case guardianWarning = "guardianWarning"
     case hookCompleted = "hook/completed"
     case hookStarted = "hook/started"
     case itemAgentMessageDelta = "item/agentMessage/delta"
@@ -21421,6 +24131,7 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
     case itemCommandExecutionTerminalInteraction = "item/commandExecution/terminalInteraction"
     case itemCompleted = "item/completed"
     case itemFileChangeOutputDelta = "item/fileChange/outputDelta"
+    case itemFileChangePatchUpdated = "item/fileChange/patchUpdated"
     case itemMcpToolCallProgress = "item/mcpToolCall/progress"
     case itemPlanDelta = "item/plan/delta"
     case itemReasoningSummaryPartAdded = "item/reasoning/summaryPartAdded"
@@ -21430,6 +24141,7 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
     case mcpServerOauthLoginCompleted = "mcpServer/oauthLogin/completed"
     case mcpServerStartupStatusUpdated = "mcpServer/startupStatus/updated"
     case modelRerouted = "model/rerouted"
+    case modelVerification = "model/verification"
     case serverRequestResolved = "serverRequest/resolved"
     case skillsChanged = "skills/changed"
     case threadArchived = "thread/archived"
@@ -21452,6 +24164,7 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
     case turnDiffUpdated = "turn/diff/updated"
     case turnPlanUpdated = "turn/plan/updated"
     case turnStarted = "turn/started"
+    case warning = "warning"
     case windowsSandboxSetupCompleted = "windowsSandbox/setupCompleted"
     case windowsWorldWritableWarning = "windows/worldWritableWarning"
 }
@@ -21464,8 +24177,8 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
 /// Notification that the turn-level unified diff has changed. Contains the latest aggregated
 /// diff across all file changes in the turn.
 ///
-/// [UNSTABLE] Temporary notification payload for guardian automatic approval review. This
-/// shape is expected to change soon.
+/// [UNSTABLE] Temporary notification payload for approval auto-review. This shape is
+/// expected to change soon.
 ///
 /// EXPERIMENTAL - proposed plan streaming deltas for plan items. Clients should not assume
 /// concatenated deltas match the completed plan item content.
@@ -21499,6 +24212,9 @@ public enum NotificationMethod: String, Codable, Sendable, CaseIterable {
 // MARK: - ParamsClass
 public struct ParamsClass: Codable, Sendable {
     public var error: ErrorUnion?
+    /// Optional thread target when the warning applies to a specific thread.
+    ///
+    /// Thread target for the guardian warning.
     public var threadId: String?
     public var turnId: String?
     public var willRetry: Bool?
@@ -21542,7 +24258,11 @@ public struct ParamsClass: Codable, Sendable {
     /// Output stream for this chunk.
     public var stream: CommandExecOutputStream?
     public var stdin: String?
+    public var changes: [ChangeElement]?
     public var requestId: RequestId?
+    /// Concise warning message for the user.
+    ///
+    /// Concise guardian warning message for the user.
     public var message: String?
     public var name: String?
     public var success: Bool?
@@ -21559,6 +24279,7 @@ public struct ParamsClass: Codable, Sendable {
     public var fromModel: String?
     public var reason: String?
     public var toModel: String?
+    public var verifications: [ModelVerification]?
     /// Optional extra guidance, such as migration steps or rationale.
     ///
     /// Optional extra guidance or error details.
@@ -21613,6 +24334,7 @@ public struct ParamsClass: Codable, Sendable {
         case processId = "processId"
         case stream = "stream"
         case stdin = "stdin"
+        case changes = "changes"
         case requestId = "requestId"
         case message = "message"
         case name = "name"
@@ -21628,6 +24350,7 @@ public struct ParamsClass: Codable, Sendable {
         case fromModel = "fromModel"
         case reason = "reason"
         case toModel = "toModel"
+        case verifications = "verifications"
         case details = "details"
         case summary = "summary"
         case path = "path"
@@ -21647,7 +24370,7 @@ public struct ParamsClass: Codable, Sendable {
         case loginId = "loginId"
     }
 
-    public init(error: ErrorUnion? = nil, threadId: String? = nil, turnId: String? = nil, willRetry: Bool? = nil, thread: Thread? = nil, status: StatusUnion? = nil, threadName: String? = nil, tokenUsage: TokenUsage? = nil, turn: TurnElement? = nil, run: Run? = nil, diff: String? = nil, explanation: String? = nil, plan: [PlanElement]? = nil, item: JSONAny? = nil, action: ActionClass? = nil, review: Review? = nil, reviewId: String? = nil, targetItemId: String? = nil, decisionSource: AutoReviewDecisionSource? = nil, delta: String? = nil, itemId: String? = nil, capReached: Bool? = nil, deltaBase64: String? = nil, processId: String? = nil, stream: CommandExecOutputStream? = nil, stdin: String? = nil, requestId: RequestId? = nil, message: String? = nil, name: String? = nil, success: Bool? = nil, authMode: AuthMode? = nil, planType: PlanType? = nil, rateLimits: RateLimits? = nil, data: [DatumElement]? = nil, changedPaths: [String]? = nil, watchId: String? = nil, summaryIndex: Int? = nil, contentIndex: Int? = nil, fromModel: String? = nil, reason: String? = nil, toModel: String? = nil, details: String? = nil, summary: String? = nil, path: String? = nil, range: RangeClass? = nil, files: [FuzzyFileSearchResult]? = nil, query: String? = nil, sessionId: String? = nil, version: RealtimeConversationVersion? = nil, role: String? = nil, text: String? = nil, audio: Audio? = nil, sdp: String? = nil, extraCount: Int? = nil, failedScan: Bool? = nil, samplePaths: [String]? = nil, mode: WindowsSandboxSetupMode? = nil, loginId: String? = nil) {
+    public init(error: ErrorUnion? = nil, threadId: String? = nil, turnId: String? = nil, willRetry: Bool? = nil, thread: Thread? = nil, status: StatusUnion? = nil, threadName: String? = nil, tokenUsage: TokenUsage? = nil, turn: TurnElement? = nil, run: Run? = nil, diff: String? = nil, explanation: String? = nil, plan: [PlanElement]? = nil, item: JSONAny? = nil, action: ActionClass? = nil, review: Review? = nil, reviewId: String? = nil, targetItemId: String? = nil, decisionSource: AutoReviewDecisionSource? = nil, delta: String? = nil, itemId: String? = nil, capReached: Bool? = nil, deltaBase64: String? = nil, processId: String? = nil, stream: CommandExecOutputStream? = nil, stdin: String? = nil, changes: [ChangeElement]? = nil, requestId: RequestId? = nil, message: String? = nil, name: String? = nil, success: Bool? = nil, authMode: AuthMode? = nil, planType: PlanType? = nil, rateLimits: RateLimits? = nil, data: [DatumElement]? = nil, changedPaths: [String]? = nil, watchId: String? = nil, summaryIndex: Int? = nil, contentIndex: Int? = nil, fromModel: String? = nil, reason: String? = nil, toModel: String? = nil, verifications: [ModelVerification]? = nil, details: String? = nil, summary: String? = nil, path: String? = nil, range: RangeClass? = nil, files: [FuzzyFileSearchResult]? = nil, query: String? = nil, sessionId: String? = nil, version: RealtimeConversationVersion? = nil, role: String? = nil, text: String? = nil, audio: Audio? = nil, sdp: String? = nil, extraCount: Int? = nil, failedScan: Bool? = nil, samplePaths: [String]? = nil, mode: WindowsSandboxSetupMode? = nil, loginId: String? = nil) {
         self.error = error
         self.threadId = threadId
         self.turnId = turnId
@@ -21674,6 +24397,7 @@ public struct ParamsClass: Codable, Sendable {
         self.processId = processId
         self.stream = stream
         self.stdin = stdin
+        self.changes = changes
         self.requestId = requestId
         self.message = message
         self.name = name
@@ -21689,6 +24413,7 @@ public struct ParamsClass: Codable, Sendable {
         self.fromModel = fromModel
         self.reason = reason
         self.toModel = toModel
+        self.verifications = verifications
         self.details = details
         self.summary = summary
         self.path = path
@@ -21754,6 +24479,7 @@ public extension ParamsClass {
         processId: String?? = nil,
         stream: CommandExecOutputStream?? = nil,
         stdin: String?? = nil,
+        changes: [ChangeElement]?? = nil,
         requestId: RequestId?? = nil,
         message: String?? = nil,
         name: String?? = nil,
@@ -21769,6 +24495,7 @@ public extension ParamsClass {
         fromModel: String?? = nil,
         reason: String?? = nil,
         toModel: String?? = nil,
+        verifications: [ModelVerification]?? = nil,
         details: String?? = nil,
         summary: String?? = nil,
         path: String?? = nil,
@@ -21814,6 +24541,7 @@ public extension ParamsClass {
             processId: processId ?? self.processId,
             stream: stream ?? self.stream,
             stdin: stdin ?? self.stdin,
+            changes: changes ?? self.changes,
             requestId: requestId ?? self.requestId,
             message: message ?? self.message,
             name: name ?? self.name,
@@ -21829,6 +24557,7 @@ public extension ParamsClass {
             fromModel: fromModel ?? self.fromModel,
             reason: reason ?? self.reason,
             toModel: toModel ?? self.toModel,
+            verifications: verifications ?? self.verifications,
             details: details ?? self.details,
             summary: summary ?? self.summary,
             path: path ?? self.path,
@@ -21876,6 +24605,8 @@ public struct ActionClass: Codable, Sendable {
     public var server: String?
     public var toolName: String?
     public var toolTitle: String?
+    public var permissions: Permissions?
+    public var reason: String?
 
     public enum CodingKeys: String, CodingKey {
         case command = "command"
@@ -21894,9 +24625,11 @@ public struct ActionClass: Codable, Sendable {
         case server = "server"
         case toolName = "toolName"
         case toolTitle = "toolTitle"
+        case permissions = "permissions"
+        case reason = "reason"
     }
 
-    public init(command: String? = nil, cwd: String? = nil, source: GuardianCommandSource? = nil, type: GuardianApprovalReviewActionType, argv: [String]? = nil, program: String? = nil, files: [String]? = nil, host: String? = nil, port: Int? = nil, guardianApprovalReviewActionProtocol: NetworkApprovalProtocol? = nil, target: String? = nil, connectorId: String? = nil, connectorName: String? = nil, server: String? = nil, toolName: String? = nil, toolTitle: String? = nil) {
+    public init(command: String? = nil, cwd: String? = nil, source: GuardianCommandSource? = nil, type: GuardianApprovalReviewActionType, argv: [String]? = nil, program: String? = nil, files: [String]? = nil, host: String? = nil, port: Int? = nil, guardianApprovalReviewActionProtocol: NetworkApprovalProtocol? = nil, target: String? = nil, connectorId: String? = nil, connectorName: String? = nil, server: String? = nil, toolName: String? = nil, toolTitle: String? = nil, permissions: Permissions? = nil, reason: String? = nil) {
         self.command = command
         self.cwd = cwd
         self.source = source
@@ -21913,6 +24646,8 @@ public struct ActionClass: Codable, Sendable {
         self.server = server
         self.toolName = toolName
         self.toolTitle = toolTitle
+        self.permissions = permissions
+        self.reason = reason
     }
 }
 
@@ -21950,7 +24685,9 @@ public extension ActionClass {
         connectorName: String?? = nil,
         server: String?? = nil,
         toolName: String?? = nil,
-        toolTitle: String?? = nil
+        toolTitle: String?? = nil,
+        permissions: Permissions?? = nil,
+        reason: String?? = nil
     ) -> ActionClass {
         return ActionClass(
             command: command ?? self.command,
@@ -21968,7 +24705,120 @@ public extension ActionClass {
             connectorName: connectorName ?? self.connectorName,
             server: server ?? self.server,
             toolName: toolName ?? self.toolName,
-            toolTitle: toolTitle ?? self.toolTitle
+            toolTitle: toolTitle ?? self.toolTitle,
+            permissions: permissions ?? self.permissions,
+            reason: reason ?? self.reason
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ChangeElement
+public struct ChangeElement: Codable, Sendable {
+    public var diff: String
+    public var kind: KindClass
+    public var path: String
+
+    public enum CodingKeys: String, CodingKey {
+        case diff = "diff"
+        case kind = "kind"
+        case path = "path"
+    }
+
+    public init(diff: String, kind: KindClass, path: String) {
+        self.diff = diff
+        self.kind = kind
+        self.path = path
+    }
+}
+
+// MARK: ChangeElement convenience initializers and mutators
+
+public extension ChangeElement {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ChangeElement.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        diff: String? = nil,
+        kind: KindClass? = nil,
+        path: String? = nil
+    ) -> ChangeElement {
+        return ChangeElement(
+            diff: diff ?? self.diff,
+            kind: kind ?? self.kind,
+            path: path ?? self.path
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - KindClass
+public struct KindClass: Codable, Sendable {
+    public var type: FileChangeType
+    public var movePath: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case type = "type"
+        case movePath = "move_path"
+    }
+
+    public init(type: FileChangeType, movePath: String? = nil) {
+        self.type = type
+        self.movePath = movePath
+    }
+}
+
+// MARK: KindClass convenience initializers and mutators
+
+public extension KindClass {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(KindClass.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        type: FileChangeType? = nil,
+        movePath: String?? = nil
+    ) -> KindClass {
+        return KindClass(
+            type: type ?? self.type,
+            movePath: movePath ?? self.movePath
         )
     }
 
@@ -22998,6 +25848,7 @@ public struct RateLimits: Codable, Sendable {
     public var limitName: String?
     public var planType: PlanType?
     public var primary: PrimaryClass?
+    public var rateLimitReachedType: RateLimitReachedType?
     public var secondary: PrimaryClass?
 
     public enum CodingKeys: String, CodingKey {
@@ -23006,15 +25857,17 @@ public struct RateLimits: Codable, Sendable {
         case limitName = "limitName"
         case planType = "planType"
         case primary = "primary"
+        case rateLimitReachedType = "rateLimitReachedType"
         case secondary = "secondary"
     }
 
-    public init(credits: CreditsClass? = nil, limitId: String? = nil, limitName: String? = nil, planType: PlanType? = nil, primary: PrimaryClass? = nil, secondary: PrimaryClass? = nil) {
+    public init(credits: CreditsClass? = nil, limitId: String? = nil, limitName: String? = nil, planType: PlanType? = nil, primary: PrimaryClass? = nil, rateLimitReachedType: RateLimitReachedType? = nil, secondary: PrimaryClass? = nil) {
         self.credits = credits
         self.limitId = limitId
         self.limitName = limitName
         self.planType = planType
         self.primary = primary
+        self.rateLimitReachedType = rateLimitReachedType
         self.secondary = secondary
     }
 }
@@ -23043,6 +25896,7 @@ public extension RateLimits {
         limitName: String?? = nil,
         planType: PlanType?? = nil,
         primary: PrimaryClass?? = nil,
+        rateLimitReachedType: RateLimitReachedType?? = nil,
         secondary: PrimaryClass?? = nil
     ) -> RateLimits {
         return RateLimits(
@@ -23051,6 +25905,7 @@ public extension RateLimits {
             limitName: limitName ?? self.limitName,
             planType: planType ?? self.planType,
             primary: primary ?? self.primary,
+            rateLimitReachedType: rateLimitReachedType ?? self.rateLimitReachedType,
             secondary: secondary ?? self.secondary
         )
     }
@@ -23180,7 +26035,7 @@ public extension PrimaryClass {
     }
 }
 
-/// [UNSTABLE] Temporary guardian approval review payload used by `item/autoApprovalReview/*`
+/// [UNSTABLE] Temporary approval auto-review payload used by `item/autoApprovalReview/*`
 /// notifications. This shape is expected to change soon.
 // MARK: - Review
 public struct Review: Codable, Sendable {
@@ -23256,6 +26111,7 @@ public struct Run: Codable, Sendable {
     public var handlerType: HookHandlerType
     public var id: String
     public var scope: HookScope
+    public var source: HookSource?
     public var sourcePath: String
     public var startedAt: Int
     public var status: HookRunStatus
@@ -23271,13 +26127,14 @@ public struct Run: Codable, Sendable {
         case handlerType = "handlerType"
         case id = "id"
         case scope = "scope"
+        case source = "source"
         case sourcePath = "sourcePath"
         case startedAt = "startedAt"
         case status = "status"
         case statusMessage = "statusMessage"
     }
 
-    public init(completedAt: Int? = nil, displayOrder: Int, durationMs: Int? = nil, entries: [RunEntry], eventName: HookEventName, executionMode: HookExecutionMode, handlerType: HookHandlerType, id: String, scope: HookScope, sourcePath: String, startedAt: Int, status: HookRunStatus, statusMessage: String? = nil) {
+    public init(completedAt: Int? = nil, displayOrder: Int, durationMs: Int? = nil, entries: [RunEntry], eventName: HookEventName, executionMode: HookExecutionMode, handlerType: HookHandlerType, id: String, scope: HookScope, source: HookSource? = nil, sourcePath: String, startedAt: Int, status: HookRunStatus, statusMessage: String? = nil) {
         self.completedAt = completedAt
         self.displayOrder = displayOrder
         self.durationMs = durationMs
@@ -23287,6 +26144,7 @@ public struct Run: Codable, Sendable {
         self.handlerType = handlerType
         self.id = id
         self.scope = scope
+        self.source = source
         self.sourcePath = sourcePath
         self.startedAt = startedAt
         self.status = status
@@ -23322,6 +26180,7 @@ public extension Run {
         handlerType: HookHandlerType? = nil,
         id: String? = nil,
         scope: HookScope? = nil,
+        source: HookSource?? = nil,
         sourcePath: String? = nil,
         startedAt: Int? = nil,
         status: HookRunStatus? = nil,
@@ -23337,6 +26196,7 @@ public extension Run {
             handlerType: handlerType ?? self.handlerType,
             id: id ?? self.id,
             scope: scope ?? self.scope,
+            source: source ?? self.source,
             sourcePath: sourcePath ?? self.sourcePath,
             startedAt: startedAt ?? self.startedAt,
             status: status ?? self.status,
@@ -24072,11 +26932,13 @@ public struct ItemElement: Codable, Sendable {
     public var changes: [ChangeElement]?
     public var arguments: JSONAny?
     public var error: ErrorClass?
+    public var mcpAppResourceUri: String?
     public var result: ItemResult?
     public var server: String?
     /// Name of the collab tool that was invoked.
     public var tool: String?
     public var contentItems: [InputDynamicToolCallOutputContentItem]?
+    public var namespace: String?
     public var success: Bool?
     /// Last known status of the target agents, when available.
     public var agentsStates: [String: AgentsStateValue]?
@@ -24119,10 +26981,12 @@ public struct ItemElement: Codable, Sendable {
         case changes = "changes"
         case arguments = "arguments"
         case error = "error"
+        case mcpAppResourceUri = "mcpAppResourceUri"
         case result = "result"
         case server = "server"
         case tool = "tool"
         case contentItems = "contentItems"
+        case namespace = "namespace"
         case success = "success"
         case agentsStates = "agentsStates"
         case model = "model"
@@ -24138,7 +27002,7 @@ public struct ItemElement: Codable, Sendable {
         case review = "review"
     }
 
-    public init(content: [ItemContent]? = nil, id: String, type: ThreadItemType, fragments: [FragmentElement]? = nil, memoryCitation: MemoryCitationClass? = nil, phase: MessagePhase? = nil, text: String? = nil, summary: [String]? = nil, aggregatedOutput: String? = nil, command: String? = nil, commandActions: [CommandActionElement]? = nil, cwd: String? = nil, durationMs: Int? = nil, exitCode: Int? = nil, processId: String? = nil, source: CommandExecutionSource? = nil, status: String? = nil, changes: [ChangeElement]? = nil, arguments: JSONAny? = nil, error: ErrorClass? = nil, result: ItemResult? = nil, server: String? = nil, tool: String? = nil, contentItems: [InputDynamicToolCallOutputContentItem]? = nil, success: Bool? = nil, agentsStates: [String: AgentsStateValue]? = nil, model: String? = nil, prompt: String? = nil, reasoningEffort: ReasoningEffort? = nil, receiverThreadIds: [String]? = nil, senderThreadId: String? = nil, action: ItemSearchWebSearchAction? = nil, query: String? = nil, path: String? = nil, revisedPrompt: String? = nil, savedPath: String? = nil, review: String? = nil) {
+    public init(content: [ItemContent]? = nil, id: String, type: ThreadItemType, fragments: [FragmentElement]? = nil, memoryCitation: MemoryCitationClass? = nil, phase: MessagePhase? = nil, text: String? = nil, summary: [String]? = nil, aggregatedOutput: String? = nil, command: String? = nil, commandActions: [CommandActionElement]? = nil, cwd: String? = nil, durationMs: Int? = nil, exitCode: Int? = nil, processId: String? = nil, source: CommandExecutionSource? = nil, status: String? = nil, changes: [ChangeElement]? = nil, arguments: JSONAny? = nil, error: ErrorClass? = nil, mcpAppResourceUri: String? = nil, result: ItemResult? = nil, server: String? = nil, tool: String? = nil, contentItems: [InputDynamicToolCallOutputContentItem]? = nil, namespace: String? = nil, success: Bool? = nil, agentsStates: [String: AgentsStateValue]? = nil, model: String? = nil, prompt: String? = nil, reasoningEffort: ReasoningEffort? = nil, receiverThreadIds: [String]? = nil, senderThreadId: String? = nil, action: ItemSearchWebSearchAction? = nil, query: String? = nil, path: String? = nil, revisedPrompt: String? = nil, savedPath: String? = nil, review: String? = nil) {
         self.content = content
         self.id = id
         self.type = type
@@ -24159,10 +27023,12 @@ public struct ItemElement: Codable, Sendable {
         self.changes = changes
         self.arguments = arguments
         self.error = error
+        self.mcpAppResourceUri = mcpAppResourceUri
         self.result = result
         self.server = server
         self.tool = tool
         self.contentItems = contentItems
+        self.namespace = namespace
         self.success = success
         self.agentsStates = agentsStates
         self.model = model
@@ -24218,10 +27084,12 @@ public extension ItemElement {
         changes: [ChangeElement]?? = nil,
         arguments: JSONAny?? = nil,
         error: ErrorClass?? = nil,
+        mcpAppResourceUri: String?? = nil,
         result: ItemResult?? = nil,
         server: String?? = nil,
         tool: String?? = nil,
         contentItems: [InputDynamicToolCallOutputContentItem]?? = nil,
+        namespace: String?? = nil,
         success: Bool?? = nil,
         agentsStates: [String: AgentsStateValue]?? = nil,
         model: String?? = nil,
@@ -24257,10 +27125,12 @@ public extension ItemElement {
             changes: changes ?? self.changes,
             arguments: arguments ?? self.arguments,
             error: error ?? self.error,
+            mcpAppResourceUri: mcpAppResourceUri ?? self.mcpAppResourceUri,
             result: result ?? self.result,
             server: server ?? self.server,
             tool: tool ?? self.tool,
             contentItems: contentItems ?? self.contentItems,
+            namespace: namespace ?? self.namespace,
             success: success ?? self.success,
             agentsStates: agentsStates ?? self.agentsStates,
             model: model ?? self.model,
@@ -24395,117 +27265,6 @@ public extension AgentsStateValue {
         return AgentsStateValue(
             message: message ?? self.message,
             status: status ?? self.status
-        )
-    }
-
-    func jsonData() throws -> Data {
-        return try newJSONEncoder().encode(self)
-    }
-
-    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
-        return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-// MARK: - ChangeElement
-public struct ChangeElement: Codable, Sendable {
-    public var diff: String
-    public var kind: KindClass
-    public var path: String
-
-    public enum CodingKeys: String, CodingKey {
-        case diff = "diff"
-        case kind = "kind"
-        case path = "path"
-    }
-
-    public init(diff: String, kind: KindClass, path: String) {
-        self.diff = diff
-        self.kind = kind
-        self.path = path
-    }
-}
-
-// MARK: ChangeElement convenience initializers and mutators
-
-public extension ChangeElement {
-    init(data: Data) throws {
-        self = try newJSONDecoder().decode(ChangeElement.self, from: data)
-    }
-
-    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
-        guard let data = json.data(using: encoding) else {
-            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
-        }
-        try self.init(data: data)
-    }
-
-    init(fromURL url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
-    }
-
-    func with(
-        diff: String? = nil,
-        kind: KindClass? = nil,
-        path: String? = nil
-    ) -> ChangeElement {
-        return ChangeElement(
-            diff: diff ?? self.diff,
-            kind: kind ?? self.kind,
-            path: path ?? self.path
-        )
-    }
-
-    func jsonData() throws -> Data {
-        return try newJSONEncoder().encode(self)
-    }
-
-    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
-        return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-// MARK: - KindClass
-public struct KindClass: Codable, Sendable {
-    public var type: FileChangeType
-    public var movePath: String?
-
-    public enum CodingKeys: String, CodingKey {
-        case type = "type"
-        case movePath = "move_path"
-    }
-
-    public init(type: FileChangeType, movePath: String? = nil) {
-        self.type = type
-        self.movePath = movePath
-    }
-}
-
-// MARK: KindClass convenience initializers and mutators
-
-public extension KindClass {
-    init(data: Data) throws {
-        self = try newJSONDecoder().decode(KindClass.self, from: data)
-    }
-
-    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
-        guard let data = json.data(using: encoding) else {
-            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
-        }
-        try self.init(data: data)
-    }
-
-    init(fromURL url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
-    }
-
-    func with(
-        type: FileChangeType? = nil,
-        movePath: String?? = nil
-    ) -> KindClass {
-        return KindClass(
-            type: type ?? self.type,
-            movePath: movePath ?? self.movePath
         )
     }
 
@@ -25095,7 +27854,7 @@ public struct ServerRequestParams: Codable, Sendable {
     /// Ordered list of decisions the client may present for this prompt.
     public var availableDecisions: [CommandExecutionApprovalDecision]?
     /// The command to be executed.
-    public var command: CommandUnion?
+    public var command: CwdUnion?
     /// Best-effort parsed command actions for friendly display.
     public var commandActions: [CommandActionElement]?
     /// The command's working directory.
@@ -25133,7 +27892,7 @@ public struct ServerRequestParams: Codable, Sendable {
     public var requestedSchema: MCPElicitationSchema?
     public var elicitationId: String?
     public var url: String?
-    public var permissions: RequestPermissionProfile?
+    public var permissions: Permissions?
     public var arguments: JSONAny?
     /// Use to correlate this with [codex_protocol::protocol::PatchApplyBeginEvent] and
     /// [codex_protocol::protocol::PatchApplyEndEvent].
@@ -25141,6 +27900,7 @@ public struct ServerRequestParams: Codable, Sendable {
     /// Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent] and
     /// [codex_protocol::protocol::ExecCommandEndEvent].
     public var callId: String?
+    public var namespace: String?
     public var tool: String?
     /// Workspace/account identifier that Codex was previously using.
     ///
@@ -25180,6 +27940,7 @@ public struct ServerRequestParams: Codable, Sendable {
         case permissions = "permissions"
         case arguments = "arguments"
         case callId = "callId"
+        case namespace = "namespace"
         case tool = "tool"
         case previousAccountId = "previousAccountId"
         case conversationId = "conversationId"
@@ -25187,7 +27948,7 @@ public struct ServerRequestParams: Codable, Sendable {
         case parsedCmd = "parsedCmd"
     }
 
-    public init(additionalPermissions: AdditionalPermissionProfile? = nil, approvalId: String? = nil, availableDecisions: [CommandExecutionApprovalDecision]? = nil, command: CommandUnion? = nil, commandActions: [CommandActionElement]? = nil, cwd: String? = nil, itemId: String? = nil, networkApprovalContext: NetworkApprovalContext? = nil, proposedExecpolicyAmendment: [String]? = nil, proposedNetworkPolicyAmendments: [NetworkPolicyAmendmentElement]? = nil, reason: String? = nil, threadId: String? = nil, turnId: String? = nil, grantRoot: String? = nil, questions: [ToolRequestUserInputQuestion]? = nil, serverName: String? = nil, meta: JSONAny? = nil, message: String? = nil, mode: MCPServerElicitationRequestParamsMode? = nil, requestedSchema: MCPElicitationSchema? = nil, elicitationId: String? = nil, url: String? = nil, permissions: RequestPermissionProfile? = nil, arguments: JSONAny? = nil, callId: String? = nil, tool: String? = nil, previousAccountId: String? = nil, conversationId: String? = nil, fileChanges: [String: FileChange]? = nil, parsedCmd: [ParsedCommand]? = nil) {
+    public init(additionalPermissions: AdditionalPermissionProfile? = nil, approvalId: String? = nil, availableDecisions: [CommandExecutionApprovalDecision]? = nil, command: CwdUnion? = nil, commandActions: [CommandActionElement]? = nil, cwd: String? = nil, itemId: String? = nil, networkApprovalContext: NetworkApprovalContext? = nil, proposedExecpolicyAmendment: [String]? = nil, proposedNetworkPolicyAmendments: [NetworkPolicyAmendmentElement]? = nil, reason: String? = nil, threadId: String? = nil, turnId: String? = nil, grantRoot: String? = nil, questions: [ToolRequestUserInputQuestion]? = nil, serverName: String? = nil, meta: JSONAny? = nil, message: String? = nil, mode: MCPServerElicitationRequestParamsMode? = nil, requestedSchema: MCPElicitationSchema? = nil, elicitationId: String? = nil, url: String? = nil, permissions: Permissions? = nil, arguments: JSONAny? = nil, callId: String? = nil, namespace: String? = nil, tool: String? = nil, previousAccountId: String? = nil, conversationId: String? = nil, fileChanges: [String: FileChange]? = nil, parsedCmd: [ParsedCommand]? = nil) {
         self.additionalPermissions = additionalPermissions
         self.approvalId = approvalId
         self.availableDecisions = availableDecisions
@@ -25213,6 +27974,7 @@ public struct ServerRequestParams: Codable, Sendable {
         self.permissions = permissions
         self.arguments = arguments
         self.callId = callId
+        self.namespace = namespace
         self.tool = tool
         self.previousAccountId = previousAccountId
         self.conversationId = conversationId
@@ -25243,7 +28005,7 @@ public extension ServerRequestParams {
         additionalPermissions: AdditionalPermissionProfile?? = nil,
         approvalId: String?? = nil,
         availableDecisions: [CommandExecutionApprovalDecision]?? = nil,
-        command: CommandUnion?? = nil,
+        command: CwdUnion?? = nil,
         commandActions: [CommandActionElement]?? = nil,
         cwd: String?? = nil,
         itemId: String?? = nil,
@@ -25262,9 +28024,10 @@ public extension ServerRequestParams {
         requestedSchema: MCPElicitationSchema?? = nil,
         elicitationId: String?? = nil,
         url: String?? = nil,
-        permissions: RequestPermissionProfile?? = nil,
+        permissions: Permissions?? = nil,
         arguments: JSONAny?? = nil,
         callId: String?? = nil,
+        namespace: String?? = nil,
         tool: String?? = nil,
         previousAccountId: String?? = nil,
         conversationId: String?? = nil,
@@ -25297,6 +28060,7 @@ public extension ServerRequestParams {
             permissions: permissions ?? self.permissions,
             arguments: arguments ?? self.arguments,
             callId: callId ?? self.callId,
+            namespace: namespace ?? self.namespace,
             tool: tool ?? self.tool,
             previousAccountId: previousAccountId ?? self.previousAccountId,
             conversationId: conversationId ?? self.conversationId,
@@ -26594,6 +29358,60 @@ public extension ThreadStatus {
     }
 }
 
+// MARK: - ThreadApproveGuardianDeniedActionParams
+public struct ThreadApproveGuardianDeniedActionParams: Codable, Sendable {
+    /// Serialized `codex_protocol::protocol::GuardianAssessmentEvent`.
+    public var event: JSONAny
+    public var threadId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case event = "event"
+        case threadId = "threadId"
+    }
+
+    public init(event: JSONAny, threadId: String) {
+        self.event = event
+        self.threadId = threadId
+    }
+}
+
+// MARK: ThreadApproveGuardianDeniedActionParams convenience initializers and mutators
+
+public extension ThreadApproveGuardianDeniedActionParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ThreadApproveGuardianDeniedActionParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        event: JSONAny? = nil,
+        threadId: String? = nil
+    ) -> ThreadApproveGuardianDeniedActionParams {
+        return ThreadApproveGuardianDeniedActionParams(
+            event: event ?? self.event,
+            threadId: threadId ?? self.threadId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 // MARK: - ThreadArchiveParams
 public struct ThreadArchiveParams: Codable, Sendable {
     public var threadId: String
@@ -26965,12 +29783,18 @@ public struct ThreadForkParams: Codable, Sendable {
     public var cwd: String?
     public var developerInstructions: String?
     public var ephemeral: Bool?
+    /// When true, return only thread metadata and live fork state without populating
+    /// `thread.turns`. This is useful when the client plans to call `thread/turns/list`
+    /// immediately after forking.
+    public var excludeTurns: Bool?
     /// Configuration overrides for the forked thread, if any.
     public var model: String?
     public var modelProvider: String?
     /// [UNSTABLE] Specify the rollout path to fork from. If specified, the thread_id param will
     /// be ignored.
     public var path: String?
+    /// Full permissions override for the forked thread. Cannot be combined with `sandbox`.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     /// If true, persist additional rollout EventMsg variants required to reconstruct a richer
     /// thread history on subsequent resume/fork/read.
     public var persistExtendedHistory: Bool?
@@ -26986,16 +29810,18 @@ public struct ThreadForkParams: Codable, Sendable {
         case cwd = "cwd"
         case developerInstructions = "developerInstructions"
         case ephemeral = "ephemeral"
+        case excludeTurns = "excludeTurns"
         case model = "model"
         case modelProvider = "modelProvider"
         case path = "path"
+        case permissionProfile = "permissionProfile"
         case persistExtendedHistory = "persistExtendedHistory"
         case sandbox = "sandbox"
         case serviceTier = "serviceTier"
         case threadId = "threadId"
     }
 
-    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, ephemeral: Bool? = nil, model: String? = nil, modelProvider: String? = nil, path: String? = nil, persistExtendedHistory: Bool? = nil, sandbox: SandboxMode? = nil, serviceTier: ServiceTier? = nil, threadId: String) {
+    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, ephemeral: Bool? = nil, excludeTurns: Bool? = nil, model: String? = nil, modelProvider: String? = nil, path: String? = nil, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, persistExtendedHistory: Bool? = nil, sandbox: SandboxMode? = nil, serviceTier: ServiceTier? = nil, threadId: String) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.baseInstructions = baseInstructions
@@ -27003,9 +29829,11 @@ public struct ThreadForkParams: Codable, Sendable {
         self.cwd = cwd
         self.developerInstructions = developerInstructions
         self.ephemeral = ephemeral
+        self.excludeTurns = excludeTurns
         self.model = model
         self.modelProvider = modelProvider
         self.path = path
+        self.permissionProfile = permissionProfile
         self.persistExtendedHistory = persistExtendedHistory
         self.sandbox = sandbox
         self.serviceTier = serviceTier
@@ -27039,9 +29867,11 @@ public extension ThreadForkParams {
         cwd: String?? = nil,
         developerInstructions: String?? = nil,
         ephemeral: Bool?? = nil,
+        excludeTurns: Bool?? = nil,
         model: String?? = nil,
         modelProvider: String?? = nil,
         path: String?? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         persistExtendedHistory: Bool?? = nil,
         sandbox: SandboxMode?? = nil,
         serviceTier: ServiceTier?? = nil,
@@ -27055,9 +29885,11 @@ public extension ThreadForkParams {
             cwd: cwd ?? self.cwd,
             developerInstructions: developerInstructions ?? self.developerInstructions,
             ephemeral: ephemeral ?? self.ephemeral,
+            excludeTurns: excludeTurns ?? self.excludeTurns,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
             path: path ?? self.path,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             persistExtendedHistory: persistExtendedHistory ?? self.persistExtendedHistory,
             sandbox: sandbox ?? self.sandbox,
             serviceTier: serviceTier ?? self.serviceTier,
@@ -27084,7 +29916,11 @@ public struct ThreadForkResponse: Codable, Sendable {
     public var instructionSources: [String]?
     public var model: String
     public var modelProvider: String
+    /// Canonical active permissions view for this thread.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     public var reasoningEffort: ReasoningEffort?
+    /// Legacy sandbox policy retained for compatibility. New clients should use
+    /// `permissionProfile` when present as the canonical active permissions view.
     public var sandbox: SandboxPolicy
     public var serviceTier: ServiceTier?
     public var thread: ThreadElement
@@ -27096,19 +29932,21 @@ public struct ThreadForkResponse: Codable, Sendable {
         case instructionSources = "instructionSources"
         case model = "model"
         case modelProvider = "modelProvider"
+        case permissionProfile = "permissionProfile"
         case reasoningEffort = "reasoningEffort"
         case sandbox = "sandbox"
         case serviceTier = "serviceTier"
         case thread = "thread"
     }
 
-    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
+    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.cwd = cwd
         self.instructionSources = instructionSources
         self.model = model
         self.modelProvider = modelProvider
+        self.permissionProfile = permissionProfile
         self.reasoningEffort = reasoningEffort
         self.sandbox = sandbox
         self.serviceTier = serviceTier
@@ -27141,6 +29979,7 @@ public extension ThreadForkResponse {
         instructionSources: [String]?? = nil,
         model: String? = nil,
         modelProvider: String? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         reasoningEffort: ReasoningEffort?? = nil,
         sandbox: SandboxPolicy? = nil,
         serviceTier: ServiceTier?? = nil,
@@ -27153,6 +29992,7 @@ public extension ThreadForkResponse {
             instructionSources: instructionSources ?? self.instructionSources,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             reasoningEffort: reasoningEffort ?? self.reasoningEffort,
             sandbox: sandbox ?? self.sandbox,
             serviceTier: serviceTier ?? self.serviceTier,
@@ -27338,9 +30178,9 @@ public struct ThreadListParams: Codable, Sendable {
     public var archived: Bool?
     /// Opaque pagination cursor returned by a previous call.
     public var cursor: String?
-    /// Optional cwd filter; when set, only threads whose session cwd exactly matches this path
-    /// are returned.
-    public var cwd: String?
+    /// Optional cwd filter or filters; when set, only threads whose session cwd exactly matches
+    /// one of these paths are returned.
+    public var cwd: CwdUnion?
     /// Optional page size; defaults to a reasonable server-side value.
     public var limit: Int?
     /// Optional provider filter; when set, only sessions recorded under these providers are
@@ -27348,11 +30188,16 @@ public struct ThreadListParams: Codable, Sendable {
     public var modelProviders: [String]?
     /// Optional substring filter for the extracted thread title.
     public var searchTerm: String?
+    /// Optional sort direction; defaults to descending (newest first).
+    public var sortDirection: SortDirection?
     /// Optional sort key; defaults to created_at.
     public var sortKey: ThreadSortKey?
     /// Optional source filter; when set, only sessions from these source kinds are returned.
     /// When omitted or empty, defaults to interactive sources.
     public var sourceKinds: [ThreadSourceKind]?
+    /// If true, return from the state DB without scanning JSONL rollouts to repair thread
+    /// metadata. Omitted or false preserves scan-and-repair behavior.
+    public var useStateDbOnly: Bool?
 
     public enum CodingKeys: String, CodingKey {
         case archived = "archived"
@@ -27361,19 +30206,23 @@ public struct ThreadListParams: Codable, Sendable {
         case limit = "limit"
         case modelProviders = "modelProviders"
         case searchTerm = "searchTerm"
+        case sortDirection = "sortDirection"
         case sortKey = "sortKey"
         case sourceKinds = "sourceKinds"
+        case useStateDbOnly = "useStateDbOnly"
     }
 
-    public init(archived: Bool? = nil, cursor: String? = nil, cwd: String? = nil, limit: Int? = nil, modelProviders: [String]? = nil, searchTerm: String? = nil, sortKey: ThreadSortKey? = nil, sourceKinds: [ThreadSourceKind]? = nil) {
+    public init(archived: Bool? = nil, cursor: String? = nil, cwd: CwdUnion? = nil, limit: Int? = nil, modelProviders: [String]? = nil, searchTerm: String? = nil, sortDirection: SortDirection? = nil, sortKey: ThreadSortKey? = nil, sourceKinds: [ThreadSourceKind]? = nil, useStateDbOnly: Bool? = nil) {
         self.archived = archived
         self.cursor = cursor
         self.cwd = cwd
         self.limit = limit
         self.modelProviders = modelProviders
         self.searchTerm = searchTerm
+        self.sortDirection = sortDirection
         self.sortKey = sortKey
         self.sourceKinds = sourceKinds
+        self.useStateDbOnly = useStateDbOnly
     }
 }
 
@@ -27398,12 +30247,14 @@ public extension ThreadListParams {
     func with(
         archived: Bool?? = nil,
         cursor: String?? = nil,
-        cwd: String?? = nil,
+        cwd: CwdUnion?? = nil,
         limit: Int?? = nil,
         modelProviders: [String]?? = nil,
         searchTerm: String?? = nil,
+        sortDirection: SortDirection?? = nil,
         sortKey: ThreadSortKey?? = nil,
-        sourceKinds: [ThreadSourceKind]?? = nil
+        sourceKinds: [ThreadSourceKind]?? = nil,
+        useStateDbOnly: Bool?? = nil
     ) -> ThreadListParams {
         return ThreadListParams(
             archived: archived ?? self.archived,
@@ -27412,8 +30263,10 @@ public extension ThreadListParams {
             limit: limit ?? self.limit,
             modelProviders: modelProviders ?? self.modelProviders,
             searchTerm: searchTerm ?? self.searchTerm,
+            sortDirection: sortDirection ?? self.sortDirection,
             sortKey: sortKey ?? self.sortKey,
-            sourceKinds: sourceKinds ?? self.sourceKinds
+            sourceKinds: sourceKinds ?? self.sourceKinds,
+            useStateDbOnly: useStateDbOnly ?? self.useStateDbOnly
         )
     }
 
@@ -27428,17 +30281,24 @@ public extension ThreadListParams {
 
 // MARK: - ThreadListResponse
 public struct ThreadListResponse: Codable, Sendable {
+    /// Opaque cursor to pass as `cursor` when reversing `sortDirection`. This is only populated
+    /// when the page contains at least one thread. Use it with the opposite `sortDirection`; for
+    /// timestamp sorts it anchors at the start of the page timestamp so same-second updates are
+    /// not skipped.
+    public var backwardsCursor: String?
     public var data: [ThreadElement]
     /// Opaque cursor to pass to the next call to continue after the last item. if None, there
     /// are no more items to return.
     public var nextCursor: String?
 
     public enum CodingKeys: String, CodingKey {
+        case backwardsCursor = "backwardsCursor"
         case data = "data"
         case nextCursor = "nextCursor"
     }
 
-    public init(data: [ThreadElement], nextCursor: String? = nil) {
+    public init(backwardsCursor: String? = nil, data: [ThreadElement], nextCursor: String? = nil) {
+        self.backwardsCursor = backwardsCursor
         self.data = data
         self.nextCursor = nextCursor
     }
@@ -27463,10 +30323,12 @@ public extension ThreadListResponse {
     }
 
     func with(
+        backwardsCursor: String?? = nil,
         data: [ThreadElement]? = nil,
         nextCursor: String?? = nil
     ) -> ThreadListResponse {
         return ThreadListResponse(
+            backwardsCursor: backwardsCursor ?? self.backwardsCursor,
             data: data ?? self.data,
             nextCursor: nextCursor ?? self.nextCursor
         )
@@ -28921,6 +31783,10 @@ public struct ThreadResumeParams: Codable, Sendable {
     public var config: [String: JSONAny]?
     public var cwd: String?
     public var developerInstructions: String?
+    /// When true, return only thread metadata and live-resume state without populating
+    /// `thread.turns`. This is useful when the client plans to call `thread/turns/list`
+    /// immediately after resuming.
+    public var excludeTurns: Bool?
     /// [UNSTABLE] FOR CODEX CLOUD - DO NOT USE. If specified, the thread will be resumed with
     /// the provided history instead of loaded from disk.
     public var history: [ResponseItem]?
@@ -28930,6 +31796,8 @@ public struct ThreadResumeParams: Codable, Sendable {
     /// [UNSTABLE] Specify the rollout path to resume from. If specified, the thread_id param
     /// will be ignored.
     public var path: String?
+    /// Full permissions override for the resumed thread. Cannot be combined with `sandbox`.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     /// If true, persist additional rollout EventMsg variants required to reconstruct a richer
     /// thread history on subsequent resume/fork/read.
     public var persistExtendedHistory: Bool?
@@ -28945,10 +31813,12 @@ public struct ThreadResumeParams: Codable, Sendable {
         case config = "config"
         case cwd = "cwd"
         case developerInstructions = "developerInstructions"
+        case excludeTurns = "excludeTurns"
         case history = "history"
         case model = "model"
         case modelProvider = "modelProvider"
         case path = "path"
+        case permissionProfile = "permissionProfile"
         case persistExtendedHistory = "persistExtendedHistory"
         case personality = "personality"
         case sandbox = "sandbox"
@@ -28956,17 +31826,19 @@ public struct ThreadResumeParams: Codable, Sendable {
         case threadId = "threadId"
     }
 
-    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, history: [ResponseItem]? = nil, model: String? = nil, modelProvider: String? = nil, path: String? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceTier: ServiceTier? = nil, threadId: String) {
+    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, excludeTurns: Bool? = nil, history: [ResponseItem]? = nil, model: String? = nil, modelProvider: String? = nil, path: String? = nil, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceTier: ServiceTier? = nil, threadId: String) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.baseInstructions = baseInstructions
         self.config = config
         self.cwd = cwd
         self.developerInstructions = developerInstructions
+        self.excludeTurns = excludeTurns
         self.history = history
         self.model = model
         self.modelProvider = modelProvider
         self.path = path
+        self.permissionProfile = permissionProfile
         self.persistExtendedHistory = persistExtendedHistory
         self.personality = personality
         self.sandbox = sandbox
@@ -29000,10 +31872,12 @@ public extension ThreadResumeParams {
         config: [String: JSONAny]?? = nil,
         cwd: String?? = nil,
         developerInstructions: String?? = nil,
+        excludeTurns: Bool?? = nil,
         history: [ResponseItem]?? = nil,
         model: String?? = nil,
         modelProvider: String?? = nil,
         path: String?? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         persistExtendedHistory: Bool?? = nil,
         personality: Personality?? = nil,
         sandbox: SandboxMode?? = nil,
@@ -29017,10 +31891,12 @@ public extension ThreadResumeParams {
             config: config ?? self.config,
             cwd: cwd ?? self.cwd,
             developerInstructions: developerInstructions ?? self.developerInstructions,
+            excludeTurns: excludeTurns ?? self.excludeTurns,
             history: history ?? self.history,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
             path: path ?? self.path,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             persistExtendedHistory: persistExtendedHistory ?? self.persistExtendedHistory,
             personality: personality ?? self.personality,
             sandbox: sandbox ?? self.sandbox,
@@ -29048,7 +31924,11 @@ public struct ThreadResumeResponse: Codable, Sendable {
     public var instructionSources: [String]?
     public var model: String
     public var modelProvider: String
+    /// Canonical active permissions view for this thread.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     public var reasoningEffort: ReasoningEffort?
+    /// Legacy sandbox policy retained for compatibility. New clients should use
+    /// `permissionProfile` when present as the canonical active permissions view.
     public var sandbox: SandboxPolicy
     public var serviceTier: ServiceTier?
     public var thread: ThreadElement
@@ -29060,19 +31940,21 @@ public struct ThreadResumeResponse: Codable, Sendable {
         case instructionSources = "instructionSources"
         case model = "model"
         case modelProvider = "modelProvider"
+        case permissionProfile = "permissionProfile"
         case reasoningEffort = "reasoningEffort"
         case sandbox = "sandbox"
         case serviceTier = "serviceTier"
         case thread = "thread"
     }
 
-    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
+    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.cwd = cwd
         self.instructionSources = instructionSources
         self.model = model
         self.modelProvider = modelProvider
+        self.permissionProfile = permissionProfile
         self.reasoningEffort = reasoningEffort
         self.sandbox = sandbox
         self.serviceTier = serviceTier
@@ -29105,6 +31987,7 @@ public extension ThreadResumeResponse {
         instructionSources: [String]?? = nil,
         model: String? = nil,
         modelProvider: String? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         reasoningEffort: ReasoningEffort?? = nil,
         sandbox: SandboxPolicy? = nil,
         serviceTier: ServiceTier?? = nil,
@@ -29117,6 +32000,7 @@ public extension ThreadResumeResponse {
             instructionSources: instructionSources ?? self.instructionSources,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             reasoningEffort: reasoningEffort ?? self.reasoningEffort,
             sandbox: sandbox ?? self.sandbox,
             serviceTier: serviceTier ?? self.serviceTier,
@@ -29363,6 +32247,12 @@ public struct ThreadStartParams: Codable, Sendable {
     public var cwd: String?
     public var developerInstructions: String?
     public var dynamicTools: [DynamicToolSpec]?
+    /// Optional sticky environments for this thread.
+    ///
+    /// Omitted selects the default environment when environment access is enabled. Empty
+    /// disables environment access for turns that do not provide a turn override. Non-empty
+    /// selects the first environment as the current turn environment.
+    public var environments: [TurnEnvironmentParams]?
     public var ephemeral: Bool?
     /// If true, opt into emitting raw Responses API items on the event stream. This is for
     /// internal use only (e.g. Codex Cloud).
@@ -29372,6 +32262,8 @@ public struct ThreadStartParams: Codable, Sendable {
     public var mockExperimentalField: String?
     public var model: String?
     public var modelProvider: String?
+    /// Full permissions override for this thread. Cannot be combined with `sandbox`.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     /// If true, persist additional rollout EventMsg variants required to reconstruct a richer
     /// thread history on resume/fork/read.
     public var persistExtendedHistory: Bool?
@@ -29389,11 +32281,13 @@ public struct ThreadStartParams: Codable, Sendable {
         case cwd = "cwd"
         case developerInstructions = "developerInstructions"
         case dynamicTools = "dynamicTools"
+        case environments = "environments"
         case ephemeral = "ephemeral"
         case experimentalRawEvents = "experimentalRawEvents"
         case mockExperimentalField = "mockExperimentalField"
         case model = "model"
         case modelProvider = "modelProvider"
+        case permissionProfile = "permissionProfile"
         case persistExtendedHistory = "persistExtendedHistory"
         case personality = "personality"
         case sandbox = "sandbox"
@@ -29402,7 +32296,7 @@ public struct ThreadStartParams: Codable, Sendable {
         case sessionStartSource = "sessionStartSource"
     }
 
-    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, dynamicTools: [DynamicToolSpec]? = nil, ephemeral: Bool? = nil, experimentalRawEvents: Bool? = nil, mockExperimentalField: String? = nil, model: String? = nil, modelProvider: String? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceName: String? = nil, serviceTier: ServiceTier? = nil, sessionStartSource: ThreadStartSource? = nil) {
+    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, baseInstructions: String? = nil, config: [String: JSONAny]? = nil, cwd: String? = nil, developerInstructions: String? = nil, dynamicTools: [DynamicToolSpec]? = nil, environments: [TurnEnvironmentParams]? = nil, ephemeral: Bool? = nil, experimentalRawEvents: Bool? = nil, mockExperimentalField: String? = nil, model: String? = nil, modelProvider: String? = nil, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, persistExtendedHistory: Bool? = nil, personality: Personality? = nil, sandbox: SandboxMode? = nil, serviceName: String? = nil, serviceTier: ServiceTier? = nil, sessionStartSource: ThreadStartSource? = nil) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.baseInstructions = baseInstructions
@@ -29410,11 +32304,13 @@ public struct ThreadStartParams: Codable, Sendable {
         self.cwd = cwd
         self.developerInstructions = developerInstructions
         self.dynamicTools = dynamicTools
+        self.environments = environments
         self.ephemeral = ephemeral
         self.experimentalRawEvents = experimentalRawEvents
         self.mockExperimentalField = mockExperimentalField
         self.model = model
         self.modelProvider = modelProvider
+        self.permissionProfile = permissionProfile
         self.persistExtendedHistory = persistExtendedHistory
         self.personality = personality
         self.sandbox = sandbox
@@ -29450,11 +32346,13 @@ public extension ThreadStartParams {
         cwd: String?? = nil,
         developerInstructions: String?? = nil,
         dynamicTools: [DynamicToolSpec]?? = nil,
+        environments: [TurnEnvironmentParams]?? = nil,
         ephemeral: Bool?? = nil,
         experimentalRawEvents: Bool?? = nil,
         mockExperimentalField: String?? = nil,
         model: String?? = nil,
         modelProvider: String?? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         persistExtendedHistory: Bool?? = nil,
         personality: Personality?? = nil,
         sandbox: SandboxMode?? = nil,
@@ -29470,17 +32368,72 @@ public extension ThreadStartParams {
             cwd: cwd ?? self.cwd,
             developerInstructions: developerInstructions ?? self.developerInstructions,
             dynamicTools: dynamicTools ?? self.dynamicTools,
+            environments: environments ?? self.environments,
             ephemeral: ephemeral ?? self.ephemeral,
             experimentalRawEvents: experimentalRawEvents ?? self.experimentalRawEvents,
             mockExperimentalField: mockExperimentalField ?? self.mockExperimentalField,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             persistExtendedHistory: persistExtendedHistory ?? self.persistExtendedHistory,
             personality: personality ?? self.personality,
             sandbox: sandbox ?? self.sandbox,
             serviceName: serviceName ?? self.serviceName,
             serviceTier: serviceTier ?? self.serviceTier,
             sessionStartSource: sessionStartSource ?? self.sessionStartSource
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - TurnEnvironmentParams
+public struct TurnEnvironmentParams: Codable, Sendable {
+    public var cwd: String
+    public var environmentId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case cwd = "cwd"
+        case environmentId = "environmentId"
+    }
+
+    public init(cwd: String, environmentId: String) {
+        self.cwd = cwd
+        self.environmentId = environmentId
+    }
+}
+
+// MARK: TurnEnvironmentParams convenience initializers and mutators
+
+public extension TurnEnvironmentParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(TurnEnvironmentParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        cwd: String? = nil,
+        environmentId: String? = nil
+    ) -> TurnEnvironmentParams {
+        return TurnEnvironmentParams(
+            cwd: cwd ?? self.cwd,
+            environmentId: environmentId ?? self.environmentId
         )
     }
 
@@ -29503,7 +32456,11 @@ public struct ThreadStartResponse: Codable, Sendable {
     public var instructionSources: [String]?
     public var model: String
     public var modelProvider: String
+    /// Canonical active permissions view for this thread.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     public var reasoningEffort: ReasoningEffort?
+    /// Legacy sandbox policy retained for compatibility. New clients should use
+    /// `permissionProfile` when present as the canonical active permissions view.
     public var sandbox: SandboxPolicy
     public var serviceTier: ServiceTier?
     public var thread: ThreadElement
@@ -29515,19 +32472,21 @@ public struct ThreadStartResponse: Codable, Sendable {
         case instructionSources = "instructionSources"
         case model = "model"
         case modelProvider = "modelProvider"
+        case permissionProfile = "permissionProfile"
         case reasoningEffort = "reasoningEffort"
         case sandbox = "sandbox"
         case serviceTier = "serviceTier"
         case thread = "thread"
     }
 
-    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
+    public init(approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, cwd: String, instructionSources: [String]? = nil, model: String, modelProvider: String, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, reasoningEffort: ReasoningEffort? = nil, sandbox: SandboxPolicy, serviceTier: ServiceTier? = nil, thread: ThreadElement) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.cwd = cwd
         self.instructionSources = instructionSources
         self.model = model
         self.modelProvider = modelProvider
+        self.permissionProfile = permissionProfile
         self.reasoningEffort = reasoningEffort
         self.sandbox = sandbox
         self.serviceTier = serviceTier
@@ -29560,6 +32519,7 @@ public extension ThreadStartResponse {
         instructionSources: [String]?? = nil,
         model: String? = nil,
         modelProvider: String? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         reasoningEffort: ReasoningEffort?? = nil,
         sandbox: SandboxPolicy? = nil,
         serviceTier: ServiceTier?? = nil,
@@ -29572,6 +32532,7 @@ public extension ThreadStartResponse {
             instructionSources: instructionSources ?? self.instructionSources,
             model: model ?? self.model,
             modelProvider: modelProvider ?? self.modelProvider,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             reasoningEffort: reasoningEffort ?? self.reasoningEffort,
             sandbox: sandbox ?? self.sandbox,
             serviceTier: serviceTier ?? self.serviceTier,
@@ -29861,6 +32822,135 @@ public extension ThreadTokenUsageUpdatedNotification {
             threadId: threadId ?? self.threadId,
             tokenUsage: tokenUsage ?? self.tokenUsage,
             turnId: turnId ?? self.turnId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ThreadTurnsListParams
+public struct ThreadTurnsListParams: Codable, Sendable {
+    /// Opaque cursor to pass to the next call to continue after the last turn.
+    public var cursor: String?
+    /// Optional turn page size.
+    public var limit: Int?
+    /// Optional turn pagination direction; defaults to descending.
+    public var sortDirection: SortDirection?
+    public var threadId: String
+
+    public enum CodingKeys: String, CodingKey {
+        case cursor = "cursor"
+        case limit = "limit"
+        case sortDirection = "sortDirection"
+        case threadId = "threadId"
+    }
+
+    public init(cursor: String? = nil, limit: Int? = nil, sortDirection: SortDirection? = nil, threadId: String) {
+        self.cursor = cursor
+        self.limit = limit
+        self.sortDirection = sortDirection
+        self.threadId = threadId
+    }
+}
+
+// MARK: ThreadTurnsListParams convenience initializers and mutators
+
+public extension ThreadTurnsListParams {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ThreadTurnsListParams.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        cursor: String?? = nil,
+        limit: Int?? = nil,
+        sortDirection: SortDirection?? = nil,
+        threadId: String? = nil
+    ) -> ThreadTurnsListParams {
+        return ThreadTurnsListParams(
+            cursor: cursor ?? self.cursor,
+            limit: limit ?? self.limit,
+            sortDirection: sortDirection ?? self.sortDirection,
+            threadId: threadId ?? self.threadId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - ThreadTurnsListResponse
+public struct ThreadTurnsListResponse: Codable, Sendable {
+    /// Opaque cursor to pass as `cursor` when reversing `sortDirection`. This is only populated
+    /// when the page contains at least one turn. Use it with the opposite `sortDirection` to
+    /// include the anchor turn again and catch updates to that turn.
+    public var backwardsCursor: String?
+    public var data: [Turn]
+    /// Opaque cursor to pass to the next call to continue after the last turn. if None, there
+    /// are no more turns to return.
+    public var nextCursor: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case backwardsCursor = "backwardsCursor"
+        case data = "data"
+        case nextCursor = "nextCursor"
+    }
+
+    public init(backwardsCursor: String? = nil, data: [Turn], nextCursor: String? = nil) {
+        self.backwardsCursor = backwardsCursor
+        self.data = data
+        self.nextCursor = nextCursor
+    }
+}
+
+// MARK: ThreadTurnsListResponse convenience initializers and mutators
+
+public extension ThreadTurnsListResponse {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(ThreadTurnsListResponse.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        backwardsCursor: String?? = nil,
+        data: [Turn]? = nil,
+        nextCursor: String?? = nil
+    ) -> ThreadTurnsListResponse {
+        return ThreadTurnsListResponse(
+            backwardsCursor: backwardsCursor ?? self.backwardsCursor,
+            data: data ?? self.data,
+            nextCursor: nextCursor ?? self.nextCursor
         )
     }
 
@@ -30583,11 +33673,20 @@ public struct TurnStartParams: Codable, Sendable {
     public var cwd: String?
     /// Override the reasoning effort for this turn and subsequent turns.
     public var effort: ReasoningEffort?
+    /// Optional turn-scoped environments.
+    ///
+    /// Omitted uses the thread sticky environments. Empty disables environment access for this
+    /// turn. Non-empty selects the first environment as the current turn environment for this
+    /// turn.
+    public var environments: [TurnEnvironmentParams]?
     public var input: [UserInput]
     /// Override the model for this turn and subsequent turns.
     public var model: String?
     /// Optional JSON Schema used to constrain the final assistant message for this turn.
     public var outputSchema: JSONAny?
+    /// Override the full permissions profile for this turn and subsequent turns. Cannot be
+    /// combined with `sandboxPolicy`.
+    public var permissionProfile: CommandExecParamsManagedPermissionProfile?
     /// Override the personality for this turn and subsequent turns.
     public var personality: Personality?
     /// Optional turn-scoped Responses API client metadata.
@@ -30606,9 +33705,11 @@ public struct TurnStartParams: Codable, Sendable {
         case collaborationMode = "collaborationMode"
         case cwd = "cwd"
         case effort = "effort"
+        case environments = "environments"
         case input = "input"
         case model = "model"
         case outputSchema = "outputSchema"
+        case permissionProfile = "permissionProfile"
         case personality = "personality"
         case responsesapiClientMetadata = "responsesapiClientMetadata"
         case sandboxPolicy = "sandboxPolicy"
@@ -30617,15 +33718,17 @@ public struct TurnStartParams: Codable, Sendable {
         case threadId = "threadId"
     }
 
-    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, collaborationMode: CollaborationMode? = nil, cwd: String? = nil, effort: ReasoningEffort? = nil, input: [UserInput], model: String? = nil, outputSchema: JSONAny? = nil, personality: Personality? = nil, responsesapiClientMetadata: [String: String]? = nil, sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy? = nil, serviceTier: ServiceTier? = nil, summary: ReasoningSummary? = nil, threadId: String) {
+    public init(approvalPolicy: ApprovalPolicyUnion? = nil, approvalsReviewer: ApprovalsReviewer? = nil, collaborationMode: CollaborationMode? = nil, cwd: String? = nil, effort: ReasoningEffort? = nil, environments: [TurnEnvironmentParams]? = nil, input: [UserInput], model: String? = nil, outputSchema: JSONAny? = nil, permissionProfile: CommandExecParamsManagedPermissionProfile? = nil, personality: Personality? = nil, responsesapiClientMetadata: [String: String]? = nil, sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy? = nil, serviceTier: ServiceTier? = nil, summary: ReasoningSummary? = nil, threadId: String) {
         self.approvalPolicy = approvalPolicy
         self.approvalsReviewer = approvalsReviewer
         self.collaborationMode = collaborationMode
         self.cwd = cwd
         self.effort = effort
+        self.environments = environments
         self.input = input
         self.model = model
         self.outputSchema = outputSchema
+        self.permissionProfile = permissionProfile
         self.personality = personality
         self.responsesapiClientMetadata = responsesapiClientMetadata
         self.sandboxPolicy = sandboxPolicy
@@ -30659,9 +33762,11 @@ public extension TurnStartParams {
         collaborationMode: CollaborationMode?? = nil,
         cwd: String?? = nil,
         effort: ReasoningEffort?? = nil,
+        environments: [TurnEnvironmentParams]?? = nil,
         input: [UserInput]? = nil,
         model: String?? = nil,
         outputSchema: JSONAny?? = nil,
+        permissionProfile: CommandExecParamsManagedPermissionProfile?? = nil,
         personality: Personality?? = nil,
         responsesapiClientMetadata: [String: String]?? = nil,
         sandboxPolicy: CommandExecParamsDangerFullAccessSandboxPolicy?? = nil,
@@ -30675,9 +33780,11 @@ public extension TurnStartParams {
             collaborationMode: collaborationMode ?? self.collaborationMode,
             cwd: cwd ?? self.cwd,
             effort: effort ?? self.effort,
+            environments: environments ?? self.environments,
             input: input ?? self.input,
             model: model ?? self.model,
             outputSchema: outputSchema ?? self.outputSchema,
+            permissionProfile: permissionProfile ?? self.permissionProfile,
             personality: personality ?? self.personality,
             responsesapiClientMetadata: responsesapiClientMetadata ?? self.responsesapiClientMetadata,
             sandboxPolicy: sandboxPolicy ?? self.sandboxPolicy,
@@ -30899,6 +34006,61 @@ public extension TurnSteerResponse {
     ) -> TurnSteerResponse {
         return TurnSteerResponse(
             turnId: turnId ?? self.turnId
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - WarningNotification
+public struct WarningNotification: Codable, Sendable {
+    /// Concise warning message for the user.
+    public var message: String
+    /// Optional thread target when the warning applies to a specific thread.
+    public var threadId: String?
+
+    public enum CodingKeys: String, CodingKey {
+        case message = "message"
+        case threadId = "threadId"
+    }
+
+    public init(message: String, threadId: String? = nil) {
+        self.message = message
+        self.threadId = threadId
+    }
+}
+
+// MARK: WarningNotification convenience initializers and mutators
+
+public extension WarningNotification {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(WarningNotification.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        message: String? = nil,
+        threadId: String?? = nil
+    ) -> WarningNotification {
+        return WarningNotification(
+            message: message ?? self.message,
+            threadId: threadId ?? self.threadId
         )
     }
 

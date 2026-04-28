@@ -90,9 +90,9 @@ final class SpotifyCodexSidebarView: NSView {
         model.messages.append(message)
     }
 
-    func updateMessage(id: UUID, text: String) {
-        guard let index = model.messages.firstIndex(where: { $0.id == id }) else { return }
-        model.messages[index].text = text
+    func updateMessage(_ message: SpotifyCodexChatMessage) {
+        guard let index = model.messages.firstIndex(where: { $0.id == message.id }) else { return }
+        model.messages[index] = message
     }
 
     func clearMessages() {
@@ -213,7 +213,7 @@ struct SpotifyCodexSidebarRoot: View {
                     proxy.scrollTo("__bottom__", anchor: .bottom)
                 }
             }
-            .onChange(of: model.messages.last?.text) { _, _ in
+            .onChange(of: model.messages) { _, _ in
                 proxy.scrollTo("__bottom__", anchor: .bottom)
             }
         }
@@ -267,6 +267,11 @@ struct SpotifyCodexSidebarRoot: View {
     private var emptySub: String {
         let trimmed = model.statusText.trimmingCharacters(in: .whitespaces)
         if trimmed.lowercased().contains("unavailable") {
+            if let detail = trimmed.split(separator: ":", maxSplits: 1).last,
+               detail != trimmed,
+               !detail.trimmingCharacters(in: .whitespaces).isEmpty {
+                return String(detail).trimmingCharacters(in: .whitespaces)
+            }
             return "We couldn't reach Spotify AI right now. Try again in a moment."
         }
         if trimmed.lowercased().contains("connecting") {
@@ -280,6 +285,7 @@ struct SpotifyCodexSidebarRoot: View {
             HStack(spacing: 8) {
                 modelMenu
                 effortMenu
+                serviceTierChip
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 4)
@@ -407,6 +413,22 @@ struct SpotifyCodexSidebarRoot: View {
         return "Effort"
     }
 
+    private var serviceTierChip: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(Color.spotifyGreen)
+            Text("Fast")
+                .font(.system(size: 12, weight: .regular))
+                .foregroundColor(.white.opacity(0.68))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.spotifyCard, in: Capsule(style: .continuous))
+        .fixedSize()
+        .help("Fast service tier")
+    }
+
     private var canSend: Bool {
         let trimmed = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmed.isEmpty && !model.isBusy
@@ -448,20 +470,69 @@ private struct SpotifyCodexMessageRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             badge
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(title)
                     .font(.system(size: 11, weight: .heavy))
                     .foregroundStyle(Color.spotifyTextSecondary)
                     .textCase(.uppercase)
                     .tracking(0.6)
-                Text(message.text.isEmpty ? " " : message.text)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.white.opacity(0.94))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                    .lineSpacing(2)
+                messageBody
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var messageBody: some View {
+        if message.role == .assistant {
+            if shouldShowThinkingIndicator {
+                SpotifyCodexThinkingIndicator(title: thinkingTitle)
+            }
+            if !visibleTraces.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(visibleTraces) { trace in
+                        SpotifyCodexReasoningTraceBox(trace: trace)
+                    }
+                }
+            }
+        }
+        if !message.text.isEmpty {
+            SpotifyCodexMarkdownText(
+                text: message.text,
+                fontSize: 13,
+                color: Color.white.opacity(0.94)
+            )
+        } else if message.role == .user {
+            Text(" ")
+                .font(.system(size: 13))
+        }
+    }
+
+    private var shouldShowThinkingIndicator: Bool {
+        switch message.phase {
+        case .thinking:
+            return visibleTraces.isEmpty
+        case .responding:
+            return message.text.isEmpty
+        case .complete:
+            return false
+        }
+    }
+
+    private var visibleTraces: [SpotifyCodexReasoningTrace] {
+        message.traces.filter { trace in
+            !trace.isComplete || !trace.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private var thinkingTitle: String {
+        switch message.phase {
+        case .thinking:
+            return "Thinking"
+        case .responding:
+            return "Responding"
+        case .complete:
+            return ""
         }
     }
 
@@ -494,6 +565,96 @@ private struct SpotifyCodexMessageRow: View {
         case .user: return "You"
         case .assistant: return "Spotify AI"
         }
+    }
+}
+
+private struct SpotifyCodexThinkingIndicator: View {
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .controlSize(.small)
+                .tint(Color.spotifyGreen)
+                .frame(width: 14, height: 14)
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.spotifyBodyText)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.spotifyCard)
+        )
+    }
+}
+
+private struct SpotifyCodexReasoningTraceBox: View {
+    let trace: SpotifyCodexReasoningTrace
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                if trace.isComplete {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.spotifyTextSecondary)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                        .tint(Color.spotifyGreen)
+                        .frame(width: 12, height: 12)
+                }
+                Text(trace.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.spotifyTextSecondary)
+            }
+            SpotifyCodexMarkdownText(
+                text: trace.text.isEmpty ? "Working through this..." : trace.text,
+                fontSize: 12,
+                color: Color.spotifyBodyText
+            )
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.spotifyCard)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct SpotifyCodexMarkdownText: View {
+    let text: String
+    let fontSize: CGFloat
+    let color: Color
+
+    var body: some View {
+        Text(attributedText)
+            .font(.system(size: fontSize))
+            .foregroundStyle(color)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+            .lineSpacing(2)
+    }
+
+    private var attributedText: AttributedString {
+        if let attributed = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            )
+        ) {
+            return attributed
+        }
+        return AttributedString(text)
     }
 }
 

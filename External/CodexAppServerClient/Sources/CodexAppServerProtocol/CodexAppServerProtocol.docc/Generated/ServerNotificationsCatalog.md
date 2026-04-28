@@ -23,6 +23,12 @@ Every server-to-client notification this Codex binding can decode, grouped by wi
 - ``ServerNotifications/ConfigWarning``
 - ``ServerNotifications/DeprecationNotice``
 - ``ServerNotifications/Error``
+- ``ServerNotifications/GuardianWarning``
+- ``ServerNotifications/Warning``
+
+### externalAgentConfig
+
+- ``ServerNotifications/ExternalAgentConfigImportCompleted``
 
 ### fs
 
@@ -47,6 +53,7 @@ Every server-to-client notification this Codex binding can decode, grouped by wi
 - ``ServerNotifications/ItemCommandExecutionTerminalInteraction``
 - ``ServerNotifications/ItemCompleted``
 - ``ServerNotifications/ItemFileChangeOutputDelta``
+- ``ServerNotifications/ItemFileChangePatchUpdated``
 - ``ServerNotifications/ItemMcpToolCallProgress``
 - ``ServerNotifications/ItemPlanDelta``
 - ``ServerNotifications/ItemReasoningSummaryPartAdded``
@@ -62,6 +69,7 @@ Every server-to-client notification this Codex binding can decode, grouped by wi
 ### model
 
 - ``ServerNotifications/ModelRerouted``
+- ``ServerNotifications/ModelVerification``
 
 ### serverRequest
 

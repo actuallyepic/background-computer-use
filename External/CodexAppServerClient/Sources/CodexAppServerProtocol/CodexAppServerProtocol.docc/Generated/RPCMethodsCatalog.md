@@ -11,6 +11,7 @@ Every client-to-server RPC method exposed by this Codex binding, grouped by wire
 - ``RPC/AccountLogout``
 - ``RPC/AccountRateLimitsRead``
 - ``RPC/AccountRead``
+- ``RPC/AccountSendAddCreditsNudgeEmail``
 
 ### app
 
@@ -42,6 +43,12 @@ Every client-to-server RPC method exposed by this Codex binding, grouped by wire
 
 - ``RPC/FuzzyFileSearch``
 - ``RPC/Initialize``
+
+### device
+
+- ``RPC/DeviceKeyCreate``
+- ``RPC/DeviceKeyPublic``
+- ``RPC/DeviceKeySign``
 
 ### experimentalFeature
 
@@ -78,6 +85,8 @@ Every client-to-server RPC method exposed by this Codex binding, grouped by wire
 ### marketplace
 
 - ``RPC/MarketplaceAdd``
+- ``RPC/MarketplaceRemove``
+- ``RPC/MarketplaceUpgrade``
 
 ### mcpServer
 
@@ -119,6 +128,7 @@ Every client-to-server RPC method exposed by this Codex binding, grouped by wire
 
 ### thread
 
+- ``RPC/ThreadApproveGuardianDeniedAction``
 - ``RPC/ThreadArchive``
 - ``RPC/ThreadBackgroundTerminalsClean``
 - ``RPC/ThreadCompactStart``
@@ -141,6 +151,7 @@ Every client-to-server RPC method exposed by this Codex binding, grouped by wire
 - ``RPC/ThreadRollback``
 - ``RPC/ThreadShellCommand``
 - ``RPC/ThreadStart``
+- ``RPC/ThreadTurnsList``
 - ``RPC/ThreadUnarchive``
 - ``RPC/ThreadUnsubscribe``
 

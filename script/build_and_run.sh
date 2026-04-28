@@ -1,28 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:-run}"
-APP_NAME="BackgroundComputerUse"
-BUNDLE_ID="xyz.dubdub.backgroundcomputeruse"
-MIN_SYSTEM_VERSION="14.0"
-DEV_KEYCHAIN="${BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN:-$HOME/Library/Keychains/background-computer-use-dev.keychain-db}"
-USE_DEV_KEYCHAIN=0
+TARGET="${1:-spotify}"
+MODE="${2:-run}"
+
+if [ "$TARGET" != "spotify" ] && [ "$TARGET" != "bcu" ]; then
+  MODE="$TARGET"
+  TARGET="spotify"
+fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
+INSTALL_DIR="${SPOTIFY_BACKGROUND_COMPUTER_USE_INSTALL_DIR:-${BACKGROUND_COMPUTER_USE_INSTALL_DIR:-$HOME/Applications}}"
+MIN_SYSTEM_VERSION="14.0"
+DEV_KEYCHAIN="${SPOTIFY_BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN:-${BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN:-$HOME/Library/Keychains/background-computer-use-dev.keychain-db}}"
+USE_DEV_KEYCHAIN=0
+
+case "$TARGET" in
+  spotify)
+    APP_NAME="SpotifyWebViewApp"
+    BUNDLE_ID="xyz.dubdub.spotifywebview"
+    BUNDLE_DISPLAY_NAME="Spotify Background Computer Use"
+    ;;
+  bcu)
+    APP_NAME="BackgroundComputerUse"
+    BUNDLE_ID="xyz.dubdub.backgroundcomputeruse"
+    BUNDLE_DISPLAY_NAME="BackgroundComputerUse"
+    ;;
+  *)
+    echo "usage: $0 [spotify|bcu] [run|debug|verify]" >&2
+    exit 2
+    ;;
+esac
+
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-INSTALL_DIR="${BACKGROUND_COMPUTER_USE_INSTALL_DIR:-$HOME/Applications}"
 INSTALLED_APP_BUNDLE="$INSTALL_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 
-if [ -z "${BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-}" ] && [ ! -f "$DEV_KEYCHAIN" ]; then
+if [ -z "${SPOTIFY_BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-${BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-}}" ] && [ ! -f "$DEV_KEYCHAIN" ]; then
   "$ROOT_DIR/script/bootstrap_signing_identity.sh"
 fi
 
-if [ -n "${BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-}" ]; then
+if [ -n "${SPOTIFY_BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-}" ]; then
+  SIGNING_IDENTITY="$SPOTIFY_BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY"
+elif [ -n "${BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY:-}" ]; then
   SIGNING_IDENTITY="$BACKGROUND_COMPUTER_USE_SIGNING_IDENTITY"
 else
   SIGNING_IDENTITY=""
@@ -63,9 +88,13 @@ BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
 
 mkdir -p "$APP_BUNDLE"
 rm -rf "$APP_CONTENTS"
-mkdir -p "$APP_MACOS"
+mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+
+if [ "$TARGET" = "spotify" ]; then
+  printf "%s\n" "$ROOT_DIR" >"$APP_RESOURCES/workspace-path.txt"
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -78,6 +107,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>$BUNDLE_DISPLAY_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
@@ -96,7 +127,7 @@ cat >"$INFO_PLIST" <<PLIST
 PLIST
 
 if [ "$USE_DEV_KEYCHAIN" -eq 1 ]; then
-  security unlock-keychain -p "${BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN_PASSWORD:-}" "$DEV_KEYCHAIN"
+  security unlock-keychain -p "${SPOTIFY_BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN_PASSWORD:-${BACKGROUND_COMPUTER_USE_DEV_KEYCHAIN_PASSWORD:-}}" "$DEV_KEYCHAIN"
 fi
 
 if [ "$USE_DEV_KEYCHAIN" -eq 1 ]; then
@@ -136,7 +167,7 @@ case "$MODE" in
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   *)
-    echo "usage: $0 [run|--debug|--verify]" >&2
+    echo "usage: $0 [spotify|bcu] [run|debug|verify]" >&2
     exit 2
     ;;
 esac

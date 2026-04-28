@@ -434,8 +434,8 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         codexController.onMessageAppended = { [weak self] message in
             self?.sidebar.appendMessage(message)
         }
-        codexController.onMessageUpdated = { [weak self] id, text in
-            self?.sidebar.updateMessage(id: id, text: text)
+        codexController.onMessageUpdated = { [weak self] message in
+            self?.sidebar.updateMessage(message)
         }
         codexController.onMessagesCleared = { [weak self] in
             self?.sidebar.clearMessages()
@@ -789,19 +789,56 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
             return URL(fileURLWithPath: raw)
         }
 
-        let candidates = [
-            URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
-            URL(fileURLWithPath: CommandLine.arguments.first ?? FileManager.default.currentDirectoryPath)
-                .deletingLastPathComponent(),
-        ]
+        if let resourceURL = Bundle.main.url(forResource: "workspace-path", withExtension: "txt"),
+           let raw = try? String(contentsOf: resourceURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty {
+            return URL(fileURLWithPath: raw)
+        }
 
-        for candidate in candidates {
+        for candidate in workspaceCandidateURLs(environment: environment) {
             if let root = packageRoot(containing: candidate) {
                 return root
             }
         }
 
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    }
+
+    private static func workspaceCandidateURLs(environment: [String: String]) -> [URL] {
+        let fileManager = FileManager.default
+        let home = fileManager.homeDirectoryForCurrentUser
+        var candidates: [URL] = [
+            URL(fileURLWithPath: fileManager.currentDirectoryPath),
+            URL(fileURLWithPath: CommandLine.arguments.first ?? fileManager.currentDirectoryPath)
+                .deletingLastPathComponent(),
+            Bundle.main.bundleURL,
+            Bundle.main.bundleURL.deletingLastPathComponent(),
+        ]
+
+        if let rawPWD = environment["PWD"], !rawPWD.isEmpty {
+            candidates.append(URL(fileURLWithPath: rawPWD))
+        }
+
+        for base in [
+            home,
+            home.appendingPathComponent("dubdubdebug", isDirectory: true),
+            home.appendingPathComponent("Developer", isDirectory: true),
+            home.appendingPathComponent("Projects", isDirectory: true),
+            home.appendingPathComponent("Code", isDirectory: true),
+        ] {
+            candidates.append(base.appendingPathComponent("background-computer-use", isDirectory: true))
+            candidates.append(base.appendingPathComponent("BackgroundComputerUse", isDirectory: true))
+            candidates.append(base.appendingPathComponent("spotify-background-computer-use", isDirectory: true))
+            candidates.append(base.appendingPathComponent("SpotifyBackgroundComputerUse", isDirectory: true))
+        }
+
+        var seen = Set<String>()
+        return candidates.compactMap { url in
+            let standardized = url.standardizedFileURL
+            guard seen.insert(standardized.path).inserted else { return nil }
+            return standardized
+        }
     }
 
     private static func packageRoot(containing url: URL) -> URL? {
