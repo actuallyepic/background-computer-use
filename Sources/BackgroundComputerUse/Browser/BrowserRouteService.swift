@@ -3,6 +3,7 @@ import Foundation
 
 struct BrowserRouteService {
     private let executionOptions: ActionExecutionOptions
+    private let providerBridge = BrowserProviderHTTPBridge()
 
     init(executionOptions: ActionExecutionOptions = .visualCursorEnabled) {
         self.executionOptions = executionOptions
@@ -51,6 +52,9 @@ struct BrowserRouteService {
     }
 
     func navigate(_ request: BrowserNavigateRequest) throws -> BrowserGetStateResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try providerBridge.navigate(context: context, request: request)
+        }
         let surface = try ownedSurface(request.browser)
         try BrowserMainActor.sync {
             try surface.navigate(request.url)
@@ -72,6 +76,9 @@ struct BrowserRouteService {
     }
 
     func getState(_ request: BrowserGetStateRequest) throws -> BrowserGetStateResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try providerBridge.getState(context: context, request: request)
+        }
         let started = Date()
         let surface = try ownedSurface(request.browser)
         let resolveEnded = Date()
@@ -121,6 +128,9 @@ struct BrowserRouteService {
     }
 
     func evaluateJavaScript(_ request: BrowserEvaluateJavaScriptRequest) throws -> BrowserEvaluateJavaScriptResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try providerBridge.evaluateJavaScript(context: context, request: request)
+        }
         let surface = try ownedSurface(request.browser)
         return try BrowserMainActor.runBlocking(timeout: TimeInterval(max(request.timeoutMs ?? 8_000, 100)) / 1_000 + 1) {
             try await surface.evaluateJavaScript(request.javaScript)
@@ -137,6 +147,9 @@ struct BrowserRouteService {
         guard let browser = request.browser else {
             throw BrowserSurfaceError.invalidRequest("browser is required for injected scripts in this implementation.")
         }
+        if let context = registeredSurfaceContext(browser) {
+            return try providerBridge.injectJavaScript(context: context, request: request)
+        }
         let surface = try ownedSurface(browser)
         return try BrowserMainActor.runBlocking {
             try await surface.installScript(request: request)
@@ -146,6 +159,9 @@ struct BrowserRouteService {
     func removeInjectedJavaScript(_ request: BrowserRemoveInjectedJavaScriptRequest) throws -> BrowserRemoveInjectedJavaScriptResponse {
         guard let browser = request.browser else {
             throw BrowserSurfaceError.invalidRequest("browser is required when removing injected scripts.")
+        }
+        if let context = registeredSurfaceContext(browser) {
+            return try providerBridge.removeInjectedJavaScript(context: context, request: request)
         }
         let surface = try ownedSurface(browser)
         return try BrowserMainActor.sync {
@@ -173,6 +189,9 @@ struct BrowserRouteService {
             )
         }
 
+        if let context = registeredSurfaceContext(browser) {
+            return try providerBridge.listInjectedJavaScript(context: context, request: request)
+        }
         let surface = try ownedSurface(browser)
         let scripts = try BrowserMainActor.sync {
             surface.listScripts()
@@ -185,6 +204,9 @@ struct BrowserRouteService {
     }
 
     func click(_ request: BrowserClickRequest) throws -> BrowserActionResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try registeredClick(context: context, request: request)
+        }
         let started = Date()
         let surface = try ownedSurface(request.browser)
         let preState = try getState(
@@ -265,6 +287,9 @@ struct BrowserRouteService {
     }
 
     func typeText(_ request: BrowserTypeTextRequest) throws -> BrowserActionResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try registeredTypeText(context: context, request: request)
+        }
         let started = Date()
         let surface = try ownedSurface(request.browser)
         let preState = try getState(
@@ -353,6 +378,9 @@ struct BrowserRouteService {
     }
 
     func scroll(_ request: BrowserScrollRequest) throws -> BrowserActionResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try registeredScroll(context: context, request: request)
+        }
         let started = Date()
         let surface = try ownedSurface(request.browser)
         let preState = try getState(
@@ -445,6 +473,9 @@ struct BrowserRouteService {
     }
 
     func reload(_ request: BrowserReloadRequest) throws -> BrowserGetStateResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try providerBridge.reload(context: context, request: request)
+        }
         let surface = try ownedSurface(request.browser)
         try BrowserMainActor.sync {
             surface.reload()
@@ -466,6 +497,9 @@ struct BrowserRouteService {
     }
 
     func close(_ request: BrowserCloseRequest) throws -> BrowserCloseResponse {
+        if let context = registeredSurfaceContext(request.browser) {
+            return try providerBridge.close(context: context, request: request)
+        }
         let closed = try BrowserMainActor.sync {
             try BrowserSurfaceRegistry.shared.close(targetID: request.browser)
         }
@@ -513,15 +547,42 @@ struct BrowserRouteService {
     }
 
     func registerProvider(_ request: BrowserRegisterProviderRequest) throws -> BrowserRegisterProviderResponse {
-        try BrowserMainActor.sync {
+        let response = try BrowserMainActor.sync {
             try BrowserSurfaceRegistry.shared.registerProvider(request: request)
         }
+        ControlPlaneEventStore.shared.emit(
+            providerID: request.providerID,
+            groupID: nil,
+            surfaceID: nil,
+            targetID: nil,
+            source: .provider,
+            type: "provider.registered",
+            scriptID: nil,
+            correlationID: nil,
+            payload: .object([
+                "displayName": .string(request.displayName),
+                "targetCount": .number(Double(response.targets.count))
+            ])
+        )
+        return response
     }
 
     func unregisterProvider(_ request: BrowserUnregisterProviderRequest) throws -> BrowserUnregisterProviderResponse {
-        try BrowserMainActor.sync {
+        let response = try BrowserMainActor.sync {
             BrowserSurfaceRegistry.shared.unregisterProvider(request: request)
         }
+        ControlPlaneEventStore.shared.emit(
+            providerID: request.providerID,
+            groupID: nil,
+            surfaceID: nil,
+            targetID: nil,
+            source: .provider,
+            type: "provider.unregistered",
+            scriptID: nil,
+            correlationID: nil,
+            payload: .object(["removedTargetCount": .number(Double(response.removedTargetCount))])
+        )
+        return response
     }
 
     private func performClick(
@@ -588,6 +649,176 @@ struct BrowserRouteService {
     private func ownedSurface(_ targetID: String) throws -> OwnedBrowserSurface {
         try BrowserMainActor.sync {
             try BrowserSurfaceRegistry.shared.ownedSurface(for: targetID)
+        }
+    }
+
+    private func registeredClick(
+        context: RegisteredBrowserSurfaceContext,
+        request: BrowserClickRequest
+    ) throws -> BrowserActionResponse {
+        let preState = try providerBridge.getState(
+            context: context,
+            request: BrowserGetStateRequest(browser: request.browser, imageMode: .omit, debug: request.debug)
+        )
+        let stateWarnings = staleStateWarnings(supplied: request.stateToken, live: preState.stateToken)
+        guard stateWarnings.isEmpty else {
+            return rejectedActionResponse(
+                summary: "Supplied stateToken did not match the live provider browser state; refusing to click a potentially stale DOM target.",
+                requestBrowser: request.browser,
+                requestedTarget: request.target,
+                preStateToken: preState.stateToken,
+                cursor: BrowserCursorTargeting.notAttempted(
+                    requested: request.cursor,
+                    reason: "Cursor movement was not attempted because the request stateToken was stale.",
+                    options: executionOptions
+                ),
+                warnings: stateWarnings,
+                started: Date()
+            )
+        }
+        let appKitPoint = try registeredActionPoint(
+            context: context,
+            state: preState,
+            target: request.target,
+            x: request.x,
+            y: request.y
+        )
+        let cursor = BrowserCursorTargeting.prepareClick(
+            requested: request.cursor,
+            point: appKitPoint.point,
+            pointSource: appKitPoint.source,
+            windowNumber: preState.target.hostWindow?.windowNumber ?? 0,
+            options: executionOptions
+        )
+        let response = try providerBridge.click(context: context, request: request)
+        BrowserCursorTargeting.finishClick(cursor: cursor)
+        return response.replacingCursor(cursor, preStateToken: preState.stateToken, warnings: stateWarnings)
+    }
+
+    private func registeredTypeText(
+        context: RegisteredBrowserSurfaceContext,
+        request: BrowserTypeTextRequest
+    ) throws -> BrowserActionResponse {
+        let preState = try providerBridge.getState(
+            context: context,
+            request: BrowserGetStateRequest(browser: request.browser, imageMode: .omit, debug: request.debug)
+        )
+        let stateWarnings = staleStateWarnings(supplied: request.stateToken, live: preState.stateToken)
+        guard stateWarnings.isEmpty else {
+            return rejectedActionResponse(
+                summary: "Supplied stateToken did not match the live provider browser state; refusing to type into a potentially stale DOM target.",
+                requestBrowser: request.browser,
+                requestedTarget: request.target,
+                preStateToken: preState.stateToken,
+                cursor: BrowserCursorTargeting.notAttempted(
+                    requested: request.cursor,
+                    reason: "Cursor movement was not attempted because the request stateToken was stale.",
+                    options: executionOptions
+                ),
+                warnings: stateWarnings,
+                started: Date()
+            )
+        }
+        let target = request.target ?? preState.dom.interactables.first(where: \.isEditable).map {
+            BrowserActionTargetRequestDTO.browserNodeID($0.nodeID)
+        }
+        let appKitPoint = try registeredActionPoint(context: context, state: preState, target: target, x: nil, y: nil)
+        let cursor = BrowserCursorTargeting.prepareTypeText(
+            requested: request.cursor,
+            point: appKitPoint.point,
+            pointSource: appKitPoint.source,
+            windowNumber: preState.target.hostWindow?.windowNumber ?? 0,
+            options: executionOptions
+        )
+        let response = try providerBridge.typeText(context: context, request: request)
+        BrowserCursorTargeting.finishTypeText(cursor: cursor, text: request.text)
+        return response.replacingCursor(cursor, preStateToken: preState.stateToken, warnings: stateWarnings)
+    }
+
+    private func registeredScroll(
+        context: RegisteredBrowserSurfaceContext,
+        request: BrowserScrollRequest
+    ) throws -> BrowserActionResponse {
+        let preState = try providerBridge.getState(
+            context: context,
+            request: BrowserGetStateRequest(browser: request.browser, imageMode: .omit, debug: request.debug)
+        )
+        let stateWarnings = staleStateWarnings(supplied: request.stateToken, live: preState.stateToken)
+        guard stateWarnings.isEmpty else {
+            return rejectedActionResponse(
+                summary: "Supplied stateToken did not match the live provider browser state; refusing to scroll a potentially stale DOM target.",
+                requestBrowser: request.browser,
+                requestedTarget: request.target,
+                preStateToken: preState.stateToken,
+                cursor: BrowserCursorTargeting.notAttempted(
+                    requested: request.cursor,
+                    reason: "Cursor movement was not attempted because the request stateToken was stale.",
+                    options: executionOptions
+                ),
+                warnings: stateWarnings,
+                started: Date()
+            )
+        }
+        let appKitPoint = try registeredActionPoint(context: context, state: preState, target: request.target, x: nil, y: nil)
+        let cursor = BrowserCursorTargeting.prepareScroll(
+            requested: request.cursor,
+            point: appKitPoint.point,
+            pointSource: appKitPoint.source,
+            direction: request.direction,
+            windowNumber: preState.target.hostWindow?.windowNumber ?? 0,
+            options: executionOptions
+        )
+        let response = try providerBridge.scroll(context: context, request: request)
+        BrowserCursorTargeting.finishScroll(cursor: cursor)
+        return response.replacingCursor(cursor, preStateToken: preState.stateToken, warnings: stateWarnings)
+    }
+
+    private func registeredActionPoint(
+        context: RegisteredBrowserSurfaceContext,
+        state: BrowserGetStateResponse,
+        target: BrowserActionTargetRequestDTO?,
+        x: Double?,
+        y: Double?
+    ) throws -> (point: CGPoint, source: String) {
+        if let target {
+            let interactable: BrowserInteractableDTO?
+            switch target.kind {
+            case .displayIndex:
+                interactable = Int(target.value).flatMap { index in
+                    state.dom.interactables.first { $0.displayIndex == index }
+                }
+            case .browserNodeID:
+                interactable = state.dom.interactables.first { $0.nodeID == target.value }
+            case .domSelector:
+                interactable = state.dom.interactables.first { $0.selectorCandidates.contains(target.value) }
+            }
+            if let center = interactable?.centerAppKit {
+                return (CGPoint(x: center.x, y: center.y), target.kind.rawValue)
+            }
+
+            let resolved = try providerBridge.resolve(context: context, target: target)
+            guard let center = resolved.centerAppKit else {
+                throw BrowserSurfaceError.invalidRequest("Provider resolve did not include an AppKit point for target \(target.kind.rawValue)=\(target.value).")
+            }
+            return (CGPoint(x: center.x, y: center.y), "\(target.kind.rawValue)_provider_resolve")
+        }
+
+        let frame = state.target.hostWindow?.frameAppKit
+        let viewport = state.dom.viewport
+        let localX = x ?? max(viewport.width / 2, 1)
+        let localY = y ?? max(viewport.height / 2, 1)
+        if let frame {
+            return (
+                CGPoint(x: frame.x + localX, y: frame.y + max(frame.height - localY, 0)),
+                x == nil ? "provider_viewport_center" : "provider_viewport_coordinate"
+            )
+        }
+        return (CGPoint(x: localX, y: localY), x == nil ? "provider_viewport_center" : "provider_viewport_coordinate")
+    }
+
+    private func registeredSurfaceContext(_ targetID: String) -> RegisteredBrowserSurfaceContext? {
+        try? BrowserMainActor.sync {
+            try BrowserSurfaceRegistry.shared.registeredSurface(for: targetID)
         }
     }
 
@@ -679,5 +910,30 @@ struct BrowserRouteService {
             return true
         }
         return ok
+    }
+}
+
+private extension BrowserActionResponse {
+    func replacingCursor(
+        _ cursor: ActionCursorTargetResponseDTO,
+        preStateToken replacementPreStateToken: String?,
+        warnings additionalWarnings: [String]
+    ) -> BrowserActionResponse {
+        BrowserActionResponse(
+            contractVersion: contractVersion,
+            ok: ok,
+            classification: classification,
+            failureDomain: failureDomain,
+            summary: summary,
+            target: target,
+            requestedTarget: requestedTarget,
+            preStateToken: preStateToken ?? replacementPreStateToken,
+            postStateToken: postStateToken,
+            cursor: cursor,
+            screenshot: screenshot,
+            warnings: additionalWarnings + warnings + cursor.warnings,
+            notes: notes,
+            debug: debug
+        )
     }
 }

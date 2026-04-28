@@ -1,5 +1,7 @@
 import Testing
 import BackgroundComputerUse
+import Foundation
+import WebKit
 
 @Suite
 struct RuntimeFacadePublicAPITests {
@@ -72,6 +74,19 @@ struct RuntimeFacadePublicAPITests {
             protocolVersion: 1,
             browserSurfaces: [providerSurface]
         )
+        let event = EmitControlPlaneEventRequest(
+            providerID: "com.example.browser",
+            source: .provider,
+            type: "provider.ready",
+            payload: .object(["ok": .bool(true)])
+        )
+        let eventPoll = PollControlPlaneEventsRequest(
+            filter: ControlPlaneEventFilterDTO(providerID: "com.example.browser"),
+            limit: 10
+        )
+        let eventClear = ClearControlPlaneEventsRequest(
+            filter: ControlPlaneEventFilterDTO(providerID: "com.example.browser")
+        )
 
         #expect(listWindows.app == "Safari")
         #expect(state.imageMode == .path)
@@ -95,6 +110,67 @@ struct RuntimeFacadePublicAPITests {
         #expect(browserInject.scriptID == "helper")
         #expect(browserEvent.type == "ready")
         #expect(provider.browserSurfaces.first?.capabilities.readDom == true)
+        #expect(event.type == "provider.ready")
+        #expect(eventPoll.limit == 10)
+        #expect(eventClear.filter?.providerID == "com.example.browser")
+    }
+
+    @Test
+    @MainActor
+    func testProviderSDKBuildsWebViewEnvironmentAndRegistrationRequest() {
+        let environment = BCUWebEnvironment()
+        let configuration = environment.makeConfiguration()
+        #expect(configuration.websiteDataStore === environment.websiteDataStore)
+
+        let provider = BCUProvider(providerID: "xyz.dubdub.fixture", displayName: "Fixture")
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 100, height: 100), configuration: configuration)
+        provider.register(webView: webView, surfaceID: "main", title: "Main")
+        #expect(webView.customUserAgent == BrowserWebCompatibility.desktopSafariUserAgent)
+
+        let mappedPoint = BrowserWebViewGeometry.appKitPoint(
+            forViewportPoint: PointDTO(x: 10, y: 90),
+            in: webView
+        )
+        #expect(mappedPoint.x == 10)
+        #expect(mappedPoint.y == 10)
+
+        let request = provider.makeRegistrationRequest(bridgeBaseURL: URL(string: "http://127.0.0.1:4000"))
+        #expect(request.providerID == "xyz.dubdub.fixture")
+        #expect(request.baseURL == "http://127.0.0.1:4000")
+        #expect(request.browserSurfaces.first?.surfaceID == "main")
+        #expect(request.browserSurfaces.first?.capabilities.injectJavaScript == true)
+    }
+
+    @Test
+    func testRuntimeFacadeGenericEventFlow() {
+        let runtime = BackgroundComputerUseRuntime()
+        let providerID = "com.example.events.\(UUID().uuidString)"
+        let emitted = runtime.emitEvent(
+            EmitControlPlaneEventRequest(
+                providerID: providerID,
+                source: .provider,
+                type: "provider.ready",
+                payload: .object(["ready": .bool(true)])
+            )
+        )
+
+        #expect(emitted.ok == true)
+        #expect(emitted.event.providerID == providerID)
+
+        let polled = runtime.pollEvents(
+            PollControlPlaneEventsRequest(
+                filter: ControlPlaneEventFilterDTO(providerID: providerID),
+                limit: 10
+            )
+        )
+        #expect(polled.events.contains { $0.eventID == emitted.event.eventID })
+
+        let cleared = runtime.clearEvents(
+            ClearControlPlaneEventsRequest(
+                filter: ControlPlaneEventFilterDTO(providerID: providerID)
+            )
+        )
+        #expect(cleared.removedCount >= 1)
     }
 
     @Test

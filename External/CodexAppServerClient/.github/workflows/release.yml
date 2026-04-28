@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Codex and package version to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.12"
+
+      - name: Read pinned Codex version
+        run: |
+          PINNED_VERSION="$(tr -d '[:space:]' < .codex-version)"
+          echo "PINNED_VERSION=${PINNED_VERSION}" >> "$GITHUB_ENV"
+          if [ "${PINNED_VERSION}" != "${{ github.event.inputs.version }}" ]; then
+            echo "workflow version does not match .codex-version" >&2
+            exit 1
+          fi
+
+      - name: Install Codex CLI
+        run: npm install -g "@openai/codex@${PINNED_VERSION}"
+
+      - name: Verify Codex version
+        run: codex --version
+
+      - name: Regenerate protocol bindings
+        run: ./Scripts/generate-protocol.sh
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code
+
+      - name: Build package
+        run: swift build
+
+      - name: Run tests
+        run: swift test
+
+      - name: Ensure tag does not already exist
+        run: |
+          if git rev-parse "${PINNED_VERSION}" >/dev/null 2>&1; then
+            echo "tag ${PINNED_VERSION} already exists" >&2
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git tag "${PINNED_VERSION}"
+          git push origin "${PINNED_VERSION}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${PINNED_VERSION}" \
+            --title "${PINNED_VERSION}" \
+            --notes "Generated from codex ${PINNED_VERSION}. Experimental API bindings are included. Runtime defaults to experimentalApi enabled and exact version matching."

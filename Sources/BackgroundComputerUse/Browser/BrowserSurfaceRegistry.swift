@@ -13,6 +13,16 @@ private struct RegisteredBrowserProvider {
     let baseURL: String?
     let protocolVersion: Int
     let targets: [BrowserTargetSummaryDTO]
+    let surfaceIDByTargetID: [String: String]
+}
+
+struct RegisteredBrowserSurfaceContext: Sendable {
+    let providerID: String
+    let displayName: String
+    let baseURL: String?
+    let protocolVersion: Int
+    let surfaceID: String
+    let target: BrowserTargetSummaryDTO
 }
 
 private struct BrowserResolveResult: Decodable, Sendable {
@@ -22,9 +32,6 @@ private struct BrowserResolveResult: Decodable, Sendable {
     let element: BrowserInteractableDTO?
     let candidates: [BrowserInteractableDTO]?
 }
-
-private let defaultDesktopBrowserUserAgent =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15"
 
 @MainActor
 final class BrowserSurfaceRegistry {
@@ -76,6 +83,24 @@ final class BrowserSurfaceRegistry {
         throw BrowserSurfaceError.targetNotFound(targetID)
     }
 
+    func registeredSurface(for targetID: String) throws -> RegisteredBrowserSurfaceContext {
+        guard let target = registeredTargets[targetID] else {
+            throw BrowserSurfaceError.targetNotFound(targetID)
+        }
+        guard let provider = registeredProviders.values.first(where: { $0.surfaceIDByTargetID[targetID] != nil }),
+              let surfaceID = provider.surfaceIDByTargetID[targetID] else {
+            throw BrowserSurfaceError.unsupportedRegisteredProvider(targetID)
+        }
+        return RegisteredBrowserSurfaceContext(
+            providerID: provider.providerID,
+            displayName: provider.displayName,
+            baseURL: provider.baseURL,
+            protocolVersion: provider.protocolVersion,
+            surfaceID: surfaceID,
+            target: target
+        )
+    }
+
     func close(targetID: String) throws -> Bool {
         let surface = try ownedSurface(for: targetID)
         ownedSurfacesByWindowID.removeValue(forKey: surface.windowTargetID)
@@ -112,9 +137,12 @@ final class BrowserSurfaceRegistry {
             throw BrowserSurfaceError.invalidRequest("protocolVersion must be at least 1.")
         }
 
+        var surfaceIDByTargetID: [String: String] = [:]
         let targets = request.browserSurfaces.map { surface in
-            BrowserTargetSummaryDTO(
-                targetID: registeredTargetID(providerID: request.providerID, surfaceID: surface.surfaceID),
+            let targetID = registeredTargetID(providerID: request.providerID, surfaceID: surface.surfaceID)
+            surfaceIDByTargetID[targetID] = surface.surfaceID
+            return BrowserTargetSummaryDTO(
+                targetID: targetID,
                 kind: .registeredBrowserSurface,
                 ownerApp: request.displayName,
                 title: surface.title,
@@ -136,7 +164,8 @@ final class BrowserSurfaceRegistry {
             displayName: request.displayName,
             baseURL: request.baseURL,
             protocolVersion: request.protocolVersion,
-            targets: targets
+            targets: targets,
+            surfaceIDByTargetID: surfaceIDByTargetID
         )
         registeredProviders[request.providerID] = provider
         for target in targets {
@@ -223,7 +252,7 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
         let customUserAgent = request.userAgent?.trimmingCharacters(in: .whitespacesAndNewlines)
         webView.customUserAgent = customUserAgent?.isEmpty == false
             ? customUserAgent
-            : defaultDesktopBrowserUserAgent
+            : BrowserWebCompatibility.desktopSafariUserAgent
         if #available(macOS 13.3, *) {
             webView.isInspectable = true
         }
@@ -481,26 +510,11 @@ final class OwnedBrowserSurface: NSObject, @unchecked Sendable, WKNavigationDele
     }
 
     func viewportPointToAppKit(_ point: PointDTO) -> CGPoint {
-        let viewportWidth = max(webView.bounds.width, 1)
-        let viewportHeight = max(webView.bounds.height, 1)
-        let y = CGFloat(point.y) * viewportHeight / max(viewportHeight, 1)
-        let localPoint = NSPoint(
-            x: CGFloat(point.x) * viewportWidth / max(viewportWidth, 1),
-            y: webView.isFlipped ? y : viewportHeight - y
-        )
-        let windowPoint = webView.convert(localPoint, to: nil)
-        return window.convertPoint(toScreen: windowPoint)
+        BrowserWebViewGeometry.appKitPoint(forViewportPoint: point, in: webView)
     }
 
     func viewportRectToAppKit(_ rect: RectDTO) -> CGRect {
-        let topLeft = viewportPointToAppKit(PointDTO(x: rect.x, y: rect.y))
-        let bottomRight = viewportPointToAppKit(PointDTO(x: rect.x + rect.width, y: rect.y + rect.height))
-        return CGRect(
-            x: min(topLeft.x, bottomRight.x),
-            y: min(topLeft.y, bottomRight.y),
-            width: abs(bottomRight.x - topLeft.x),
-            height: abs(bottomRight.y - topLeft.y)
-        )
+        BrowserWebViewGeometry.appKitRect(forViewportRect: rect, in: webView)
     }
 
     func resolvedWindowDTO() -> ResolvedWindowDTO {

@@ -7,6 +7,10 @@ let package = Package(
     products: [
         .library(name: "BackgroundComputerUseKit", targets: ["BackgroundComputerUse"]),
         .executable(name: "BackgroundComputerUse", targets: ["BackgroundComputerUseServer"]),
+        .executable(name: "SpotifyWebViewApp", targets: ["SpotifyWebViewApp"]),
+    ],
+    dependencies: [
+        .package(path: "External/CodexAppServerClient"),
     ],
     targets: [
         .target(
@@ -17,6 +21,14 @@ let package = Package(
             name: "BackgroundComputerUseServer",
             dependencies: ["BackgroundComputerUse"],
             path: "Sources/BackgroundComputerUseServer"
+        ),
+        .executableTarget(
+            name: "SpotifyWebViewApp",
+            dependencies: [
+                "BackgroundComputerUse",
+                .product(name: "CodexAppServerClient", package: "CodexAppServerClient"),
+            ],
+            path: "Sources/SpotifyWebViewApp"
         ),
         .testTarget(
             name: "BackgroundComputerUseTests",

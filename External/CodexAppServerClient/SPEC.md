@@ -1,0 +1,14 @@
+- codex app-server swift client
+- use codex app-server generate commands to automate generation
+- can launch / run codex app-server
+- assumes same-versioned codex exists in runtime environment
+- minimum viable non-generated code
+- strong end-to-end type-safety; strongly follows codex app-server protocol
+- strongly verified against codex source and codex app-server protocol source
+- plug-and-play implementation for native apps
+- simple abstractions, no app-logic, fully generic client
+- websocket-only transport (no stdio); suits remote deployments and keeps the launcher path uniform with the remote path
+- releases tied to openai/codex releases, with a simple Swift Package Manager distribution path
+- generated symbols carry doc comments from upstream when available, hosted via DocC
+- the full protocol surface is discoverable in-code (enumerable methods, no hidden namespaces)
+- common footguns surface as typed values, not stringly-typed errors or duplicated decision shapes

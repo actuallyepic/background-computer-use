@@ -34,6 +34,10 @@ enum RouteID: String, CaseIterable {
     case browserEventsClear = "browser_events_clear"
     case browserRegisterProvider = "browser_register_provider"
     case browserUnregisterProvider = "browser_unregister_provider"
+    case eventsEmit = "events_emit"
+    case eventsPoll = "events_poll"
+    case eventsClear = "events_clear"
+    case eventsStream = "events_stream"
 }
 
 enum RouteRegistry {
@@ -429,7 +433,57 @@ enum RouteRegistry {
             mainThreadBehavior: .required,
             readActRead: false
         ),
+        RouteDescriptorDTO(
+            id: RouteID.eventsEmit.rawValue,
+            method: "POST",
+            path: "/v1/events/emit",
+            category: "events",
+            summary: "Emit a generic control-plane event.",
+            execution: sharedEventPolicy,
+            implementationStatus: .implemented,
+            notes: ["Generic event routes are provider-aware and supersede browser-only event routes for new integrations."]
+        ),
+        RouteDescriptorDTO(
+            id: RouteID.eventsPoll.rawValue,
+            method: "POST",
+            path: "/v1/events/poll",
+            category: "events",
+            summary: "Poll generic control-plane events with provider, group, surface, target, and type filters.",
+            execution: sharedEventPolicy,
+            implementationStatus: .implemented,
+            notes: ["Supports bounded long-polling with timeoutMs for clients that do not use Server-Sent Events."]
+        ),
+        RouteDescriptorDTO(
+            id: RouteID.eventsClear.rawValue,
+            method: "POST",
+            path: "/v1/events/clear",
+            category: "events",
+            summary: "Clear generic control-plane events, optionally scoped by filter.",
+            execution: sharedEventPolicy,
+            implementationStatus: .implemented,
+            notes: ["Use scoped clears for demo sessions so unrelated event history remains available."]
+        ),
+        RouteDescriptorDTO(
+            id: RouteID.eventsStream.rawValue,
+            method: "GET",
+            path: "/v1/events/stream",
+            category: "events",
+            summary: "Return control-plane events using Server-Sent Events framing.",
+            execution: sharedEventPolicy,
+            implementationStatus: .implemented,
+            notes: ["This endpoint returns replay/long-poll data in SSE framing over the current loopback response model."]
+        ),
     ]
+
+    private static let sharedEventPolicy = RouteExecutionPolicyDTO(
+        lane: .sharedRead,
+        backgroundBehavior: .foregroundAllowed,
+        focusStealPolicy: .forbidden,
+        mainThreadBehavior: .avoid,
+        readActRead: false,
+        allowsConcurrentClients: true,
+        notes: ["Event routes do not require target app focus and are safe for providers, dashboards, and demo clients."]
+    )
 
     private static func browserRoute(
         _ id: RouteID,
@@ -752,6 +806,32 @@ enum RouteRegistry {
             return json([
                 field("providerID", "string", required: true)
             ])
+        case RouteID.eventsEmit.rawValue:
+            return json([
+                field("providerID", "string"),
+                field("groupID", "string"),
+                field("surfaceID", "string"),
+                field("targetID", "string"),
+                field("source", "provider | surface | script | console | page | action | client | browser", defaultValue: "client"),
+                field("type", "string", required: true),
+                field("scriptID", "string"),
+                field("correlationID", "string"),
+                field("payload", "JSON")
+            ])
+        case RouteID.eventsPoll.rawValue:
+            return json([
+                field("sinceEventID", "string"),
+                field("sinceSequence", "integer"),
+                field("filter", "ControlPlaneEventFilter"),
+                field("limit", "integer", defaultValue: "100"),
+                field("timeoutMs", "integer", defaultValue: "0")
+            ])
+        case RouteID.eventsClear.rawValue:
+            return json([
+                field("filter", "ControlPlaneEventFilter")
+            ])
+        case RouteID.eventsStream.rawValue:
+            return nil
         default:
             return nil
         }
@@ -942,6 +1022,29 @@ enum RouteRegistry {
                 field("ok", "boolean", required: true),
                 field("removedTargetCount", "integer", required: true),
                 debugNotesField()
+            ])
+        case RouteID.eventsEmit.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("event", "ControlPlaneEvent", required: true)
+            ])
+        case RouteID.eventsPoll.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("events", "ControlPlaneEvent[]", required: true),
+                field("latestEventID", "string | null"),
+                field("latestSequence", "integer | null")
+            ])
+        case RouteID.eventsClear.rawValue:
+            return json([
+                field("contractVersion", "string", required: true),
+                field("ok", "boolean", required: true),
+                field("removedCount", "integer", required: true)
+            ])
+        case RouteID.eventsStream.rawValue:
+            return json([
+                field("SSE", "text/event-stream", required: true, "Each frame contains a ControlPlaneEvent JSON payload.")
             ])
         default:
             return json([

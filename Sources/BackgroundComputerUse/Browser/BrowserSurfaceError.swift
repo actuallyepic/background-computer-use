@@ -6,6 +6,7 @@ enum BrowserSurfaceError: Error, CustomStringConvertible {
     case invalidRequest(String)
     case scriptNotFound(String)
     case javascriptFailed(String)
+    case providerBridgeFailed(String)
     case targetAmbiguous(String)
     case unsupportedRegisteredProvider(String)
     case timedOut(String)
@@ -22,6 +23,8 @@ enum BrowserSurfaceError: Error, CustomStringConvertible {
             return "No injected script matched '\(scriptID)'."
         case .javascriptFailed(let message):
             return "JavaScript execution failed: \(message)"
+        case .providerBridgeFailed(let message):
+            return "Provider bridge failed: \(message)"
         case .targetAmbiguous(let message):
             return message
         case .unsupportedRegisteredProvider(let target):

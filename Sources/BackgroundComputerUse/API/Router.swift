@@ -252,6 +252,26 @@ struct Router {
                 try services.browserUnregisterProvider($0)
             }
 
+        case (.post, "/v1/events/emit"):
+            return decodeAndExecute(EmitControlPlaneEventRequest.self, routeID: .eventsEmit, from: request) {
+                services.emitEvent($0)
+            }
+
+        case (.post, "/v1/events/poll"):
+            return decodeAndExecute(PollControlPlaneEventsRequest.self, routeID: .eventsPoll, from: request) {
+                services.pollEvents($0)
+            }
+
+        case (.post, "/v1/events/clear"):
+            return decodeAndExecute(ClearControlPlaneEventsRequest.self, routeID: .eventsClear, from: request) {
+                services.clearEvents($0)
+            }
+
+        case (.get, "/v1/events/stream"):
+            return .eventStream(
+                services.eventStream(eventStreamRequest(from: request.queryItems))
+            )
+
         default:
             return .json(
                 ErrorResponse(
@@ -306,6 +326,30 @@ struct Router {
         default:
             return false
         }
+    }
+
+    private func eventStreamRequest(from queryItems: [URLQueryItem]) -> PollControlPlaneEventsRequest {
+        var values: [String: String] = [:]
+        for item in queryItems {
+            guard let value = item.value else { continue }
+            values[item.name] = value
+        }
+        let filter = ControlPlaneEventFilterDTO(
+            providerID: values["providerID"],
+            groupID: values["groupID"],
+            surfaceID: values["surfaceID"],
+            targetID: values["targetID"],
+            source: values["source"].flatMap(ControlPlaneEventSourceDTO.init(rawValue:)),
+            types: values["types"]?.split(separator: ",").map(String.init),
+            scriptID: values["scriptID"]
+        )
+        return PollControlPlaneEventsRequest(
+            sinceEventID: values["sinceEventID"],
+            sinceSequence: values["sinceSequence"].flatMap(UInt64.init),
+            filter: filter,
+            limit: values["limit"].flatMap(Int.init),
+            timeoutMs: values["timeoutMs"].flatMap(Int.init)
+        )
     }
 
     private func invalidRequestResponse(for error: Error, routeID: RouteID) -> HTTPResponse {
@@ -411,6 +455,8 @@ struct Router {
                 status = (400, "browser_invalid_request", "Bad Request")
             case .unsupportedRegisteredProvider:
                 status = (501, "browser_provider_unsupported", "Not Implemented")
+            case .providerBridgeFailed:
+                status = (502, "browser_provider_bridge_failed", "Bad Gateway")
             case .javascriptFailed, .timedOut:
                 status = (500, "browser_runtime_error", "Internal Server Error")
             }

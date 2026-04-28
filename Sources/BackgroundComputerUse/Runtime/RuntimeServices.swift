@@ -217,6 +217,34 @@ struct RuntimeServices {
         }
     }
 
+    func emitEvent(_ request: EmitControlPlaneEventRequest) -> EmitControlPlaneEventResponse {
+        execute(routeID: .eventsEmit, target: .shared) {
+            EmitControlPlaneEventResponse(
+                contractVersion: ContractVersion.current,
+                ok: true,
+                event: ControlPlaneEventStore.shared.emit(request)
+            )
+        }
+    }
+
+    func pollEvents(_ request: PollControlPlaneEventsRequest) -> PollControlPlaneEventsResponse {
+        execute(routeID: .eventsPoll, target: .shared) {
+            ControlPlaneEventStore.shared.poll(request)
+        }
+    }
+
+    func clearEvents(_ request: ClearControlPlaneEventsRequest) -> ClearControlPlaneEventsResponse {
+        execute(routeID: .eventsClear, target: .shared) {
+            ControlPlaneEventStore.shared.clear(request)
+        }
+    }
+
+    func eventStream(_ request: PollControlPlaneEventsRequest) -> String {
+        execute(routeID: .eventsStream, target: .shared) {
+            ControlPlaneEventStore.shared.streamBody(request)
+        }
+    }
+
     private func execute<Response>(
         routeID: RouteID,
         target: RouteTargetSummaryDTO,

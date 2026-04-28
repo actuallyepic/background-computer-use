@@ -70,7 +70,7 @@ public struct CursorRequestDTO: Decodable, Encodable, Sendable {
     }
 }
 
-public struct CursorResponseDTO: Encodable, Sendable {
+public struct CursorResponseDTO: Codable, Sendable {
     public let id: String
     public let name: String
     public let color: String

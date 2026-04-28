@@ -146,4 +146,16 @@ public final class BackgroundComputerUseRuntime {
     public func browserUnregisterProvider(_ request: BrowserUnregisterProviderRequest) throws -> BrowserUnregisterProviderResponse {
         try services.browserUnregisterProvider(request)
     }
+
+    public func emitEvent(_ request: EmitControlPlaneEventRequest) -> EmitControlPlaneEventResponse {
+        services.emitEvent(request)
+    }
+
+    public func pollEvents(_ request: PollControlPlaneEventsRequest) -> PollControlPlaneEventsResponse {
+        services.pollEvents(request)
+    }
+
+    public func clearEvents(_ request: ClearControlPlaneEventsRequest) -> ClearControlPlaneEventsResponse {
+        services.clearEvents(request)
+    }
 }

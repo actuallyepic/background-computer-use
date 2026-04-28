@@ -281,6 +281,26 @@ enum APIDocumentation {
                 whenToUse: "Remove browser surfaces registered by a cooperating macOS app.",
                 exampleRequest: #"{"providerID":"com.example.app"}"#
             )
+        case .eventsEmit:
+            return eventUsage(
+                whenToUse: "Emit a generic control-plane event from a provider, script, action runner, client, or demo UI.",
+                exampleRequest: #"{"source":"client","type":"demo.ready","payload":{"ok":true}}"#
+            )
+        case .eventsPoll:
+            return eventUsage(
+                whenToUse: "Poll provider-aware control-plane events with optional long-polling.",
+                exampleRequest: #"{"filter":{"providerID":"xyz.dubdub.demo","types":["script.ready"]},"timeoutMs":5000}"#
+            )
+        case .eventsClear:
+            return eventUsage(
+                whenToUse: "Clear buffered control-plane events, optionally scoped by provider, group, surface, target, or type.",
+                exampleRequest: #"{"filter":{"providerID":"xyz.dubdub.demo"}}"#
+            )
+        case .eventsStream:
+            return eventUsage(
+                whenToUse: "Read control-plane events using Server-Sent Events framing for provider dashboards and visual demos.",
+                exampleRequest: #"GET /v1/events/stream?providerID=xyz.dubdub.demo&timeoutMs=5000"#
+            )
         }
     }
 
@@ -371,9 +391,19 @@ enum APIDocumentation {
         )
     }
 
+    private static func eventUsage(whenToUse: String, exampleRequest: String) -> RouteUsageDTO {
+        usage(
+            whenToUse: whenToUse,
+            useAfter: ["Use /v1/events/emit for client/provider events, or rely on browser/provider integrations that mirror their own events into the control-plane bus."],
+            successSignals: ["HTTP 200 and event IDs or ordered events are present."],
+            nextSteps: ["Use providerID, groupID, surfaceID, targetID, source, types, or scriptID filters to keep demo dashboards focused."],
+            exampleRequest: exampleRequest
+        )
+    }
+
     private static func routeHasJSONBody(_ id: RouteID) -> Bool {
         switch id {
-        case .health, .bootstrap, .routes:
+        case .health, .bootstrap, .routes, .eventsStream:
             return false
         default:
             return true
@@ -387,7 +417,8 @@ enum APIDocumentation {
              .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
              .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
              .browserEventsEmit, .browserEventsPoll, .browserEventsClear,
-             .browserRegisterProvider, .browserUnregisterProvider:
+             .browserRegisterProvider, .browserUnregisterProvider,
+             .eventsEmit, .eventsPoll, .eventsClear, .eventsStream:
             return false
         default:
             return true
@@ -403,7 +434,8 @@ enum APIDocumentation {
              .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
              .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
              .browserEventsEmit, .browserEventsPoll, .browserEventsClear,
-             .browserRegisterProvider, .browserUnregisterProvider:
+             .browserRegisterProvider, .browserUnregisterProvider,
+             .eventsEmit, .eventsPoll, .eventsClear, .eventsStream:
             return false
         }
     }

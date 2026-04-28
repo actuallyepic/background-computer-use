@@ -214,6 +214,18 @@ struct HTTPResponse {
         )
     }
 
+    static func eventStream(_ value: String) -> HTTPResponse {
+        HTTPResponse(
+            statusCode: 200,
+            reasonPhrase: "OK",
+            headers: [
+                "Cache-Control": "no-store",
+                "Content-Type": "text/event-stream; charset=utf-8"
+            ],
+            body: Data(value.utf8)
+        )
+    }
+
     private static func stripDebugNotes(from data: Data) throws -> Data {
         let json = try JSONSerialization.jsonObject(with: data)
         let stripped = stripDebugNotes(from: json)

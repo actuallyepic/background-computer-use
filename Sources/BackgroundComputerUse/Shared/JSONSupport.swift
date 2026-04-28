@@ -9,6 +9,8 @@ enum JSONSupport {
     }()
 
     static let decoder: JSONDecoder = {
-        JSONDecoder()
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }()
 }

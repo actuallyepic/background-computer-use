@@ -28,6 +28,17 @@ final class BrowserEventStore: @unchecked Sendable {
         if events.count > maximumEvents {
             events.removeFirst(events.count - maximumEvents)
         }
+        ControlPlaneEventStore.shared.emit(
+            providerID: nil,
+            groupID: nil,
+            surfaceID: nil,
+            targetID: targetID,
+            source: controlPlaneSource(for: type),
+            type: type,
+            scriptID: scriptID,
+            correlationID: nil,
+            payload: payload
+        )
         return event
     }
 
@@ -66,5 +77,16 @@ final class BrowserEventStore: @unchecked Sendable {
             events.removeAll()
         }
         return before - events.count
+    }
+
+    private func controlPlaneSource(for type: String) -> ControlPlaneEventSourceDTO {
+        switch type {
+        case "browser_console":
+            return .console
+        case "browser_page_error", "browser_unhandled_rejection":
+            return .page
+        default:
+            return .browser
+        }
     }
 }

@@ -1,13 +1,13 @@
 import Foundation
 
-public enum ActionClassificationDTO: String, Encodable, Sendable {
+public enum ActionClassificationDTO: String, Codable, Sendable {
     case success
     case unsupported
     case effectNotVerified = "effect_not_verified"
     case verifierAmbiguous = "verifier_ambiguous"
 }
 
-public enum ActionFailureDomainDTO: String, Encodable, Sendable {
+public enum ActionFailureDomainDTO: String, Codable, Sendable {
     case targeting
     case unsupported
     case coercion
@@ -52,7 +52,7 @@ public struct AXActionTargetSnapshotDTO: Encodable, Sendable {
     public let suggestedInteractionPointAppKit: PointDTO?
 }
 
-public struct ActionCursorTargetResponseDTO: Encodable, Sendable {
+public struct ActionCursorTargetResponseDTO: Codable, Sendable {
     public let session: CursorResponseDTO
     public let targetPointAppKit: PointDTO?
     public let targetPointSource: String?

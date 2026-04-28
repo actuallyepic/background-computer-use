@@ -276,13 +276,14 @@ enum BrowserBootstrapScript {
       dispatchMouse(live, "mousedown", count, point);
       dispatchMouse(live, "pointerup", count, point);
       dispatchMouse(live, "mouseup", count, point);
-      dispatchMouse(live, "click", count, point);
+      if (typeof live.click === "function") {
+        live.click();
+      } else {
+        dispatchMouse(live, "click", count, point);
+      }
     }
     if (count > 1) {
       dispatchMouse(live, "dblclick", count, point);
-    }
-    if (typeof live.click === "function") {
-      live.click();
     }
     return { ok: true, element, valuePreview: valuePreview(live) };
   }
@@ -298,13 +299,14 @@ enum BrowserBootstrapScript {
       dispatchMouse(live, "mousedown", count, point);
       dispatchMouse(live, "pointerup", count, point);
       dispatchMouse(live, "mouseup", count, point);
-      dispatchMouse(live, "click", count, point);
+      if (typeof live.click === "function") {
+        live.click();
+      } else {
+        dispatchMouse(live, "click", count, point);
+      }
     }
     if (count > 1) {
       dispatchMouse(live, "dblclick", count, point);
-    }
-    if (typeof live.click === "function") {
-      live.click();
     }
     return { ok: true, element, valuePreview: valuePreview(live) };
   }

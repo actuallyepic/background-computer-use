@@ -320,7 +320,7 @@ public struct BrowserCreateWindowRequest: Decodable, Sendable, DebugNotesRequest
     }
 }
 
-public struct BrowserCreateWindowResponse: Encodable, Sendable {
+public struct BrowserCreateWindowResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let target: BrowserTargetSummaryDTO
@@ -336,13 +336,13 @@ public struct BrowserListTargetsRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserListTargetsResponse: Encodable, Sendable {
+public struct BrowserListTargetsResponse: Codable, Sendable {
     public let contractVersion: String
     public let targets: [BrowserTargetSummaryDTO]
     public let notes: [String]
 }
 
-public struct BrowserNavigateRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserNavigateRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let url: String
     public let waitUntilLoaded: Bool?
@@ -367,7 +367,7 @@ public struct BrowserNavigateRequest: Decodable, Sendable, DebugNotesRequest {
     }
 }
 
-public struct BrowserGetStateRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserGetStateRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let maxElements: Int?
     public let includeRawText: Bool?
@@ -401,7 +401,7 @@ public struct BrowserGetStateResponse: Codable, Sendable {
     public let notes: [String]
 }
 
-public struct BrowserEvaluateJavaScriptRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserEvaluateJavaScriptRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let javaScript: String
     public let timeoutMs: Int?
@@ -420,7 +420,7 @@ public struct BrowserEvaluateJavaScriptRequest: Decodable, Sendable, DebugNotesR
     }
 }
 
-public struct BrowserEvaluateJavaScriptResponse: Encodable, Sendable {
+public struct BrowserEvaluateJavaScriptResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let target: BrowserTargetSummaryDTO
@@ -430,7 +430,7 @@ public struct BrowserEvaluateJavaScriptResponse: Encodable, Sendable {
     public let notes: [String]
 }
 
-public struct BrowserInjectJavaScriptRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserInjectJavaScriptRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String?
     public let urlMatch: String?
     public let scriptID: String
@@ -461,7 +461,7 @@ public struct BrowserInjectJavaScriptRequest: Decodable, Sendable, DebugNotesReq
     }
 }
 
-public struct BrowserInjectJavaScriptResponse: Encodable, Sendable {
+public struct BrowserInjectJavaScriptResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let script: BrowserInjectedScriptDTO
@@ -469,7 +469,7 @@ public struct BrowserInjectJavaScriptResponse: Encodable, Sendable {
     public let notes: [String]
 }
 
-public struct BrowserRemoveInjectedJavaScriptRequest: Decodable, Sendable {
+public struct BrowserRemoveInjectedJavaScriptRequest: Codable, Sendable {
     public let browser: String?
     public let scriptID: String
 
@@ -479,7 +479,7 @@ public struct BrowserRemoveInjectedJavaScriptRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserRemoveInjectedJavaScriptResponse: Encodable, Sendable {
+public struct BrowserRemoveInjectedJavaScriptResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let removed: Bool
@@ -487,7 +487,7 @@ public struct BrowserRemoveInjectedJavaScriptResponse: Encodable, Sendable {
     public let notes: [String]
 }
 
-public struct BrowserListInjectedJavaScriptRequest: Decodable, Sendable {
+public struct BrowserListInjectedJavaScriptRequest: Codable, Sendable {
     public let browser: String?
 
     public init(browser: String? = nil) {
@@ -495,13 +495,13 @@ public struct BrowserListInjectedJavaScriptRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserListInjectedJavaScriptResponse: Encodable, Sendable {
+public struct BrowserListInjectedJavaScriptResponse: Codable, Sendable {
     public let contractVersion: String
     public let scripts: [BrowserInjectedScriptDTO]
     public let notes: [String]
 }
 
-public struct BrowserClickRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserClickRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let stateToken: String?
     public let target: BrowserActionTargetRequestDTO?
@@ -554,7 +554,7 @@ public struct BrowserClickRequest: Decodable, Sendable, DebugNotesRequest {
     }
 }
 
-public struct BrowserTypeTextRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserTypeTextRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let stateToken: String?
     public let target: BrowserActionTargetRequestDTO?
@@ -585,7 +585,7 @@ public struct BrowserTypeTextRequest: Decodable, Sendable, DebugNotesRequest {
     }
 }
 
-public struct BrowserScrollRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserScrollRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let stateToken: String?
     public let target: BrowserActionTargetRequestDTO?
@@ -616,7 +616,7 @@ public struct BrowserScrollRequest: Decodable, Sendable, DebugNotesRequest {
     }
 }
 
-public struct BrowserActionDebugDTO: Encodable, Sendable {
+public struct BrowserActionDebugDTO: Codable, Sendable {
     public let resolvedRectViewport: RectDTO?
     public let resolvedCenterViewport: PointDTO?
     public let resolvedRectAppKit: RectDTO?
@@ -626,7 +626,7 @@ public struct BrowserActionDebugDTO: Encodable, Sendable {
     public let dispatchResult: JSONValueDTO?
 }
 
-public struct BrowserActionResponse: Encodable, Sendable {
+public struct BrowserActionResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let classification: ActionClassificationDTO
@@ -643,7 +643,7 @@ public struct BrowserActionResponse: Encodable, Sendable {
     public let debug: BrowserActionDebugDTO?
 }
 
-public struct BrowserReloadRequest: Decodable, Sendable, DebugNotesRequest {
+public struct BrowserReloadRequest: Codable, Sendable, DebugNotesRequest {
     public let browser: String
     public let waitUntilLoaded: Bool?
     public let timeoutMs: Int?
@@ -665,7 +665,7 @@ public struct BrowserReloadRequest: Decodable, Sendable, DebugNotesRequest {
     }
 }
 
-public struct BrowserCloseRequest: Decodable, Sendable {
+public struct BrowserCloseRequest: Codable, Sendable {
     public let browser: String
 
     public init(browser: String) {
@@ -673,7 +673,7 @@ public struct BrowserCloseRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserCloseResponse: Encodable, Sendable {
+public struct BrowserCloseResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let closed: Bool
@@ -768,7 +768,38 @@ public struct BrowserRegisteredProviderSurfaceDTO: Codable, Sendable {
     }
 }
 
-public struct BrowserRegisterProviderRequest: Decodable, Sendable {
+public struct BrowserProviderCommandEnvelopeDTO<Request: Codable & Sendable>: Codable, Sendable {
+    public let contractVersion: String
+    public let providerID: String
+    public let providerDisplayName: String
+    public let protocolVersion: Int
+    public let surfaceID: String
+    public let targetID: String
+    public let command: String
+    public let request: Request
+
+    public init(
+        contractVersion: String = ContractVersion.current,
+        providerID: String,
+        providerDisplayName: String,
+        protocolVersion: Int,
+        surfaceID: String,
+        targetID: String,
+        command: String,
+        request: Request
+    ) {
+        self.contractVersion = contractVersion
+        self.providerID = providerID
+        self.providerDisplayName = providerDisplayName
+        self.protocolVersion = protocolVersion
+        self.surfaceID = surfaceID
+        self.targetID = targetID
+        self.command = command
+        self.request = request
+    }
+}
+
+public struct BrowserRegisterProviderRequest: Codable, Sendable {
     public let providerID: String
     public let displayName: String
     public let baseURL: String?
@@ -790,7 +821,7 @@ public struct BrowserRegisterProviderRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserRegisterProviderResponse: Encodable, Sendable {
+public struct BrowserRegisterProviderResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let providerID: String
@@ -798,7 +829,7 @@ public struct BrowserRegisterProviderResponse: Encodable, Sendable {
     public let notes: [String]
 }
 
-public struct BrowserUnregisterProviderRequest: Decodable, Sendable {
+public struct BrowserUnregisterProviderRequest: Codable, Sendable {
     public let providerID: String
 
     public init(providerID: String) {
@@ -806,7 +837,7 @@ public struct BrowserUnregisterProviderRequest: Decodable, Sendable {
     }
 }
 
-public struct BrowserUnregisterProviderResponse: Encodable, Sendable {
+public struct BrowserUnregisterProviderResponse: Codable, Sendable {
     public let contractVersion: String
     public let ok: Bool
     public let removedTargetCount: Int

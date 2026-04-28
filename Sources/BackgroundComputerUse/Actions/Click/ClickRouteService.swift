@@ -574,9 +574,21 @@ struct ClickRouteService {
             foregroundAfter: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
             extraNotes: dispatch.notes + plan.notes
         )
-        let verified = semanticVerified(plan: plan, dispatchSuccess: dispatch.success, verification: verification)
+        let postDispatchEffectObserved = effectVerified(verification)
+        let observedEffectDespiteRawFailure =
+            dispatch.success == false &&
+            plan.attempt == .exactPrimaryAXAction &&
+            postDispatchEffectObserved
+        if observedEffectDespiteRawFailure {
+            notes.append(
+                "\(plan.dispatchPrimitive) reported \(dispatch.rawStatus) after dispatch, but the post-click state changed; treating the semantic lane as handled to avoid double-dispatching toggle controls."
+            )
+        }
+        let verified = semanticVerified(plan: plan, dispatchSuccess: dispatch.success, verification: verification) ||
+            observedEffectDespiteRawFailure
+        let semanticDispatchSuccess = dispatch.success || observedEffectDespiteRawFailure
         let classification: ActionClassificationDTO = verified ? .success : .effectNotVerified
-        let failureDomain: ActionFailureDomainDTO? = verified ? nil : (dispatch.success ? .verification : .transport)
+        let failureDomain: ActionFailureDomainDTO? = verified ? nil : (semanticDispatchSuccess ? .verification : .transport)
         let transport = ClickTransportAttemptDTO(
             route: plan.transportRoute,
             axAttempt: plan.attempt,
@@ -602,12 +614,14 @@ struct ClickRouteService {
                 ? "The semantic AX click lane produced a verified primary-click effect using \(plan.attempt.rawValue)."
                 : "The semantic AX click lane dispatched \(plan.attempt.rawValue), but the requested effect was not verified.",
             axAttempt: plan.attempt,
-            dispatchSuccess: dispatch.success,
+            dispatchSuccess: semanticDispatchSuccess,
             verificationSuccess: verified,
             intentSuccess: verified,
-            coordinateFallbackAllowed: plan.attempt == .exactPrimaryAXAction
-                ? dispatch.success == false && targetHasUsablePoint(target, window: capture.envelope.response.window)
-                : targetHasUsablePoint(target, window: capture.envelope.response.window),
+            coordinateFallbackAllowed: observedEffectDespiteRawFailure
+                ? false
+                : (plan.attempt == .exactPrimaryAXAction
+                    ? dispatch.success == false && targetHasUsablePoint(target, window: capture.envelope.response.window)
+                    : targetHasUsablePoint(target, window: capture.envelope.response.window)),
             transport: transport,
             postCapture: postCapture,
             refreshedTarget: refreshed?.target,
