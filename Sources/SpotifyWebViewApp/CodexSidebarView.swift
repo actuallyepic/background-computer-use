@@ -1,25 +1,56 @@
 import AppKit
+import SwiftUI
 
 @MainActor
-final class SpotifyCodexSidebarView: NSVisualEffectView {
+final class SpotifyCodexSidebarModel: ObservableObject {
+    @Published var statusText: String = ""
+    @Published var providerContext: String = ""
+    @Published var isBusy: Bool = false
+    @Published var messages: [SpotifyCodexChatMessage] = []
+    @Published var draft: String = ""
+    @Published var models: [SpotifyCodexModelOption] = []
+    @Published var selectedModelID: String? = nil
+    @Published var reasoning: [String] = []
+    @Published var selectedReasoning: String? = nil
+    @Published var focusComposerToken: Int = 0
+
     var onSend: (String) -> Void = { _ in }
     var onRefreshModels: () -> Void = {}
     var onModelSelected: (String?) -> Void = { _ in }
     var onReasoningSelected: (String?) -> Void = { _ in }
     var onResetChat: () -> Void = {}
     var onClose: () -> Void = {}
+}
 
-    private let titleLabel = NSTextField(labelWithString: "Codex")
-    private let closeButton = NSButton()
-    private let resetButton = NSButton()
-    private let modelPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let reasoningPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let scrollView = NSScrollView()
-    private let messageStack = NSStackView()
-    private let inputField = NSTextField()
-    private let sendButton = NSButton()
-    private var bubbleTextFields: [UUID: NSTextField] = [:]
-    private var isBusy = false
+@MainActor
+final class SpotifyCodexSidebarView: NSView {
+    var onSend: (String) -> Void {
+        get { model.onSend }
+        set { model.onSend = newValue }
+    }
+    var onRefreshModels: () -> Void {
+        get { model.onRefreshModels }
+        set { model.onRefreshModels = newValue }
+    }
+    var onModelSelected: (String?) -> Void {
+        get { model.onModelSelected }
+        set { model.onModelSelected = newValue }
+    }
+    var onReasoningSelected: (String?) -> Void {
+        get { model.onReasoningSelected }
+        set { model.onReasoningSelected = newValue }
+    }
+    var onResetChat: () -> Void {
+        get { model.onResetChat }
+        set { model.onResetChat = newValue }
+    }
+    var onClose: () -> Void {
+        get { model.onClose }
+        set { model.onClose = newValue }
+    }
+
+    private let model = SpotifyCodexSidebarModel()
+    private var hostingView: NSHostingView<SpotifyCodexSidebarRoot>!
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -32,18 +63,15 @@ final class SpotifyCodexSidebarView: NSVisualEffectView {
     }
 
     func setCodexStatus(_ status: String) {
-        toolTip = status
+        model.statusText = sanitize(status)
     }
 
     func setProviderContext(_ context: String) {
-        modelPopup.toolTip = context
-        reasoningPopup.toolTip = context
+        model.providerContext = context
     }
 
     func setBusy(_ busy: Bool) {
-        isBusy = busy
-        sendButton.isEnabled = !busy
-        sendButton.alphaValue = busy ? 0.45 : 1
+        model.isBusy = busy
     }
 
     func setModels(
@@ -52,432 +80,441 @@ final class SpotifyCodexSidebarView: NSVisualEffectView {
         reasoning: [String],
         selectedReasoning: String?
     ) {
-        modelPopup.removeAllItems()
-        if models.isEmpty {
-            modelPopup.addItem(withTitle: "Model")
-            modelPopup.isEnabled = false
-        } else {
-            modelPopup.isEnabled = true
-            for model in models {
-                modelPopup.addItem(withTitle: model.displayName)
-                modelPopup.lastItem?.representedObject = model.id
-            }
-            if let selectedModelID,
-               let item = modelPopup.itemArray.first(where: { ($0.representedObject as? String) == selectedModelID }) {
-                modelPopup.select(item)
-            }
-        }
-
-        reasoningPopup.removeAllItems()
-        if reasoning.isEmpty {
-            reasoningPopup.addItem(withTitle: "Effort")
-            reasoningPopup.isEnabled = false
-        } else {
-            reasoningPopup.isEnabled = true
-            for effort in reasoning {
-                reasoningPopup.addItem(withTitle: effort.capitalized)
-                reasoningPopup.lastItem?.representedObject = effort
-            }
-            if let selectedReasoning,
-               let item = reasoningPopup.itemArray.first(where: { ($0.representedObject as? String) == selectedReasoning }) {
-                reasoningPopup.select(item)
-            }
-        }
+        model.models = models
+        model.selectedModelID = selectedModelID
+        model.reasoning = reasoning
+        model.selectedReasoning = selectedReasoning
     }
 
     func appendMessage(_ message: SpotifyCodexChatMessage) {
-        let row = BubbleRowView(message: message)
-        row.translatesAutoresizingMaskIntoConstraints = false
-        messageStack.addArrangedSubview(row)
-        bubbleTextFields[message.id] = row.textField
-        row.widthAnchor.constraint(equalTo: messageStack.widthAnchor).isActive = true
-        scrollToBottom()
+        model.messages.append(message)
     }
 
     func updateMessage(id: UUID, text: String) {
-        bubbleTextFields[id]?.stringValue = text.isEmpty ? " " : text
-        scrollToBottom()
+        guard let index = model.messages.firstIndex(where: { $0.id == id }) else { return }
+        model.messages[index].text = text
     }
 
     func clearMessages() {
-        bubbleTextFields.removeAll()
-        for view in messageStack.arrangedSubviews {
-            messageStack.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
+        model.messages.removeAll()
     }
 
     func focusComposer() {
-        window?.makeFirstResponder(inputField)
+        model.focusComposerToken &+= 1
+    }
+
+    private func sanitize(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        if trimmed.lowercased().hasPrefix("spotify.") || trimmed.contains("__bcu") {
+            return ""
+        }
+        return trimmed
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isHidden, alphaValue > 0.01 else { return nil }
+        let inSelf = convert(point, from: superview)
+        guard bounds.contains(inSelf) else { return nil }
+        if let descendant = super.hitTest(point) {
+            return descendant
+        }
+        return self
     }
 
     private func configure() {
-        appearance = NSAppearance(named: .darkAqua)
-        material = .hudWindow
-        blendingMode = .withinWindow
-        state = .active
         wantsLayer = true
-        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        layer?.borderWidth = 1
-        layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.28
-        layer?.shadowRadius = 22
-        layer?.shadowOffset = CGSize(width: -8, height: 0)
+        layer?.backgroundColor = NSColor.clear.cgColor
 
-        let root = NSStackView()
-        root.orientation = .vertical
-        root.alignment = .leading
-        root.spacing = 12
-        root.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
-        root.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(root)
-
-        configureHeader(in: root)
-        configureMessages(in: root)
-        configureComposer(in: root)
-
+        let hosting = NSHostingView(rootView: SpotifyCodexSidebarRoot(model: model))
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hosting)
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: leadingAnchor),
-            root.trailingAnchor.constraint(equalTo: trailingAnchor),
-            root.topAnchor.constraint(equalTo: topAnchor),
-            root.bottomAnchor.constraint(equalTo: bottomAnchor),
+            hosting.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
-    }
-
-    private func configureHeader(in root: NSStackView) {
-        let codexMark = NSTextField(labelWithString: "C")
-        codexMark.alignment = .center
-        codexMark.font = .systemFont(ofSize: 12, weight: .bold)
-        codexMark.textColor = .black
-        codexMark.wantsLayer = true
-        codexMark.layer?.cornerRadius = 10
-        codexMark.layer?.backgroundColor = NSColor.spotifyGreen.cgColor
-        codexMark.translatesAutoresizingMaskIntoConstraints = false
-
-        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.textColor = .white.withAlphaComponent(0.92)
-
-        closeButton.title = ""
-        closeButton.image = NSImage(systemSymbolName: "sidebar.right", accessibilityDescription: "Close Codex")
-        closeButton.imagePosition = .imageOnly
-        closeButton.imageScaling = .scaleProportionallyDown
-        closeButton.bezelStyle = .regularSquare
-        closeButton.isBordered = false
-        closeButton.wantsLayer = true
-        closeButton.layer?.cornerRadius = 15
-        closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        closeButton.contentTintColor = .white.withAlphaComponent(0.84)
-        closeButton.target = self
-        closeButton.action = #selector(closePressed)
-        closeButton.setAccessibilityLabel("Close Codex")
-        closeButton.toolTip = "Close Codex"
-
-        let header = NSStackView(views: [codexMark, titleLabel, NSView(), closeButton])
-        header.orientation = .horizontal
-        header.alignment = .centerY
-        header.spacing = 9
-        header.translatesAutoresizingMaskIntoConstraints = false
-
-        root.addArrangedSubview(header)
-        NSLayoutConstraint.activate([
-            header.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -28),
-            codexMark.widthAnchor.constraint(equalToConstant: 20),
-            codexMark.heightAnchor.constraint(equalToConstant: 20),
-            closeButton.widthAnchor.constraint(equalToConstant: 30),
-            closeButton.heightAnchor.constraint(equalToConstant: 30),
-        ])
-    }
-
-    private func configureMessages(in root: NSStackView) {
-        messageStack.orientation = .vertical
-        messageStack.alignment = .leading
-        messageStack.spacing = 12
-        messageStack.edgeInsets = NSEdgeInsets(top: 6, left: 0, bottom: 12, right: 0)
-        messageStack.translatesAutoresizingMaskIntoConstraints = false
-
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.scrollerStyle = .overlay
-        scrollView.borderType = .noBorder
-        scrollView.documentView = messageStack
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-
-        root.addArrangedSubview(scrollView)
-        NSLayoutConstraint.activate([
-            scrollView.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -28),
-            scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 360),
-            messageStack.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
-        ])
-    }
-
-    private func configureComposer(in root: NSStackView) {
-        let composer = NSVisualEffectView()
-        composer.appearance = NSAppearance(named: .darkAqua)
-        composer.material = .hudWindow
-        composer.blendingMode = .withinWindow
-        composer.state = .active
-        composer.wantsLayer = true
-        composer.layer?.cornerRadius = 22
-        composer.layer?.masksToBounds = true
-        composer.layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        composer.layer?.borderWidth = 1
-        composer.translatesAutoresizingMaskIntoConstraints = false
-
-        let composerStack = NSStackView()
-        composerStack.orientation = .vertical
-        composerStack.alignment = .leading
-        composerStack.spacing = 8
-        composerStack.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 9, right: 8)
-        composerStack.translatesAutoresizingMaskIntoConstraints = false
-        composer.addSubview(composerStack)
-
-        configureSelector(modelPopup, placeholder: "Model")
-        modelPopup.target = self
-        modelPopup.action = #selector(modelChanged)
-
-        configureSelector(reasoningPopup, placeholder: "Effort")
-        reasoningPopup.target = self
-        reasoningPopup.action = #selector(reasoningChanged)
-
-        resetButton.title = ""
-        resetButton.image = NSImage(systemSymbolName: "plus.bubble", accessibilityDescription: "New Chat")
-        resetButton.imagePosition = .imageOnly
-        resetButton.imageScaling = .scaleProportionallyDown
-        resetButton.bezelStyle = .regularSquare
-        resetButton.isBordered = false
-        resetButton.wantsLayer = true
-        resetButton.layer?.cornerRadius = 13
-        resetButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        resetButton.contentTintColor = .white.withAlphaComponent(0.78)
-        resetButton.target = self
-        resetButton.action = #selector(resetPressed)
-        resetButton.setAccessibilityLabel("New Chat")
-        resetButton.toolTip = "New Chat"
-
-        let selectorRow = NSStackView(views: [modelPopup, reasoningPopup, NSView(), resetButton])
-        selectorRow.orientation = .horizontal
-        selectorRow.alignment = .centerY
-        selectorRow.spacing = 8
-        selectorRow.translatesAutoresizingMaskIntoConstraints = false
-        composerStack.addArrangedSubview(selectorRow)
-
-        inputField.placeholderString = "Message Codex"
-        inputField.font = .systemFont(ofSize: 14, weight: .regular)
-        inputField.textColor = .white
-        inputField.isBezeled = false
-        inputField.drawsBackground = false
-        inputField.focusRingType = .none
-        inputField.target = self
-        inputField.action = #selector(sendPressed)
-        inputField.setAccessibilityLabel("Message Codex")
-
-        sendButton.title = ""
-        sendButton.image = NSImage(systemSymbolName: "arrow.up", accessibilityDescription: "Send")
-        sendButton.imagePosition = .imageOnly
-        sendButton.imageScaling = .scaleProportionallyDown
-        sendButton.bezelStyle = .regularSquare
-        sendButton.isBordered = false
-        sendButton.wantsLayer = true
-        sendButton.layer?.cornerRadius = 15
-        sendButton.layer?.backgroundColor = NSColor.spotifyGreen.cgColor
-        sendButton.contentTintColor = .black
-        sendButton.target = self
-        sendButton.action = #selector(sendPressed)
-        sendButton.setAccessibilityLabel("Send")
-        sendButton.toolTip = "Send"
-
-        let inputRow = NSStackView(views: [inputField, sendButton])
-        inputRow.orientation = .horizontal
-        inputRow.alignment = .centerY
-        inputRow.spacing = 8
-        inputRow.translatesAutoresizingMaskIntoConstraints = false
-        composerStack.addArrangedSubview(inputRow)
-
-        root.addArrangedSubview(composer)
-        NSLayoutConstraint.activate([
-            composer.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -28),
-            composerStack.leadingAnchor.constraint(equalTo: composer.leadingAnchor),
-            composerStack.trailingAnchor.constraint(equalTo: composer.trailingAnchor),
-            composerStack.topAnchor.constraint(equalTo: composer.topAnchor),
-            composerStack.bottomAnchor.constraint(equalTo: composer.bottomAnchor),
-            selectorRow.widthAnchor.constraint(equalTo: composerStack.widthAnchor, constant: -18),
-            inputRow.widthAnchor.constraint(equalTo: composerStack.widthAnchor, constant: -18),
-            modelPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 190),
-            reasoningPopup.widthAnchor.constraint(equalToConstant: 94),
-            resetButton.widthAnchor.constraint(equalToConstant: 26),
-            resetButton.heightAnchor.constraint(equalToConstant: 26),
-            sendButton.widthAnchor.constraint(equalToConstant: 30),
-            sendButton.heightAnchor.constraint(equalToConstant: 30),
-            inputField.heightAnchor.constraint(greaterThanOrEqualToConstant: 30),
-        ])
-    }
-
-    private func configureSelector(_ popup: NSPopUpButton, placeholder: String) {
-        popup.addItem(withTitle: placeholder)
-        popup.font = .systemFont(ofSize: 11, weight: .medium)
-        popup.controlSize = .small
-        popup.bezelStyle = .texturedRounded
-        popup.isBordered = false
-        popup.wantsLayer = true
-        popup.layer?.cornerRadius = 12
-        popup.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        popup.contentTintColor = .white.withAlphaComponent(0.84)
-    }
-
-    private func scrollToBottom() {
-        layoutSubtreeIfNeeded()
-        guard let documentView = scrollView.documentView else { return }
-        let visibleRect = NSRect(
-            x: 0,
-            y: max(documentView.bounds.height - scrollView.contentView.bounds.height, 0),
-            width: 1,
-            height: 1
-        )
-        documentView.scrollToVisible(visibleRect)
-    }
-
-    @objc private func sendPressed() {
-        guard !isBusy else { return }
-        let text = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        inputField.stringValue = ""
-        onSend(text)
-    }
-
-    @objc private func resetPressed() {
-        onResetChat()
-        focusComposer()
-    }
-
-    @objc private func modelChanged() {
-        onModelSelected(modelPopup.selectedItem?.representedObject as? String)
-    }
-
-    @objc private func reasoningChanged() {
-        onReasoningSelected(reasoningPopup.selectedItem?.representedObject as? String)
-    }
-
-    @objc private func closePressed() {
-        onClose()
+        self.hostingView = hosting
     }
 }
 
-@MainActor
-private final class BubbleRowView: NSView {
-    let textField = NSTextField(wrappingLabelWithString: " ")
+struct SpotifyCodexSidebarRoot: View {
+    @ObservedObject var model: SpotifyCodexSidebarModel
+    @FocusState private var isComposerFocused: Bool
 
-    init(message: SpotifyCodexChatMessage) {
-        super.init(frame: .zero)
-        configure(message: message)
+    var body: some View {
+        panel
+            .preferredColorScheme(.dark)
+            .onChange(of: model.focusComposerToken) { _, _ in
+                isComposerFocused = true
+            }
     }
 
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
+    private var panel: some View {
+        VStack(spacing: 0) {
+            header
+            messagesList
+            composer
+        }
+        .background(Color.spotifyPanel)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.45), radius: 24, x: -10, y: 8)
     }
 
-    private func configure(message: SpotifyCodexChatMessage) {
-        let bubble = NSView()
-        bubble.wantsLayer = true
-        bubble.layer?.cornerRadius = 18
-        bubble.layer?.masksToBounds = true
-        bubble.layer?.backgroundColor = message.role == .user
-            ? NSColor.spotifyGreen.cgColor
-            : NSColor.white.withAlphaComponent(0.09).cgColor
-        bubble.layer?.borderColor = message.role == .user
-            ? NSColor.clear.cgColor
-            : NSColor.white.withAlphaComponent(0.08).cgColor
-        bubble.layer?.borderWidth = message.role == .user ? 0 : 1
-        bubble.translatesAutoresizingMaskIntoConstraints = false
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text("Spotify AI")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+            Spacer(minLength: 4)
+            iconButton(symbol: "square.and.pencil", help: "New chat", action: model.onResetChat)
+            iconButton(symbol: "xmark", help: "Close", action: model.onClose)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 8)
+    }
 
-        textField.stringValue = message.text.isEmpty ? " " : message.text
-        textField.font = .systemFont(ofSize: 13, weight: .regular)
-        textField.textColor = message.role == .user ? .black : .white.withAlphaComponent(0.92)
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.maximumNumberOfLines = 0
+    private func iconButton(symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.spotifyTextSecondary)
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+        }
+        .buttonStyle(SpotifyHoverButtonStyle())
+        .help(help)
+    }
 
-        bubble.addSubview(textField)
-        addSubview(bubble)
+    private var messagesList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                if model.messages.isEmpty {
+                    emptyState
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 56)
+                } else {
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        ForEach(model.messages, id: \.id) { message in
+                            SpotifyCodexMessageRow(message: message)
+                                .id(message.id)
+                        }
+                        Color.clear.frame(height: 1).id("__bottom__")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 12)
+                }
+            }
+            .onChange(of: model.messages.count) { _, _ in
+                withAnimation(.easeOut(duration: 0.18)) {
+                    proxy.scrollTo("__bottom__", anchor: .bottom)
+                }
+            }
+            .onChange(of: model.messages.last?.text) { _, _ in
+                proxy.scrollTo("__bottom__", anchor: .bottom)
+            }
+        }
+    }
 
-        let maxWidth: CGFloat = 322
-        let leading: NSLayoutConstraint
-        let trailing: NSLayoutConstraint
-        var avatar: NSView?
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack(alignment: .center, spacing: 14) {
+            emptyHero
+                .padding(.bottom, 4)
+            Text(emptyHeadline)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            Text(emptySub)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.spotifyBodyText)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
+    @ViewBuilder
+    private var emptyHero: some View {
+        let unavailable = model.statusText.lowercased().contains("unavailable")
+            || model.statusText.lowercased().contains("disconnect")
+        if unavailable {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 36, weight: .heavy))
+                .foregroundStyle(Color.spotifyTextSecondary)
+        } else {
+            Circle()
+                .fill(Color.spotifyGreen)
+                .frame(width: 56, height: 56)
+                .overlay(
+                    Image(systemName: "waveform")
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundStyle(.black)
+                )
+        }
+    }
+
+    private var emptyHeadline: String {
+        let trimmed = model.statusText.trimmingCharacters(in: .whitespaces)
+        if trimmed.lowercased().contains("unavailable") { return "Spotify AI is unavailable" }
+        if trimmed.lowercased().contains("connecting") { return "Connecting to Spotify AI" }
+        return "Ask Spotify AI"
+    }
+
+    private var emptySub: String {
+        let trimmed = model.statusText.trimmingCharacters(in: .whitespaces)
+        if trimmed.lowercased().contains("unavailable") {
+            return "We couldn't reach Spotify AI right now. Try again in a moment."
+        }
+        if trimmed.lowercased().contains("connecting") {
+            return "Hang tight — we're getting things ready."
+        }
+        return "Search for music, build a playlist, or ask anything about your library."
+    }
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                modelMenu
+                effortMenu
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4)
+
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Color.spotifyPlaceholder)
+                ZStack(alignment: .leading) {
+                    if model.draft.isEmpty {
+                        Text("Ask Spotify AI…")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(Color.spotifyPlaceholder)
+                            .allowsHitTesting(false)
+                    }
+                    TextField("", text: $model.draft, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                        .tint(Color.spotifyGreen)
+                        .lineLimit(1...5)
+                        .focused($isComposerFocused)
+                        .onSubmit { send() }
+                        .submitLabel(.send)
+                }
+                sendButton
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.spotifySearchField)
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, 16)
+    }
+
+    private var sendButton: some View {
+        Button(action: send) {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(canSend ? .black : Color.white.opacity(0.32))
+                .frame(width: 30, height: 30)
+                .background(
+                    Circle().fill(canSend ? Color.spotifyGreen : Color.white.opacity(0.10))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSend)
+        .help("Send")
+    }
+
+    private var modelMenu: some View {
+        Menu {
+            if model.models.isEmpty {
+                Text("No models loaded")
+            } else {
+                ForEach(model.models, id: \.id) { option in
+                    Button(option.displayName) {
+                        model.onModelSelected(option.id)
+                    }
+                }
+                Divider()
+                Button("Refresh") { model.onRefreshModels() }
+            }
+        } label: {
+            spotifyChipLabel(text: modelLabel, isActive: model.selectedModelID != nil)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .tint(.white)
+    }
+
+    private var modelLabel: String {
+        if let id = model.selectedModelID,
+           let option = model.models.first(where: { $0.id == id }) {
+            return option.displayName
+        }
+        return "Model"
+    }
+
+    private var effortMenu: some View {
+        Menu {
+            if model.reasoning.isEmpty {
+                Text("No effort levels")
+            } else {
+                ForEach(model.reasoning, id: \.self) { effort in
+                    Button(effort.capitalized) {
+                        model.onReasoningSelected(effort)
+                    }
+                }
+            }
+        } label: {
+            spotifyChipLabel(text: effortLabel, isActive: model.selectedReasoning != nil)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .tint(.white)
+    }
+
+    private func spotifyChipLabel(text: String, isActive: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundColor(.white.opacity(0.68))
+                .lineLimit(1)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.white.opacity(0.68))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.spotifyCard, in: Capsule(style: .continuous))
+        .contentShape(Capsule(style: .continuous))
+    }
+
+    private var effortLabel: String {
+        if let value = model.selectedReasoning {
+            return value.capitalized
+        }
+        return "Effort"
+    }
+
+    private var canSend: Bool {
+        let trimmed = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && !model.isBusy
+    }
+
+    private func send() {
+        guard canSend else { return }
+        let text = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        model.draft = ""
+        model.onSend(text)
+    }
+}
+
+private struct SpotifyHoverButtonStyle: ButtonStyle {
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                Circle()
+                    .fill(backgroundColor(isPressed: configuration.isPressed))
+            )
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+
+    private func backgroundColor(isPressed: Bool) -> Color {
+        if isPressed { return Color.white.opacity(0.16) }
+        if isHovering { return Color.white.opacity(0.10) }
+        return Color.clear
+    }
+}
+
+private struct SpotifyCodexMessageRow: View {
+    let message: SpotifyCodexChatMessage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            badge
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(Color.spotifyTextSecondary)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                Text(message.text.isEmpty ? " " : message.text)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.white.opacity(0.94))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .lineSpacing(2)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var badge: some View {
         switch message.role {
         case .user:
-            leading = bubble.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 64)
-            trailing = bubble.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2)
+            Circle()
+                .fill(Color.white.opacity(0.10))
+                .frame(width: 22, height: 22)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.86))
+                )
         case .assistant:
-            let assistantAvatar = AssistantAvatarView()
-            assistantAvatar.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(assistantAvatar)
-            avatar = assistantAvatar
-            leading = bubble.leadingAnchor.constraint(equalTo: assistantAvatar.trailingAnchor, constant: 8)
-            trailing = bubble.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -58)
+            Circle()
+                .fill(Color.spotifyGreen)
+                .frame(width: 22, height: 22)
+                .overlay(
+                    Image(systemName: "waveform")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(.black)
+                )
         }
+    }
 
-        var constraints: [NSLayoutConstraint] = [
-            leading,
-            trailing,
-            bubble.topAnchor.constraint(equalTo: topAnchor),
-            bubble.bottomAnchor.constraint(equalTo: bottomAnchor),
-            bubble.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth),
-            textField.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 12),
-            textField.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -12),
-            textField.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 8),
-            textField.bottomAnchor.constraint(equalTo: bubble.bottomAnchor, constant: -8),
-        ]
-
-        if let avatar {
-            constraints.append(contentsOf: [
-                avatar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-                avatar.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 2),
-                avatar.widthAnchor.constraint(equalToConstant: 24),
-                avatar.heightAnchor.constraint(equalToConstant: 24),
-            ])
+    private var title: String {
+        switch message.role {
+        case .user: return "You"
+        case .assistant: return "Spotify AI"
         }
-
-        NSLayoutConstraint.activate(constraints)
     }
 }
 
-@MainActor
-private final class AssistantAvatarView: NSView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setup()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setup()
-    }
-
-    private func setup() {
-        wantsLayer = true
-        layer?.cornerRadius = 12
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        layer?.borderWidth = 1
-
-        let mark = NSTextField(labelWithString: "C")
-        mark.alignment = .center
-        mark.font = .systemFont(ofSize: 11, weight: .bold)
-        mark.textColor = .spotifyGreen
-        mark.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(mark)
-
-        NSLayoutConstraint.activate([
-            mark.leadingAnchor.constraint(equalTo: leadingAnchor),
-            mark.trailingAnchor.constraint(equalTo: trailingAnchor),
-            mark.topAnchor.constraint(equalTo: topAnchor),
-            mark.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
-    }
-}
-
-private extension NSColor {
-    static let spotifyGreen = NSColor(red: 0.12, green: 0.84, blue: 0.38, alpha: 1.0)
+private extension Color {
+    // Spotify brand green.
+    static let spotifyGreen = Color(red: 30 / 255, green: 215 / 255, blue: 96 / 255)
+    static let spotifyAmber = Color(red: 1.0, green: 0.66, blue: 0.0)
+    // Spotify panel surface (Your Library / Now Playing background) — #121212.
+    static let spotifyPanel = Color(red: 0x12 / 255.0, green: 0x12 / 255.0, blue: 0x12 / 255.0)
+    // Card / hover surface — #1f1f1f.
+    static let spotifyCard = Color(red: 0x1f / 255.0, green: 0x1f / 255.0, blue: 0x1f / 255.0)
+    // Heavier hover / pressed — #2a2a2a.
+    static let spotifyHover = Color(red: 0x2a / 255.0, green: 0x2a / 255.0, blue: 0x2a / 255.0)
+    // Secondary / help text — #a7a7a7.
+    static let spotifyTextSecondary = Color(red: 0xa7 / 255.0, green: 0xa7 / 255.0, blue: 0xa7 / 255.0)
+    // Body / paragraph text — #b3b3b3.
+    static let spotifyBodyText = Color(red: 0xb3 / 255.0, green: 0xb3 / 255.0, blue: 0xb3 / 255.0)
+    // Placeholder text — matches Spotify's search bar "What do you want to play?".
+    static let spotifyPlaceholder = Color.white.opacity(0.58)
+    // Subtle text — #6a6a6a.
+    static let spotifyTextMuted = Color(red: 0x6a / 255.0, green: 0x6a / 255.0, blue: 0x6a / 255.0)
+    // Search field background — #2a2a2a.
+    static let spotifySearchField = Color(red: 0x2a / 255.0, green: 0x2a / 255.0, blue: 0x2a / 255.0)
 }

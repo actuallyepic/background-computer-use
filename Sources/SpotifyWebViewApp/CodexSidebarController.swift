@@ -65,7 +65,7 @@ final class SpotifyCodexSidebarController {
                 try await ensureThread(client: client)
                 startModelRefreshLoop()
             } catch {
-                reportStatus("Codex unavailable: \(error.localizedDescription)")
+                reportStatus("Spotify AI unavailable")
             }
         }
     }
@@ -82,7 +82,6 @@ final class SpotifyCodexSidebarController {
         if recentPageEvents.count > 8 {
             recentPageEvents.removeFirst(recentPageEvents.count - 8)
         }
-        reportStatus(type)
     }
 
     func refreshModels() {
@@ -153,8 +152,8 @@ final class SpotifyCodexSidebarController {
                         activeTurn = nil
                         finishSend(conversationID: currentConversationID)
                         return
-                    case .error(let error):
-                        reportStatus("Codex error: \(error.error.message)")
+                    case .error:
+                        reportStatus("Something went wrong")
                     default:
                         continue
                     }
@@ -169,7 +168,7 @@ final class SpotifyCodexSidebarController {
                 if conversationID == currentConversationID {
                     onMessageUpdated(assistantID, userFacingErrorMessage(for: error))
                 }
-                reportStatus("Codex error: \(error.localizedDescription)")
+                reportStatus("Something went wrong")
                 activeTurn = nil
                 finishSend(conversationID: currentConversationID)
             }
@@ -228,7 +227,7 @@ final class SpotifyCodexSidebarController {
             return client
         }
 
-        onStatusChanged("Starting Codex")
+        onStatusChanged("Starting")
         let websocketURL = try await sidecar.resolveWebSocketURL()
         let client = try await CodexClient.connect(
             .remote(
@@ -250,7 +249,7 @@ final class SpotifyCodexSidebarController {
         self.client = client
         startApprovalResponder(client: client)
         startConnectionMonitor(client: client)
-        onStatusChanged("Codex connected")
+        onStatusChanged("Connected")
         return client
     }
 
@@ -276,11 +275,11 @@ final class SpotifyCodexSidebarController {
                 )
                 threadID = response.thread.id
                 Self.persistThreadID(response.thread.id, workspaceURL: workspaceURL)
-                reportStatus("Resumed Codex thread")
+                reportStatus("Resumed chat")
                 return response.thread.id
             } catch let error as CodexClientError where error.isThreadNotFound {
                 Self.deletePersistedThreadID(workspaceURL: workspaceURL)
-                reportStatus("Saved Codex thread expired")
+                reportStatus("Starting fresh chat")
             } catch {
                 reportStatus("Could not resume saved thread: \(error.localizedDescription)")
             }
@@ -306,7 +305,7 @@ final class SpotifyCodexSidebarController {
         )
         threadID = response.thread.id
         Self.persistThreadID(response.thread.id, workspaceURL: workspaceURL)
-        reportStatus("Started Codex thread")
+        reportStatus("New chat")
         return response.thread.id
     }
 
@@ -320,7 +319,7 @@ final class SpotifyCodexSidebarController {
         do {
             return try await startTurnContext(client: client, text: text)
         } catch let error as CodexClientError where error.isThreadNotFound {
-            reportStatus("Recovering stale Codex thread")
+            reportStatus("Refreshing chat")
             threadID = nil
             Self.deletePersistedThreadID(workspaceURL: workspaceURL)
             _ = try await createThread(client: client)
@@ -406,13 +405,13 @@ final class SpotifyCodexSidebarController {
                 if Task.isCancelled { break }
                 switch state {
                 case .connecting:
-                    onStatusChanged("Codex connecting")
+                    onStatusChanged("Connecting")
                 case .connected:
-                    onStatusChanged("Codex socket open")
+                    onStatusChanged("Connecting")
                 case .initialized:
-                    onStatusChanged("Codex ready")
-                case .disconnected(let reason):
-                    reportStatus("Codex disconnected: \(reason.description)")
+                    onStatusChanged("Spotify AI")
+                case .disconnected:
+                    reportStatus("Disconnected")
                 }
             }
         }

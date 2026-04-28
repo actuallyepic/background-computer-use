@@ -4,25 +4,166 @@ import Foundation
 import QuartzCore
 @preconcurrency import WebKit
 
-final class SpotifyMenuButton: NSButton {
-    override func accessibilityRole() -> NSAccessibility.Role? {
-        .button
+final class SpotifyChromeButton: NSButton {
+    struct Palette {
+        let fill: NSColor
+        let hoverFill: NSColor
+        let disabledFill: NSColor
+        let tint: NSColor
+        let hoverTint: NSColor
+        let disabledTint: NSColor
+
+        static let ghost = Palette(
+            fill: NSColor.white.withAlphaComponent(0.04),
+            hoverFill: NSColor.white.withAlphaComponent(0.12),
+            disabledFill: NSColor.white.withAlphaComponent(0.03),
+            tint: NSColor.white.withAlphaComponent(0.78),
+            hoverTint: .white,
+            disabledTint: NSColor.white.withAlphaComponent(0.40)
+        )
+
+        static let accent = Palette(
+            fill: NSColor(red: 0.12, green: 0.84, blue: 0.38, alpha: 1.0),
+            hoverFill: NSColor(red: 0.16, green: 0.93, blue: 0.45, alpha: 1.0),
+            disabledFill: NSColor(red: 0.12, green: 0.84, blue: 0.38, alpha: 1.0),
+            tint: .black,
+            hoverTint: .black,
+            disabledTint: .black
+        )
     }
 
+    private var palette: Palette = .ghost
+    private var isHovering = false
+    private var trackingArea: NSTrackingArea?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        commonInit()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    private func commonInit() {
+        wantsLayer = true
+        bezelStyle = .regularSquare
+        isBordered = false
+        imagePosition = .imageOnly
+        imageScaling = .scaleProportionallyDown
+        applyState(animated: false)
+    }
+
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
     override func accessibilityPerformPress() -> Bool {
         performClick(nil)
         return true
+    }
+
+    override var isEnabled: Bool {
+        didSet { applyState(animated: true) }
+    }
+
+    func setPalette(_ palette: Palette) {
+        self.palette = palette
+        applyState(animated: true)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard isEnabled else { return }
+        isHovering = true
+        applyState(animated: true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+        applyState(animated: true)
+    }
+
+    private func applyState(animated: Bool) {
+        let fill: NSColor
+        let tint: NSColor
+        if !isEnabled {
+            fill = palette.disabledFill
+            tint = palette.disabledTint
+        } else if isHovering {
+            fill = palette.hoverFill
+            tint = palette.hoverTint
+        } else {
+            fill = palette.fill
+            tint = palette.tint
+        }
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.14
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                context.allowsImplicitAnimation = true
+                layer?.backgroundColor = fill.cgColor
+                contentTintColor = tint
+            }
+        } else {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layer?.backgroundColor = fill.cgColor
+            CATransaction.commit()
+            contentTintColor = tint
+        }
+    }
+}
+
+final class SpotifyWindow: NSWindow {
+    var chromeHeight: CGFloat = 56 {
+        didSet { repositionTrafficLights() }
+    }
+
+    override func layoutIfNeeded() {
+        super.layoutIfNeeded()
+        repositionTrafficLights()
+    }
+
+    private func repositionTrafficLights() {
+        let buttons = [
+            standardWindowButton(.closeButton),
+            standardWindowButton(.miniaturizeButton),
+            standardWindowButton(.zoomButton),
+        ].compactMap { $0 }
+        guard let first = buttons.first, let parent = first.superview else { return }
+        let buttonHeight = first.frame.height
+        let targetY = parent.frame.height - (chromeHeight + buttonHeight) / 2
+        for button in buttons {
+            var frame = button.frame
+            if abs(frame.origin.y - targetY) < 0.5 { continue }
+            frame.origin.y = targetY
+            button.frame = frame
+        }
     }
 }
 
 final class SpotifyNativeMenuBarView: NSView {
     var onGoBack: (() -> Void)?
     var onGoForward: (() -> Void)?
-    var onToggleSidebar: (() -> Void)?
 
-    private let backButton = SpotifyMenuButton()
-    private let forwardButton = SpotifyMenuButton()
-    private let sidebarButton = SpotifyMenuButton()
+    private let backButton = SpotifyChromeButton()
+    private let forwardButton = SpotifyChromeButton()
+
+    private let buttonDiameter: CGFloat = 38
 
     override var mouseDownCanMoveWindow: Bool { true }
 
@@ -37,73 +178,47 @@ final class SpotifyNativeMenuBarView: NSView {
     }
 
     func setSidebarOpen(_ isOpen: Bool) {
-        configureCodexButton(isOpen: isOpen)
+        // Sidebar toggle is now injected into Spotify's own DOM; no native chrome state.
+        _ = isOpen
     }
 
     func setNavigation(canGoBack: Bool, canGoForward: Bool) {
-        configureNavigationButton(backButton, symbolName: "chevron.left", title: "Back", isEnabled: canGoBack)
-        configureNavigationButton(forwardButton, symbolName: "chevron.right", title: "Forward", isEnabled: canGoForward)
+        backButton.isEnabled = canGoBack
+        forwardButton.isEnabled = canGoForward
     }
 
     func setProviderContext(_ context: String) {
-        sidebarButton.toolTip = context
+        toolTip = context
     }
 
     private func setup() {
         wantsLayer = true
-        layer?.backgroundColor = NSColor(red: 0.02, green: 0.02, blue: 0.02, alpha: 1.0).cgColor
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        layer?.borderWidth = 1
+        layer?.backgroundColor = NSColor.black.cgColor
 
-        let spotifyBadge = NSTextField(labelWithString: "Spotify")
-        spotifyBadge.font = .systemFont(ofSize: 15, weight: .semibold)
-        spotifyBadge.textColor = .white
-
-        let liveDot = NSView()
-        liveDot.translatesAutoresizingMaskIntoConstraints = false
-        liveDot.wantsLayer = true
-        liveDot.layer?.cornerRadius = 5
-        liveDot.layer?.backgroundColor = NSColor(red: 0.12, green: 0.84, blue: 0.38, alpha: 1.0).cgColor
-        liveDot.widthAnchor.constraint(equalToConstant: 10).isActive = true
-        liveDot.heightAnchor.constraint(equalToConstant: 10).isActive = true
-
-        let titleStack = NSStackView(views: [liveDot, spotifyBadge])
-        titleStack.orientation = .horizontal
-        titleStack.alignment = .centerY
-        titleStack.spacing = 8
-
-        configureNavigationButton(backButton, symbolName: "chevron.left", title: "Back", isEnabled: false)
+        configureChromeButton(backButton, symbol: "chevron.left", title: "Back")
         backButton.target = self
         backButton.action = #selector(goBack)
-        backButton.heightAnchor.constraint(equalToConstant: 32).isActive = true
-        backButton.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        backButton.isEnabled = false
 
-        configureNavigationButton(forwardButton, symbolName: "chevron.right", title: "Forward", isEnabled: false)
+        configureChromeButton(forwardButton, symbol: "chevron.right", title: "Forward")
         forwardButton.target = self
         forwardButton.action = #selector(goForward)
-        forwardButton.heightAnchor.constraint(equalToConstant: 32).isActive = true
-        forwardButton.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        forwardButton.isEnabled = false
 
         let navigationStack = NSStackView(views: [backButton, forwardButton])
         navigationStack.orientation = .horizontal
         navigationStack.alignment = .centerY
-        navigationStack.spacing = 8
-
-        configureCodexButton(isOpen: false)
-        sidebarButton.target = self
-        sidebarButton.action = #selector(toggleSidebar)
-        sidebarButton.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        sidebarButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        navigationStack.spacing = 6
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
-        let stack = NSStackView(views: [navigationStack, titleStack, spacer, sidebarButton])
+        let stack = NSStackView(views: [navigationStack, spacer])
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 16
-        stack.edgeInsets = NSEdgeInsets(top: 0, left: 92, bottom: 0, right: 18)
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 92, bottom: 0, right: 16)
         addSubview(stack)
 
         NSLayoutConstraint.activate([
@@ -114,37 +229,16 @@ final class SpotifyNativeMenuBarView: NSView {
         ])
     }
 
-    private func configureNavigationButton(_ button: NSButton, symbolName: String, title: String, isEnabled: Bool) {
+    private func configureChromeButton(_ button: SpotifyChromeButton, symbol: String, title: String) {
         button.title = ""
-        button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: title)
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
-        button.bezelStyle = .regularSquare
-        button.isBordered = false
-        button.isEnabled = isEnabled
-        button.wantsLayer = true
-        button.layer?.cornerRadius = 16
-        button.layer?.backgroundColor = NSColor.black.withAlphaComponent(isEnabled ? 0.74 : 0.34).cgColor
-        button.contentTintColor = NSColor.white.withAlphaComponent(isEnabled ? 0.88 : 0.28)
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.layer?.cornerRadius = buttonDiameter / 2
+        button.heightAnchor.constraint(equalToConstant: buttonDiameter).isActive = true
+        button.widthAnchor.constraint(equalToConstant: buttonDiameter).isActive = true
+        button.setPalette(.ghost)
         button.setAccessibilityLabel(title)
         button.toolTip = title
-    }
-
-    private func configureCodexButton(isOpen: Bool) {
-        let title = isOpen ? "Hide Codex" : "Open Codex"
-        sidebarButton.title = ""
-        sidebarButton.image = NSImage(systemSymbolName: "sidebar.right", accessibilityDescription: title)
-        sidebarButton.imagePosition = .imageOnly
-        sidebarButton.bezelStyle = .regularSquare
-        sidebarButton.isBordered = false
-        sidebarButton.wantsLayer = true
-        sidebarButton.layer?.cornerRadius = 17
-        sidebarButton.layer?.backgroundColor = isOpen
-            ? NSColor(red: 0.12, green: 0.84, blue: 0.38, alpha: 0.96).cgColor
-            : NSColor.white.withAlphaComponent(0.10).cgColor
-        sidebarButton.contentTintColor = isOpen ? NSColor.black : NSColor.white.withAlphaComponent(0.9)
-        sidebarButton.setAccessibilityLabel(title)
-        sidebarButton.toolTip = title
     }
 
     @objc private func goBack() {
@@ -154,11 +248,6 @@ final class SpotifyNativeMenuBarView: NSView {
     @objc private func goForward() {
         onGoForward?()
     }
-
-    @objc private func toggleSidebar() {
-        onToggleSidebar?()
-    }
-
 }
 
 @MainActor
@@ -170,7 +259,7 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         displayName: "Spotify WebView"
     )
 
-    private let window = NSWindow(
+    private let window = SpotifyWindow(
         contentRect: NSRect(x: 160, y: 120, width: 1280, height: 820),
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
         backing: .buffered,
@@ -182,12 +271,16 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
     private let workspaceURL = SpotifyWebViewAppDelegate.discoverWorkspaceURL()
     private lazy var codexController = SpotifyCodexSidebarController(workspaceURL: workspaceURL)
     private let sidebarWidth: CGFloat = 440
+    // Vertical insets so the panel slots between Spotify's top bar and the player.
+    private let sidebarTopInset: CGFloat = 76
+    private let sidebarBottomInset: CGFloat = 96
+    private let sidebarRightMargin: CGFloat = 12
     private var sidebarTrailingConstraint: NSLayoutConstraint?
     private var controlPlaneBaseURL: URL?
     private var browserTargetID: String?
     private var navigationObservations: [NSKeyValueObservation] = []
     private var isSidebarOpen: Bool {
-        (sidebarTrailingConstraint?.constant ?? sidebarWidth) < 0.5 && sidebar.alphaValue > 0.01
+        (sidebarTrailingConstraint?.constant ?? sidebarWidth) < sidebarRightMargin + 0.5 && sidebar.alphaValue > 0.01
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -198,6 +291,7 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         configureWindow()
         configureProvider()
         configureCodexSidebar()
+        installSpotifyChromeUserScript()
         loadSpotify()
         connectProvider()
         codexController.start()
@@ -268,9 +362,6 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         menuBar.onGoForward = { [weak self] in
             self?.goForwardFromMenuBar()
         }
-        menuBar.onToggleSidebar = { [weak self] in
-            self?.toggleSidebarFromMenuBar()
-        }
         configureNavigationStateObservers()
         updateNavigationControls()
 
@@ -278,23 +369,24 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         root.addSubview(webView)
         root.addSubview(sidebar)
 
-        sidebarTrailingConstraint = sidebar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: sidebarWidth)
-        sidebarTrailingConstraint?.isActive = true
+        let trailingConstraint = sidebar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: sidebarWidth)
+        sidebarTrailingConstraint = trailingConstraint
 
         NSLayoutConstraint.activate([
+            menuBar.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            menuBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            menuBar.topAnchor.constraint(equalTo: root.topAnchor),
+            menuBar.heightAnchor.constraint(equalToConstant: 56),
+
             webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             webView.topAnchor.constraint(equalTo: menuBar.bottomAnchor),
             webView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             webView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
 
-            menuBar.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            menuBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            menuBar.topAnchor.constraint(equalTo: root.topAnchor),
-            menuBar.heightAnchor.constraint(equalToConstant: 48),
-
             sidebar.widthAnchor.constraint(equalToConstant: sidebarWidth),
-            sidebar.topAnchor.constraint(equalTo: menuBar.bottomAnchor),
-            sidebar.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            sidebar.topAnchor.constraint(equalTo: menuBar.bottomAnchor, constant: sidebarTopInset),
+            sidebar.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -sidebarBottomInset),
+            trailingConstraint,
         ])
 
         NSApplication.shared.setActivationPolicy(.regular)
@@ -366,6 +458,140 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         webView.load(URLRequest(url: URL(string: "https://open.spotify.com")!))
     }
 
+    private func installSpotifyChromeUserScript() {
+        let source = """
+        (function() {
+          if (window.__bcuSpotifyChromeInstalled) return;
+          window.__bcuSpotifyChromeInstalled = true;
+
+          var SPARKLES_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">' +
+            '<path d="M12 2 L13.6 8.4 L20 10 L13.6 11.6 L12 18 L10.4 11.6 L4 10 L10.4 8.4 Z M18.5 2 L19.2 4.3 L21.5 5 L19.2 5.7 L18.5 8 L17.8 5.7 L15.5 5 L17.8 4.3 Z M5.5 14 L6.2 16.3 L8.5 17 L6.2 17.7 L5.5 20 L4.8 17.7 L2.5 17 L4.8 16.3 Z"/>' +
+            '</svg>';
+
+          function hideInstall() {
+            var nodes = document.querySelectorAll('a, button');
+            for (var i = 0; i < nodes.length; i++) {
+              var el = nodes[i];
+              var text = (el.textContent || '').trim();
+              var aria = el.getAttribute('aria-label') || '';
+              if (/^install\\s+app$/i.test(text) || /^install\\s+app$/i.test(aria)) {
+                el.style.setProperty('display', 'none', 'important');
+              }
+            }
+          }
+
+          function findProfile() {
+            var sels = [
+              '[data-testid="user-widget-link"]',
+              'button[data-testid="user-widget-button"]',
+              '[data-testid="user-widget"]',
+              '[data-testid="user-widget-avatar"]',
+              '[data-testid="user-avatar"]'
+            ];
+            for (var i = 0; i < sels.length; i++) {
+              var el = document.querySelector(sels[i]);
+              if (el) return el;
+            }
+            return null;
+          }
+
+          function buttonHost(profile) {
+            // Walk up to the topbar action group so siblings are the other top-bar icons.
+            var cur = profile;
+            for (var i = 0; i < 4 && cur; i++) {
+              if (cur.parentElement && cur.parentElement.children.length > 1) {
+                return { host: cur.parentElement, anchor: cur };
+              }
+              cur = cur.parentElement;
+            }
+            return profile.parentElement ? { host: profile.parentElement, anchor: profile } : null;
+          }
+
+          function ensureSparkles() {
+            var profile = findProfile();
+            if (!profile) return false;
+            var host = buttonHost(profile);
+            if (!host) return false;
+            if (host.host.querySelector('[data-bcu-sparkles]')) return true;
+
+            var btn = document.createElement('button');
+            btn.setAttribute('data-bcu-sparkles', 'true');
+            btn.setAttribute('aria-label', 'Toggle Spotify AI');
+            btn.title = 'Spotify AI';
+            btn.type = 'button';
+            btn.innerHTML = SPARKLES_SVG;
+            btn.style.cssText = [
+              'width:32px',
+              'height:32px',
+              'min-width:32px',
+              'min-height:32px',
+              'background:transparent',
+              'border:0',
+              'border-radius:9999px',
+              'color:rgba(255,255,255,0.7)',
+              'display:inline-flex',
+              'align-items:center',
+              'justify-content:center',
+              'align-self:center',
+              'vertical-align:middle',
+              'cursor:pointer',
+              'padding:0',
+              'margin:0',
+              'transition:color 120ms ease',
+              'flex:0 0 auto',
+              'position:relative',
+              'pointer-events:auto'
+            ].join(';');
+            btn.addEventListener('mouseenter', function() {
+              btn.style.color = 'rgba(255,255,255,1)';
+            });
+            btn.addEventListener('mouseleave', function() {
+              btn.style.color = 'rgba(255,255,255,0.7)';
+            });
+            function fire(e) {
+              if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') {
+                  e.stopImmediatePropagation();
+                }
+              }
+              if (window.__bcu && typeof window.__bcu.emit === 'function') {
+                window.__bcu.emit('spotify.sidebar.toggle', { source: 'spotify-topbar' });
+              }
+            }
+            // Capture-phase pointerdown wins over Spotify's document-level handlers.
+            btn.addEventListener('pointerdown', fire, true);
+            btn.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }, true);
+            host.host.insertBefore(btn, host.anchor);
+            return true;
+          }
+
+          var pending = false;
+          function tick() {
+            try { hideInstall(); ensureSparkles(); } catch (e) { /* swallow */ }
+          }
+          function schedule() {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(function() { pending = false; tick(); });
+          }
+
+          tick();
+          var obs = new MutationObserver(schedule);
+          obs.observe(document.documentElement, { childList: true, subtree: true });
+          // Re-run every 2s as a safety net for SPA mutations the observer might miss.
+          setInterval(tick, 2000);
+        })();
+        """
+
+        let script = WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        webView.configuration.userContentController.addUserScript(script)
+    }
+
     private func enforceSingleInstance() -> Bool {
         let currentPID = ProcessInfo.processInfo.processIdentifier
         let siblings = NSRunningApplication.runningApplications(withBundleIdentifier: Self.bundleIdentifier)
@@ -434,11 +660,6 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
         }
     }
 
-    private func toggleSidebarFromMenuBar() {
-        codexController.recordPageEvent(type: "spotify.sidebar.toggle.native", payload: "native menu bar")
-        toggleSidebar()
-    }
-
     private func goBackFromMenuBar() {
         guard webView.canGoBack else {
             updateNavigationControls()
@@ -498,7 +719,7 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
             context.duration = 0.28
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             context.allowsImplicitAnimation = true
-            sidebarTrailingConstraint?.constant = 0
+            sidebarTrailingConstraint?.animator().constant = -sidebarRightMargin
             sidebar.animator().alphaValue = 1
             parent?.animator().layoutSubtreeIfNeeded()
         } completionHandler: { [weak self] in
@@ -520,7 +741,7 @@ final class SpotifyWebViewAppDelegate: NSObject, NSApplicationDelegate, NSWindow
             context.duration = 0.18
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             context.allowsImplicitAnimation = true
-            sidebarTrailingConstraint?.constant = sidebarWidth
+            sidebarTrailingConstraint?.animator().constant = sidebarWidth
             sidebar.animator().alphaValue = 0
             parent?.animator().layoutSubtreeIfNeeded()
         } completionHandler: { [weak self] in
