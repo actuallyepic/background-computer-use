@@ -162,6 +162,166 @@ struct Router {
                 }
             )
 
+        case (.post, "/v1/browser/create_window"):
+            return decodeAndExecute(
+                BrowserCreateWindowRequest.self,
+                routeID: .browserCreateWindow,
+                from: request,
+                work: { payload in
+                    try services.browserCreateWindow(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/list_targets"):
+            return decodeAndExecute(
+                BrowserListTargetsRequest.self,
+                routeID: .browserListTargets,
+                from: request,
+                work: { payload in
+                    try services.browserListTargets(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/get_state"):
+            return decodeAndExecute(
+                BrowserGetStateRequest.self,
+                routeID: .browserGetState,
+                from: request,
+                work: { payload in
+                    try services.browserGetState(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/navigate"):
+            return decodeAndExecute(
+                BrowserNavigateRequest.self,
+                routeID: .browserNavigate,
+                from: request,
+                work: { payload in
+                    try services.browserNavigate(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/evaluate_js"):
+            return decodeAndExecute(
+                BrowserEvaluateJavaScriptRequest.self,
+                routeID: .browserEvaluateJS,
+                from: request,
+                work: { payload in
+                    try services.browserEvaluateJavaScript(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/inject_js"):
+            return decodeAndExecute(
+                BrowserInjectJavaScriptRequest.self,
+                routeID: .browserInjectJS,
+                from: request,
+                work: { payload in
+                    try services.browserInjectJavaScript(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/remove_injected_js"):
+            return decodeAndExecute(
+                BrowserRemoveInjectedJavaScriptRequest.self,
+                routeID: .browserRemoveInjectedJS,
+                from: request,
+                work: { payload in
+                    try services.browserRemoveInjectedJavaScript(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/list_injected_js"):
+            return decodeAndExecute(
+                BrowserListInjectedJavaScriptRequest.self,
+                routeID: .browserListInjectedJS,
+                from: request,
+                work: { payload in
+                    try services.browserListInjectedJavaScript(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/click"):
+            return decodeAndExecute(
+                BrowserClickRequest.self,
+                routeID: .browserClick,
+                from: request,
+                work: { payload in
+                    try services.browserClick(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/type_text"):
+            return decodeAndExecute(
+                BrowserTypeTextRequest.self,
+                routeID: .browserTypeText,
+                from: request,
+                work: { payload in
+                    try services.browserTypeText(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/scroll"):
+            return decodeAndExecute(
+                BrowserScrollRequest.self,
+                routeID: .browserScroll,
+                from: request,
+                work: { payload in
+                    try services.browserScroll(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/reload"):
+            return decodeAndExecute(
+                BrowserReloadRequest.self,
+                routeID: .browserReload,
+                from: request,
+                work: { payload in
+                    try services.browserReload(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/close"):
+            return decodeAndExecute(
+                BrowserCloseRequest.self,
+                routeID: .browserClose,
+                from: request,
+                work: { payload in
+                    try services.browserClose(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/create_grid"):
+            return decodeAndExecute(
+                BrowserCreateGridRequest.self,
+                routeID: .browserCreateGrid,
+                from: request,
+                work: { payload in
+                    try services.browserCreateGrid(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/update_grid"):
+            return decodeAndExecute(
+                BrowserUpdateGridRequest.self,
+                routeID: .browserUpdateGrid,
+                from: request,
+                work: { payload in
+                    try services.browserUpdateGrid(payload)
+                }
+            )
+
+        case (.post, "/v1/browser/get_grid_state"):
+            return decodeAndExecute(
+                BrowserGetGridStateRequest.self,
+                routeID: .browserGetGridState,
+                from: request,
+                work: { payload in
+                    try services.browserGetGridState(payload)
+                }
+            )
+
         default:
             return .json(
                 ErrorResponse(
@@ -210,7 +370,8 @@ struct Router {
 
     private func isActionRoute(_ routeID: RouteID) -> Bool {
         switch routeID {
-        case .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue:
+        case .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue,
+             .browserClick, .browserTypeText, .browserScroll:
             return true
         default:
             return false
@@ -311,6 +472,9 @@ struct Router {
                 reasonPhrase: "Not Found"
             )
 
+        case let browserError as BrowserSurfaceError:
+            return browserErrorResponse(browserError, routeID: routeID)
+
         default:
             return .json(
                 ErrorResponse(
@@ -324,6 +488,81 @@ struct Router {
                 ),
                 statusCode: 500,
                 reasonPhrase: "Internal Server Error"
+            )
+        }
+    }
+
+    private func browserErrorResponse(_ error: BrowserSurfaceError, routeID: RouteID) -> HTTPResponse {
+        let requestID = UUID().uuidString
+        switch error {
+        case .targetNotFound:
+            return .json(
+                ErrorResponse(
+                    error: "browser_target_not_found",
+                    message: error.description,
+                    requestID: requestID,
+                    recovery: [
+                        "Call POST /v1/browser/list_targets and retry with a current owned browser tab or grid cell target ID.",
+                        "Use /v1/browser/get_grid_state for grid container targets."
+                    ]
+                ),
+                statusCode: 404,
+                reasonPhrase: "Not Found"
+            )
+        case .scriptNotFound:
+            return .json(
+                ErrorResponse(
+                    error: "browser_script_not_found",
+                    message: error.description,
+                    requestID: requestID,
+                    recovery: [
+                        "Call POST /v1/browser/list_injected_js for the target and retry with an installed scriptID."
+                    ]
+                ),
+                statusCode: 404,
+                reasonPhrase: "Not Found"
+            )
+        case .invalidURL, .invalidRequest, .targetAmbiguous:
+            return .json(
+                ErrorResponse(
+                    error: "browser_invalid_request",
+                    message: error.description,
+                    requestID: requestID,
+                    recovery: [
+                        "Compare the request body with GET /v1/routes for \(routeID.rawValue).",
+                        "Refresh browser state before retrying DOM-targeted actions."
+                    ]
+                ),
+                statusCode: 400,
+                reasonPhrase: "Bad Request"
+            )
+        case .timedOut:
+            return .json(
+                ErrorResponse(
+                    error: "browser_timeout",
+                    message: error.description,
+                    requestID: requestID,
+                    recovery: [
+                        "Retry with a larger timeoutMs or waitUntilLoaded=false if DOM state is sufficient.",
+                        "Check whether the page is waiting on network or user login."
+                    ]
+                ),
+                statusCode: 408,
+                reasonPhrase: "Request Timeout"
+            )
+        case .javascriptFailed:
+            return .json(
+                ErrorResponse(
+                    error: "browser_javascript_failed",
+                    message: error.description,
+                    requestID: requestID,
+                    recovery: [
+                        "Check the script against the page DOM and retry after refreshing browser state.",
+                        "Use browser/evaluate_js for a smaller probe before installing persistent scripts."
+                    ]
+                ),
+                statusCode: 422,
+                reasonPhrase: "Unprocessable Content"
             )
         }
     }

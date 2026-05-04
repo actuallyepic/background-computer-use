@@ -72,6 +72,105 @@ struct APIDocumentationTests {
     }
 
     @Test
+    func browserGridRoutesDocumentNestedResponseShape() throws {
+        let response = RouteListResponse(
+            contractVersion: ContractVersion.current,
+            guide: APIDocumentation.guide,
+            routes: RouteRegistry.publicRoutes()
+        )
+
+        let data = try JSONSupport.encoder.encode(response)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let routes = try #require(json["routes"] as? [[String: Any]])
+        let gridRoute = try #require(routes.first { $0["id"] as? String == RouteID.browserCreateGrid.rawValue })
+        let responseSchema = try #require(gridRoute["response"] as? [String: Any])
+        let fields = try #require(responseSchema["fields"] as? [[String: Any]])
+
+        #expect(fields.contains { $0["name"] as? String == "grid" })
+        #expect(!fields.contains { $0["name"] as? String == "targetID" })
+
+        let stateRoute = try #require(routes.first { $0["id"] as? String == RouteID.browserGetState.rawValue })
+        let requestSchema = try #require(stateRoute["request"] as? [String: Any])
+        let requestFields = try #require(requestSchema["fields"] as? [[String: Any]])
+        let browserField = try #require(requestFields.first { $0["name"] as? String == "browser" })
+        #expect((browserField["description"] as? String)?.contains("grid cell target ID") == true)
+    }
+
+    @Test
+    func browserRoutesDoNotAdvertiseFocusStealing() throws {
+        let routes = try routeCatalogJSON()
+
+        for routeID in [
+            RouteID.browserCreateWindow.rawValue,
+            RouteID.browserCreateGrid.rawValue
+        ] {
+            let route = try #require(routes.first { $0["id"] as? String == routeID })
+            let execution = try #require(route["execution"] as? [String: Any])
+            #expect(execution["focusStealPolicy"] as? String == "forbidden")
+
+            let request = try #require(route["request"] as? [String: Any])
+            let fields = try #require(request["fields"] as? [[String: Any]])
+            #expect(!fields.contains { $0["name"] as? String == "activate" })
+        }
+    }
+
+    @Test
+    func mutatingBrowserRoutesUseWindowWriteLanes() throws {
+        let routes = try routeCatalogJSON()
+        let expectedWriteRoutes = [
+            RouteID.browserCreateWindow.rawValue,
+            RouteID.browserNavigate.rawValue,
+            RouteID.browserEvaluateJS.rawValue,
+            RouteID.browserInjectJS.rawValue,
+            RouteID.browserRemoveInjectedJS.rawValue,
+            RouteID.browserClick.rawValue,
+            RouteID.browserTypeText.rawValue,
+            RouteID.browserScroll.rawValue,
+            RouteID.browserReload.rawValue,
+            RouteID.browserClose.rawValue,
+            RouteID.browserCreateGrid.rawValue,
+            RouteID.browserUpdateGrid.rawValue
+        ]
+
+        for routeID in expectedWriteRoutes {
+            let route = try #require(routes.first { $0["id"] as? String == routeID })
+            let execution = try #require(route["execution"] as? [String: Any])
+            #expect(execution["lane"] as? String == "window_write")
+        }
+
+        let getGridState = try #require(routes.first { $0["id"] as? String == RouteID.browserGetGridState.rawValue })
+        let request = try #require(getGridState["request"] as? [String: Any])
+        let fields = try #require(request["fields"] as? [[String: Any]])
+        let imageMode = try #require(fields.first { $0["name"] as? String == "imageMode" })
+        #expect(imageMode["defaultValue"] as? String == "omit")
+    }
+
+    @Test
+    func browserErrorsAreVersionedAndActionable() throws {
+        let request = try makeRequest(
+            method: "POST",
+            path: "/v1/browser/get_state",
+            body: #"{"browser":"missing-browser-target","imageMode":"omit"}"#
+        )
+
+        let response = Router().response(
+            for: request,
+            context: RouterContext(baseURL: nil, startedAt: nil)
+        )
+
+        #expect(response.statusCode == 404)
+
+        let json = try #require(JSONSerialization.jsonObject(with: response.body) as? [String: Any])
+        #expect(json["contractVersion"] as? String == ContractVersion.current)
+        #expect(json["ok"] as? Bool == false)
+        #expect(json["error"] as? String == "browser_target_not_found")
+        #expect((json["message"] as? String)?.contains("missing-browser-target") == true)
+
+        let recovery = try #require(json["recovery"] as? [String])
+        #expect(recovery.contains { $0.contains("/v1/browser/list_targets") })
+    }
+
+    @Test
     func invalidRequestErrorIsVersionedAndActionable() throws {
         let request = try makeRequest(
             method: "POST",
@@ -120,6 +219,17 @@ struct APIDocumentationTests {
             Issue.record("Request parser rejected the fixture as too large")
             throw TestRequestError.parseFailed
         }
+    }
+
+    private func routeCatalogJSON() throws -> [[String: Any]] {
+        let response = RouteListResponse(
+            contractVersion: ContractVersion.current,
+            guide: APIDocumentation.guide,
+            routes: RouteRegistry.publicRoutes()
+        )
+        let data = try JSONSupport.encoder.encode(response)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        return try #require(json["routes"] as? [[String: Any]])
     }
 }
 

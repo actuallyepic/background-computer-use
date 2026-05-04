@@ -191,6 +191,86 @@ enum APIDocumentation {
                 nextSteps: ["Use type_text instead when you need keystroke semantics, focus movement, autocomplete, or submission behavior."],
                 exampleRequest: #"{"window":"WINDOW_ID","stateToken":"STATE_TOKEN","target":{"kind":"display_index","value":4},"value":"hello","imageMode":"path"}"#
             )
+        case .browserCreateWindow:
+            return browserUsage(
+                whenToUse: "Create a BCU-owned browser target with a profile, visibility mode, optional URL, and optional screenshot mode.",
+                exampleRequest: #"{"url":"https://example.com","profileID":"default","visibility":"visible","imageMode":"omit"}"#
+            )
+        case .browserListTargets:
+            return browserUsage(
+                whenToUse: "List owned browser targets that can be used with browser/get_state and browser action routes.",
+                exampleRequest: #"{}"#
+            )
+        case .browserGetState:
+            return browserUsage(
+                whenToUse: "Read DOM state, interactable targets, geometry, stateToken, and optional screenshot evidence for a browser target.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","imageMode":"path","maxElements":500}"#
+            )
+        case .browserNavigate:
+            return browserUsage(
+                whenToUse: "Navigate a browser target and receive refreshed browser state after load settling.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","url":"https://example.com","waitUntilLoaded":true,"imageMode":"path"}"#
+            )
+        case .browserEvaluateJS:
+            return browserUsage(
+                whenToUse: "Evaluate JavaScript in an owned browser target and return a JSON-compatible result.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","javaScript":"document.title"}"#
+            )
+        case .browserInjectJS:
+            return browserUsage(
+                whenToUse: "Install a named JavaScript snippet into an owned browser target for the current page and future reloads.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","scriptID":"helper","javaScript":"window.__helper = true;","runAt":"document_idle"}"#
+            )
+        case .browserRemoveInjectedJS:
+            return browserUsage(
+                whenToUse: "Remove a named injected script from an owned browser target.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","scriptID":"helper"}"#
+            )
+        case .browserListInjectedJS:
+            return browserUsage(
+                whenToUse: "List injected scripts for one owned browser target, or all owned browser targets when browser is omitted.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID"}"#
+            )
+        case .browserClick:
+            return browserUsage(
+                whenToUse: "Click a DOM interactable from browser/get_state, or a browser viewport coordinate.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","stateToken":"STATE_TOKEN","target":{"kind":"display_index","value":1},"clickCount":1,"imageMode":"path"}"#
+            )
+        case .browserTypeText:
+            return browserUsage(
+                whenToUse: "Type text into a DOM target, or the first focused/editable browser element when target is omitted.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","stateToken":"STATE_TOKEN","target":{"kind":"display_index","value":2},"text":"hello","imageMode":"path"}"#
+            )
+        case .browserScroll:
+            return browserUsage(
+                whenToUse: "Scroll a browser target or a specific DOM target.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","stateToken":"STATE_TOKEN","direction":"down","pages":1,"imageMode":"path"}"#
+            )
+        case .browserReload:
+            return browserUsage(
+                whenToUse: "Reload an owned browser target and receive refreshed browser state after load settling.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID","waitUntilLoaded":true,"imageMode":"path"}"#
+            )
+        case .browserClose:
+            return browserUsage(
+                whenToUse: "Close an owned browser target. Grid containers close all child cells.",
+                exampleRequest: #"{"browser":"BROWSER_TARGET_ID"}"#
+            )
+        case .browserCreateGrid:
+            return browserUsage(
+                whenToUse: "Create a fixed owned browser grid container with live WKWebView cell targets.",
+                exampleRequest: #"{"title":"Dev Grid","profileID":"default","visibility":"visible","layout":{"kind":"grid","columns":2,"rows":1,"gap":8},"cells":[{"id":"app","url":"http://localhost:3000","profileID":"dev-local"},{"id":"docs","url":"https://developer.apple.com"}],"imageMode":"omit"}"#
+            )
+        case .browserUpdateGrid:
+            return browserUsage(
+                whenToUse: "Update fixed layout or navigate one or more cells in an owned browser grid by cell id.",
+                exampleRequest: #"{"grid":"GRID_TARGET_ID","layout":{"kind":"grid","columns":2,"rows":1,"gap":8},"cells":[{"id":"app","url":"http://localhost:5173"}]}"#
+            )
+        case .browserGetGridState:
+            return browserUsage(
+                whenToUse: "Read container layout, computed cell frames, cell target summaries, and optional screenshot evidence for an owned browser grid.",
+                exampleRequest: #"{"grid":"GRID_TARGET_ID","imageMode":"omit"}"#
+            )
         }
     }
 
@@ -251,6 +331,33 @@ enum APIDocumentation {
             )
         }
 
+        if routeIsBrowser(id) {
+            errors.append(
+                RouteErrorDTO(
+                    statusCode: 404,
+                    error: "browser_target_not_found",
+                    meaning: "The supplied browser, grid, or cell target no longer resolves to an owned browser surface.",
+                    recovery: ["Call browser/list_targets or browser/get_grid_state and retry with a current target ID."]
+                )
+            )
+            errors.append(
+                RouteErrorDTO(
+                    statusCode: 400,
+                    error: "browser_invalid_request",
+                    meaning: "The request decoded successfully but failed browser-specific validation or DOM target resolution.",
+                    recovery: ["Refresh browser/get_state and retry with a current DOM selector, browser_node_id, or display_index."]
+                )
+            )
+            errors.append(
+                RouteErrorDTO(
+                    statusCode: 408,
+                    error: "browser_timeout",
+                    meaning: "The browser surface did not finish the requested load, script, or readiness step before timeoutMs.",
+                    recovery: ["Retry with a larger timeoutMs or waitUntilLoaded=false when DOM state is sufficient."]
+                )
+            )
+        }
+
         errors.append(contentsOf: commonErrors())
         return errors
     }
@@ -271,6 +378,16 @@ enum APIDocumentation {
         )
     }
 
+    private static func browserUsage(whenToUse: String, exampleRequest: String) -> RouteUsageDTO {
+        usage(
+            whenToUse: whenToUse,
+            useAfter: ["Call /v1/bootstrap and /v1/routes first. Use browser target IDs from browser/create_window, browser/list_targets, or grid cell IDs from browser/create_grid or browser/get_grid_state. Use grid container IDs only with grid routes."],
+            successSignals: ["HTTP 200 with ok=true for effectful browser calls, or a response body whose warnings explain unsupported runtime internals."],
+            nextSteps: ["Use returned stateToken before browser action routes and refresh browser/get_state after meaningful UI changes."],
+            exampleRequest: exampleRequest
+        )
+    }
+
     private static func routeHasJSONBody(_ id: RouteID) -> Bool {
         switch id {
         case .health, .bootstrap, .routes:
@@ -282,7 +399,11 @@ enum APIDocumentation {
 
     private static func routeNeedsAccessibility(_ id: RouteID) -> Bool {
         switch id {
-        case .health, .bootstrap, .routes:
+        case .health, .bootstrap, .routes,
+             .browserCreateWindow, .browserListTargets, .browserGetState, .browserNavigate,
+             .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
+             .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
+             .browserCreateGrid, .browserUpdateGrid, .browserGetGridState:
             return false
         default:
             return true
@@ -293,7 +414,23 @@ enum APIDocumentation {
         switch id {
         case .getWindowState, .click, .scroll, .performSecondaryAction, .drag, .resize, .setWindowFrame, .typeText, .pressKey, .setValue:
             return true
-        case .health, .bootstrap, .routes, .listApps, .listWindows:
+        case .health, .bootstrap, .routes, .listApps, .listWindows,
+             .browserCreateWindow, .browserListTargets, .browserGetState, .browserNavigate,
+             .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
+             .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
+             .browserCreateGrid, .browserUpdateGrid, .browserGetGridState:
+            return false
+        }
+    }
+
+    private static func routeIsBrowser(_ id: RouteID) -> Bool {
+        switch id {
+        case .browserCreateWindow, .browserListTargets, .browserGetState, .browserNavigate,
+             .browserEvaluateJS, .browserInjectJS, .browserRemoveInjectedJS, .browserListInjectedJS,
+             .browserClick, .browserTypeText, .browserScroll, .browserReload, .browserClose,
+             .browserCreateGrid, .browserUpdateGrid, .browserGetGridState:
+            return true
+        default:
             return false
         }
     }

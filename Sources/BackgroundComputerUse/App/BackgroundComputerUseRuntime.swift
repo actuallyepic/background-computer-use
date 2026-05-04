@@ -27,6 +27,10 @@ public final class BackgroundComputerUseRuntime {
         services.permissions()
     }
 
+    public func routeCatalog() -> RouteListResponse {
+        services.routeCatalog()
+    }
+
     public func listApps() -> ListAppsResponse {
         services.listApps()
     }
@@ -73,5 +77,69 @@ public final class BackgroundComputerUseRuntime {
 
     public func setValue(_ request: SetValueRequest) throws -> SetValueResponse {
         try services.setValue(request)
+    }
+
+    public func browserCreateWindow(_ request: BrowserCreateWindowRequest) throws -> BrowserCreateWindowResponse {
+        try services.browserCreateWindow(request)
+    }
+
+    public func browserListTargets(_ request: BrowserListTargetsRequest) throws -> BrowserListTargetsResponse {
+        try services.browserListTargets(request)
+    }
+
+    public func browserGetState(_ request: BrowserGetStateRequest) throws -> BrowserGetStateResponse {
+        try services.browserGetState(request)
+    }
+
+    public func browserNavigate(_ request: BrowserNavigateRequest) throws -> BrowserGetStateResponse {
+        try services.browserNavigate(request)
+    }
+
+    public func browserEvaluateJavaScript(_ request: BrowserEvaluateJavaScriptRequest) throws -> BrowserEvaluateJavaScriptResponse {
+        try services.browserEvaluateJavaScript(request)
+    }
+
+    public func browserInjectJavaScript(_ request: BrowserInjectJavaScriptRequest) throws -> BrowserInjectJavaScriptResponse {
+        try services.browserInjectJavaScript(request)
+    }
+
+    public func browserRemoveInjectedJavaScript(_ request: BrowserRemoveInjectedJavaScriptRequest) throws -> BrowserRemoveInjectedJavaScriptResponse {
+        try services.browserRemoveInjectedJavaScript(request)
+    }
+
+    public func browserListInjectedJavaScript(_ request: BrowserListInjectedJavaScriptRequest) throws -> BrowserListInjectedJavaScriptResponse {
+        try services.browserListInjectedJavaScript(request)
+    }
+
+    public func browserClick(_ request: BrowserClickRequest) throws -> BrowserActionResponse {
+        try services.browserClick(request)
+    }
+
+    public func browserTypeText(_ request: BrowserTypeTextRequest) throws -> BrowserActionResponse {
+        try services.browserTypeText(request)
+    }
+
+    public func browserScroll(_ request: BrowserScrollRequest) throws -> BrowserActionResponse {
+        try services.browserScroll(request)
+    }
+
+    public func browserReload(_ request: BrowserReloadRequest) throws -> BrowserGetStateResponse {
+        try services.browserReload(request)
+    }
+
+    public func browserClose(_ request: BrowserCloseRequest) throws -> BrowserCloseResponse {
+        try services.browserClose(request)
+    }
+
+    public func browserCreateGrid(_ request: BrowserCreateGridRequest) throws -> BrowserCreateGridResponse {
+        try services.browserCreateGrid(request)
+    }
+
+    public func browserUpdateGrid(_ request: BrowserUpdateGridRequest) throws -> BrowserUpdateGridResponse {
+        try services.browserUpdateGrid(request)
+    }
+
+    public func browserGetGridState(_ request: BrowserGetGridStateRequest) throws -> BrowserGridStateResponse {
+        try services.browserGetGridState(request)
     }
 }

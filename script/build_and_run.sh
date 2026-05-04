@@ -113,7 +113,7 @@ open_app() {
   mkdir -p "$INSTALL_DIR"
   rm -rf "$INSTALLED_APP_BUNDLE"
   cp -R "$APP_BUNDLE" "$INSTALLED_APP_BUNDLE"
-  /usr/bin/open "$INSTALLED_APP_BUNDLE"
+  /usr/bin/open -g "$INSTALLED_APP_BUNDLE"
 }
 
 case "$MODE" in
