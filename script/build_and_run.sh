@@ -56,10 +56,19 @@ fi
 
 cd "$ROOT_DIR"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+if [ "$MODE" != "build" ]; then
+  pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+fi
 
-swift build --product "$APP_NAME"
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+SWIFT_BUILD_ARGS=(--product "$APP_NAME")
+SWIFT_BIN_PATH_ARGS=()
+if [ "${BACKGROUND_COMPUTER_USE_RELEASE_BUILD:-0}" = "1" ]; then
+  SWIFT_BUILD_ARGS=(--configuration release --arch arm64 --arch x86_64 --product "$APP_NAME")
+  SWIFT_BIN_PATH_ARGS=(--configuration release --arch arm64 --arch x86_64)
+fi
+
+swift build "${SWIFT_BUILD_ARGS[@]}"
+BUILD_BINARY="$(swift build "${SWIFT_BIN_PATH_ARGS[@]}" --show-bin-path)/$APP_NAME"
 
 mkdir -p "$APP_BUNDLE"
 rm -rf "$APP_CONTENTS"
@@ -117,6 +126,8 @@ open_app() {
 }
 
 case "$MODE" in
+  build)
+    ;;
   run)
     open_app
     ;;
@@ -129,7 +140,7 @@ case "$MODE" in
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   *)
-    echo "usage: $0 [run|--debug|--verify]" >&2
+    echo "usage: $0 [build|run|--debug|--verify]" >&2
     exit 2
     ;;
 esac

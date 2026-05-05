@@ -1,0 +1,4 @@
+interface:
+  display_name: "Background Computer Use"
+  short_description: "Run the local macOS Computer Use API."
+  default_prompt: "Use $background-computer-use to start or connect to BackgroundComputerUse, read bootstrap and routes, then complete the desktop task."
